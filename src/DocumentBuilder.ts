@@ -1,7 +1,7 @@
 import { Invoice } from './types';
 import { XMLBuilder } from 'fast-xml-parser';
 
-export default class InvoiceBuilder {
+export default class DocumentBuilder {
     private __xmlHeader = {
         '?xml': {
             ...this.__attributes({
@@ -16,12 +16,22 @@ export default class InvoiceBuilder {
         format: true,
     });
 
+    /***
+     * Generates a Peppol invoice from the given invoice data
+     * @param invoice The invoice data
+     * @returns The Peppol invoice XML document as a string
+     */
     public generatePeppolInvoice(invoice: Invoice): string {
-        console.log(this.__invoiceShell({}));
-        return this.__builder.build(this.__invoiceShell({}));
+        console.log(this.__buildInvoice(invoice));
+        return this.__builder.build(this.__buildInvoice(invoice));
     }
 
-    private __invoiceShell(invoiceData: any) {
+    /**
+     * Helper function to generate the invoice in Peppol format as an object
+     * @param invoice The invoice data
+     * @returns The the invoice in Peppol format as an object
+     */
+    private __buildInvoice(invoice: Invoice) {
         return {
             ...this.__xmlHeader,
             Invoice: {
@@ -37,6 +47,11 @@ export default class InvoiceBuilder {
         };
     }
 
+    /**
+     * Helper function to convert object keys to $prefixed attributes
+     * @param attributes Object containing attributes
+     * @returns Object with $prefixed attributes
+     */
     private __attributes(attributes: Record<string, any>) {
         return Object.fromEntries(
             Object.entries(attributes).map(([key, value]) => [`$${key}`, value])
