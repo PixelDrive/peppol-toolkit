@@ -18,7 +18,7 @@ describe('Invoices Builder', () => {
     it('should work with different invoice type codes', () => {
         const invoiceXML1 = toolkit.invoiceToPeppolUBL({
             ...basicInvoice,
-            invoiceTypeCode: 73,
+            invoiceTypeCode: 71,
         });
 
         const invoiceXML2 = toolkit.invoiceToPeppolUBL({
