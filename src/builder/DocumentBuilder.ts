@@ -1,5 +1,6 @@
-import { Invoice } from './types';
 import { XMLBuilder } from 'fast-xml-parser';
+import { builderOptions } from './builderOptions';
+import { Invoice } from '../documents';
 
 export default class DocumentBuilder {
     private __xmlHeader = {
@@ -10,11 +11,7 @@ export default class DocumentBuilder {
             }),
         },
     };
-    private __builder = new XMLBuilder({
-        attributeNamePrefix: '$',
-        ignoreAttributes: false,
-        format: true,
-    });
+    private __builder = new XMLBuilder(builderOptions);
 
     /***
      * Generates a Peppol invoice from the given invoice data
@@ -42,7 +39,16 @@ export default class DocumentBuilder {
                         'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2',
                     xmlns: 'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2',
                 }),
-                'cbc:ID': '1234567890',
+                'cbc:CustomizationID':
+                    'urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0',
+                'cbc:ProfileID': 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0',
+                'cbc:ID': 'Snippet1',
+                'cbc:IssueDate': '2017-11-13',
+                'cbc:DueDate': '2017-12-01',
+                'cbc:InvoiceTypeCode': invoice.invoiceTypeCode,
+                'cbc:DocumentCurrencyCode': invoice.documentCurrencyCode,
+                'cbc:AccountingCost': '4025:123:4343',
+                'cbc:BuyerReference': '0150abc',
             },
         };
     }
