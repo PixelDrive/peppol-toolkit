@@ -66,6 +66,22 @@ Factory function that creates a new instance of PeppolToolkit.
 
 ⚠️ **Early Development**: This project is currently in early development. The Invoice type definitions and full feature set are still being implemented. Contributions and feedback are welcome!
 
+## Roadmap
+
+- [ ] Initial invoice-to-UBL XML generation API
+- [ ] Define and export robust Invoice TypeScript types
+- [ ] Add input validation helpers
+- [ ] Support CreditNote documents
+- [ ] Implement UBL 2.1 schema validation (offline)
+- [ ] Implement PEPPOL BIS profile validation (offline)
+- [ ] Enable online validation against remote services
+- [ ] Support attachments/binary objects embedding (e.g., PDF)
+- [ ] CLI: Convert JSON invoices to UBL XML
+- [ ] Documentation: Examples and recipe-style guides
+- [ ] QA: Expand unit tests
+
+Last updated: 2025-09-29
+
 ## Development Scripts
 
 - `npm run build` - Build the library
