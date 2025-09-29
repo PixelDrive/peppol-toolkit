@@ -1,6 +1,12 @@
+import InvoiceBuilder from './InvoiceBuilder';
+import { Invoice } from './types';
+
 export class PeppolToolkit {
+    private __builder = new InvoiceBuilder();
 
-
+    public invoiceToPeppolUBL(invoice: Invoice) {
+        return this.__builder.generatePeppolInvoice(invoice);
+    }
 }
 
 export function createToolkit() {
@@ -11,4 +17,6 @@ export function createToolkit() {
 export default {
     PeppolToolkit,
     createToolkit,
-}
+};
+
+export * from './types';

@@ -39,16 +39,19 @@
     "format:check": "prettier --check ."
   },
   "devDependencies": {
+    "@eslint/js": "^9.29.0",
     "@types/node": "^24.5.2",
+    "eslint": "^9.32.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-sonarjs": "^3.0.4",
+    "eslint-plugin-turbo": "^2.5.5",
+    "prettier": "^3.3.3",
     "tsup": "^8.2.4",
     "typescript": "^5.5.3",
-    "vitest": "^2.0.5",
-    "eslint": "^9.32.0",
-    "@eslint/js": "^9.29.0",
-    "prettier": "^3.3.3",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-turbo": "^2.5.5",
-    "eslint-plugin-sonarjs": "^3.0.4",
-    "typescript-eslint": "^8.8.1"
+    "typescript-eslint": "^8.8.1",
+    "vitest": "^2.0.5"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^5.2.5"
   }
 }
