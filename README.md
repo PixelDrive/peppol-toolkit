@@ -1,52 +1,101 @@
-# @pixeldrive/netfly-sdk-js
+# @pixeldrive/peppol-toolkit
 
-Unofficial JavaScript/TypeScript SDK for interacting with the Netfly API. Ships with dual ESM and CommonJS builds and first-class TypeScript typings.
+A TypeScript toolkit for preparing and reading documents for e-invoicing and PEPPOL integration. This library helps you generate PEPPOL-compliant UBL XML invoices from structured data.
 
-Important: This project is an independent, community-maintained SDK. It is not affiliated with, endorsed by, or sponsored by Netfly. All product names, logos, and brands are property of their respective owners.
+PEPPOL (Pan-European Public Procurement On-Line) is a set of specifications that enables cross-border e-procurement in Europe and beyond. This toolkit simplifies the process of creating compliant electronic invoices.
 
 ## Features
 
-- ESM and CommonJS builds for broad compatibility
-- Written in TypeScript with bundled type definitions
-- Simple client factory to get started quickly
+- 🚀 Generate PEPPOL-compliant UBL XML invoices
+- 📦 ESM and CommonJS builds for broad compatibility
+- 🔷 Written in TypeScript with bundled type definitions
+- 🧪 Built with fast-xml-parser for reliable XML generation
+- ⚡ Simple API for quick integration
 
 ## Installation
 
-npm install @pixeldrive/netfly-sdk-js
-
-## Quick start
-
-- ESM
-
-```ts
-import { NetflyClient } from '@pixeldrive/netfly-sdk-js'
-
-const client = new NetflyClient({ baseUrl: 'https://api.netfly.example', apiKey: 'YOUR_API_KEY' })
+```bash
+npm install @pixeldrive/peppol-toolkit
 ```
 
+## Quick Start
 
-- CommonJS
-```ts
-const { NetflyClient } = require('@pixeldrive/netfly-sdk-js')
+### ESM
 
-const client = new NetflyClient({ baseUrl: 'https://api.netfly.example', apiKey: 'YOUR_API_KEY' })
+```typescript
+import { PeppolToolkit, createToolkit } from '@pixeldrive/peppol-toolkit';
+
+// Using the class directly
+const toolkit = new PeppolToolkit();
+
+// Or using the factory function
+// const toolkit = createToolkit();
+
+// Generate PEPPOL UBL XML from invoice data
+const invoiceData = {};
+const peppolXML = toolkit.invoiceToPeppolUBL(invoiceData);
+console.log(peppolXML);
 ```
 
+### CommonJS
 
-## Scripts
+```javascript
+const { PeppolToolkit, createToolkit } = require('@pixeldrive/peppol-toolkit');
 
-- Build: npm run build
-- Dev (watch): npm run dev
-- Test: npm run test
+const toolkit = new PeppolToolkit();
+const peppolXML = toolkit.invoiceToPeppolUBL({});
+```
+
+## API Reference
+
+### PeppolToolkit
+
+The main class that provides invoice conversion functionality.
+
+#### Methods
+
+- `invoiceToPeppolUBL(invoice: Invoice): string`
+  - Converts an invoice object to PEPPOL-compliant UBL XML
+  - Returns: XML string formatted for PEPPOL compliance
+
+### createToolkit()
+
+Factory function that creates a new instance of PeppolToolkit.
+
+## Development Status
+
+⚠️ **Early Development**: This project is currently in early development. The Invoice type definitions and full feature set are still being implemented. Contributions and feedback are welcome!
+
+## Development Scripts
+
+- `npm run build` - Build the library
+- `npm run dev` - Build in watch mode for development
+- `npm run test` - Run tests
+- `npm run lint` - Lint the codebase
+- `npm run format` - Format code with Prettier
 
 ## Requirements
 
 - Node.js 18+ recommended
 - Works in TypeScript and JavaScript projects
 
+## About PEPPOL
+
+PEPPOL is an international standard for electronic document exchange, particularly for invoicing and procurement. It ensures that electronic documents can be exchanged seamlessly between different systems across borders.
+
+This toolkit helps you:
+- Generate UBL (Universal Business Language) XML invoices
+- Ensure PEPPOL compliance for cross-border transactions
+- Integrate e-invoicing capabilities into your applications
+
 ## Contributing
 
-Contributions are welcome! Please open an issue or PR with your proposal.
+Contributions are welcome! This project is in active development and we're looking for contributors to help build out the full feature set.
+
+Please feel free to:
+- Open issues for bugs or feature requests
+- Submit pull requests with improvements
+- Help with documentation and examples
 
 ## License
 
@@ -54,4 +103,4 @@ MIT
 
 ## Disclaimer
 
-This software is provided "as is" without warranty of any kind. This project is not affiliated with Netfly. Use at your own risk.
+This software is provided "as is" without warranty of any kind. Please ensure compliance with your local regulations and PEPPOL requirements when using this toolkit in production.
