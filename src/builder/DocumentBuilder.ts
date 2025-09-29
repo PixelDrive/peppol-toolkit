@@ -1,11 +1,13 @@
 import { XMLBuilder } from 'fast-xml-parser';
 import { builderOptions } from './builderOptions';
 import { Invoice } from '../documents';
+import XMLAttributes from '../helpers/XMLAttributes';
+import getDateString from '../helpers/getDateString';
 
 export default class DocumentBuilder {
     private __xmlHeader = {
         '?xml': {
-            ...this.__attributes({
+            ...XMLAttributes({
                 version: '1.0',
                 encoding: 'UTF-8',
             }),
@@ -32,7 +34,7 @@ export default class DocumentBuilder {
         return {
             ...this.__xmlHeader,
             Invoice: {
-                ...this.__attributes({
+                ...XMLAttributes({
                     'xmlns:cac':
                         'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
                     'xmlns:cbc':
@@ -43,24 +45,13 @@ export default class DocumentBuilder {
                     'urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0',
                 'cbc:ProfileID': 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0',
                 'cbc:ID': 'Snippet1',
-                'cbc:IssueDate': '2017-11-13',
-                'cbc:DueDate': '2017-12-01',
+                'cbc:IssueDate': getDateString(invoice.issueDate),
+                'cbc:DueDate': invoice.dueDate
+                    ? getDateString(invoice.dueDate)
+                    : undefined,
                 'cbc:InvoiceTypeCode': invoice.invoiceTypeCode,
                 'cbc:DocumentCurrencyCode': invoice.documentCurrencyCode,
-                'cbc:AccountingCost': '4025:123:4343',
-                'cbc:BuyerReference': '0150abc',
             },
         };
-    }
-
-    /**
-     * Helper function to convert object keys to $prefixed attributes
-     * @param attributes Object containing attributes
-     * @returns Object with $prefixed attributes
-     */
-    private __attributes(attributes: Record<string, any>) {
-        return Object.fromEntries(
-            Object.entries(attributes).map(([key, value]) => [`$${key}`, value])
-        );
     }
 }
