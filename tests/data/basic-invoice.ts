@@ -6,4 +6,5 @@ export const basicInvoice = {
     dueDate: '2024-01-31',
     invoiceTypeCode: 383,
     documentCurrencyCode: 'EUR',
+
 } satisfies Invoice;
