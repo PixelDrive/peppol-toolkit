@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CountryCodeSchema } from './CountryCodes';
 
 export const addressSchema = z.object({
     streetName: z.string().optional(),
@@ -8,6 +9,6 @@ export const addressSchema = z.object({
     countrySubentity: z.string().optional(),
     addressLine: z.string().optional(),
     country: z.object({
-        identificationCode: z.string().length(2), // Code pays ISO 3166-1
+        identificationCode: CountryCodeSchema,
     }),
 });

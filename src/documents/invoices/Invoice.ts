@@ -1,23 +1,13 @@
 import { InvoiceTypeCodeSchema } from './InvoiceTypeCodes';
 import { CurrencyCodeSchema } from './CurrencyCodes';
 import { z } from 'zod';
-import { EASCodeSchema } from '../common';
 
 const date = z.union([z.string(), z.date()]);
 
-const invoicePeriod = z.object({
+const invoicePeriodSchema = z.object({
     startDate: date.optional(),
     endDate: date.optional(),
     descriptionCode: z.enum(['3', '35', '432']),
-});
-
-export const partySchema = z.object({
-    endPoint: z.object({
-        scheme: EASCodeSchema,
-        id: z.string().min(1),
-    }),
-    identification: z.string().min(1).optional(),
-    name: z.string().min(1).optional(),
 });
 
 export const invoiceSchema = z.object({
@@ -31,7 +21,7 @@ export const invoiceSchema = z.object({
     taxCurrencyCode: CurrencyCodeSchema.optional(),
     accountingCost: z.string().optional(),
     buyerReference: z.string().optional(),
-    invoicePeriod: invoicePeriod.optional(),
+    invoicePeriod: invoicePeriodSchema.optional(),
 });
 
 export type Invoice = z.infer<typeof invoiceSchema>;
