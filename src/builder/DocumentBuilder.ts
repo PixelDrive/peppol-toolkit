@@ -101,6 +101,26 @@ export class DocumentBuilder {
                     },
                 },
 
+                'cac:PartyTaxScheme': {
+                    'cbc:CompanyID': party.taxSchemeCompanyID,
+                    'cac:TaxScheme': {
+                        'cbc:ID': 'VAT',
+                    },
+                },
+                'cac:PartyLegalEntity': {
+                    'cbc:RegistrationName': party.legalEntity.registrationName,
+                    ...(party.legalEntity.companyId
+                        ? {
+                              'cbc:CompanyID': party.legalEntity.companyId,
+                          }
+                        : {}),
+                    ...(party.legalEntity.legalForm
+                        ? {
+                              'cbc:CompanyLegalForm':
+                                  party.legalEntity.legalForm,
+                          }
+                        : {}),
+                },
                 ...(party.contact
                     ? {
                           'cac:Contact': {
@@ -110,26 +130,6 @@ export class DocumentBuilder {
                           },
                       }
                     : {}),
-                'cac:PartyLegalEntity': {
-                    'cbc:RegistrationName': party.legalEntity.registrationName,
-                    ...(party.legalEntity.legalForm
-                        ? {
-                              'cbc:CompanyLegalForm':
-                                  party.legalEntity.legalForm,
-                          }
-                        : {}),
-                    ...(party.legalEntity.companyId
-                        ? {
-                              'cbc:CompanyID': party.legalEntity.companyId,
-                          }
-                        : {}),
-                },
-                'cac:PartyTaxScheme': {
-                    'cbc:CompanyID': party.taxSchemeCompanyID,
-                    'cac:TaxScheme': {
-                        'cbc:ID': 'VAT',
-                    },
-                },
             },
         };
     }
