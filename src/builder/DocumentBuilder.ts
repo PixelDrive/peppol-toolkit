@@ -87,7 +87,49 @@ export class DocumentBuilder {
                           ),
                       }
                     : {}),
-                ...(party.name ? { 'cac:PartyName': party.name } : {}),
+                ...(party.name
+                    ? { 'cac:PartyName': { 'cbc:Name': party.name } }
+                    : {}),
+                'cac:PostalAddress': {
+                    'cbc:StreetName': party.address.streetName,
+                    'cbc:AdditionalStreetName':
+                        party.address.additionalStreetName,
+                    'cbc:CityName': party.address.cityName,
+                    'cbc:PostalZone': party.address.postalZone,
+                    'cac:Country': {
+                        'cbc:IdentificationCode': party.address.country,
+                    },
+                },
+
+                ...(party.contact
+                    ? {
+                          'cac:Contact': {
+                              'cbc:Name': party.contact.name,
+                              'cbc:Telephone': party.contact.phone,
+                              'cbc:ElectronicMail': party.contact.email,
+                          },
+                      }
+                    : {}),
+                'cac:PartyLegalEntity': {
+                    'cbc:RegistrationName': party.legalEntity.registrationName,
+                    ...(party.legalEntity.legalForm
+                        ? {
+                              'cbc:CompanyLegalForm':
+                                  party.legalEntity.legalForm,
+                          }
+                        : {}),
+                    ...(party.legalEntity.companyId
+                        ? {
+                              'cbc:CompanyID': party.legalEntity.companyId,
+                          }
+                        : {}),
+                },
+                'cac:PartyTaxScheme': {
+                    'cbc:CompanyID': party.taxSchemeCompanyID,
+                    'cac:TaxScheme': {
+                        'cbc:ID': 'VAT',
+                    },
+                },
             },
         };
     }
