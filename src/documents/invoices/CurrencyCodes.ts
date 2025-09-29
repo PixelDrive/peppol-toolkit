@@ -3,6 +3,8 @@
  * @see https://www.iso.org/iso-4217-currency-codes.html
  * @see https://docs.peppol.eu/poacc/billing/3.0/codelist/ISO4217/
  */
+import { z } from 'zod';
+
 export const CurrencyCodes = {
     AED: 'UAE Dirham',
     AFN: 'Afghani',
@@ -202,3 +204,7 @@ export function getCurrencyDescription(code: CurrencyCode): string {
 export function isValidCurrencyCode(code: string): code is CurrencyCode {
     return code in CurrencyCodes;
 }
+
+// Zod schema for currency codes
+const currencyCodeKeys = Object.keys(CurrencyCodes) as unknown as [CurrencyCode, ...CurrencyCode[]];
+export const CurrencyCodeSchema = z.enum(currencyCodeKeys);

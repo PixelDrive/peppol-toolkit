@@ -1,12 +1,17 @@
-import { InvoiceTypeCode } from './InvoiceTypeCodes';
-import { CurrencyCode } from './CurrencyCodes';
+import { InvoiceTypeCodeSchema } from './InvoiceTypeCodes';
+import { CurrencyCodeSchema } from './CurrencyCodes';
+import { z } from 'zod';
 
-export type Invoice = {
-    ID: string;
-    issueDate: Date | string;
-    dueDate?: Date | string;
-    invoiceTypeCode: InvoiceTypeCode;
-    note?: string;
-    taxPointDate?: Date | string;
-    documentCurrencyCode: CurrencyCode;
-};
+const date = z.union([z.string(), z.date()]);
+
+export const invoiceSchema = z.object({
+    ID: z.string().min(1),
+    issueDate: date,
+    dueDate: date.optional(),
+    invoiceTypeCode: InvoiceTypeCodeSchema,
+    note: z.string().optional(),
+    taxPointDate: date.optional(),
+    documentCurrencyCode: CurrencyCodeSchema,
+});
+
+export type Invoice = z.infer<typeof invoiceSchema>;

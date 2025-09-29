@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 /**
  * Invoice type codes as defined by the EU
  * @see https://docs.peppol.eu/poacc/billing/3.0/codelist/UNCL1001-inv/
@@ -50,3 +52,9 @@ export function getInvoiceTypeCodeDescription(code: InvoiceTypeCode): string {
 export function isValidInvoiceTypeCode(code: number): code is InvoiceTypeCode {
     return code in InvoiceTypeCodes;
 }
+
+// Zod schema for invoice type codes (numeric codes)
+export const InvoiceTypeCodeSchema = z
+    .number()
+    .int()
+    .refine((code) => isValidInvoiceTypeCode(code), { message: 'Invalid InvoiceTypeCode' });
