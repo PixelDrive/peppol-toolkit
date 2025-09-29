@@ -55,8 +55,8 @@ The main class that provides invoice conversion functionality.
 #### Methods
 
 - `invoiceToPeppolUBL(invoice: Invoice): string`
-  - Converts an invoice object to PEPPOL-compliant UBL XML
-  - Returns: XML string formatted for PEPPOL compliance
+    - Converts an invoice object to PEPPOL-compliant UBL XML
+    - Returns: XML string formatted for PEPPOL compliance
 
 ### createToolkit()
 
@@ -84,6 +84,7 @@ Factory function that creates a new instance of PeppolToolkit.
 PEPPOL is an international standard for electronic document exchange, particularly for invoicing and procurement. It ensures that electronic documents can be exchanged seamlessly between different systems across borders.
 
 This toolkit helps you:
+
 - Generate UBL (Universal Business Language) XML invoices
 - Ensure PEPPOL compliance for cross-border transactions
 - Integrate e-invoicing capabilities into your applications
@@ -93,6 +94,7 @@ This toolkit helps you:
 Contributions are welcome! This project is in active development and we're looking for contributors to help build out the full feature set.
 
 Please feel free to:
+
 - Open issues for bugs or feature requests
 - Submit pull requests with improvements
 - Help with documentation and examples

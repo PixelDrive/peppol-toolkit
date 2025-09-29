@@ -4,7 +4,7 @@ import turboPlugin from 'eslint-plugin-turbo';
 import sonarjs from 'eslint-plugin-sonarjs';
 import tseslint from 'typescript-eslint';
 
-const eslintConfig =  [
+const eslintConfig = [
     js.configs.recommended,
     eslintConfigPrettier,
     ...tseslint.configs.recommended,
