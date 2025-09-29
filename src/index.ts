@@ -1,5 +1,5 @@
-import DocumentBuilder from './builder/DocumentBuilder';
 import { Invoice } from './documents';
+import { DocumentBuilder } from './builder';
 
 export class PeppolToolkit {
     private __builder = new DocumentBuilder();
@@ -20,3 +20,4 @@ export default {
 };
 
 export * from './documents';
+export * from './builder';

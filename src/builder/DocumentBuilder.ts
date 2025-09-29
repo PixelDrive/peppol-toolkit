@@ -5,7 +5,7 @@ import XMLAttributes from '../helpers/XMLAttributes';
 import getDateString from '../helpers/getDateString';
 import { z } from 'zod';
 
-export default class DocumentBuilder {
+export class DocumentBuilder {
     private __xmlHeader = {
         '?xml': {
             ...XMLAttributes({
