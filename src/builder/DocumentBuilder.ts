@@ -1,8 +1,9 @@
 import { XMLBuilder } from 'fast-xml-parser';
 import { builderOptions } from './builderOptions';
-import { Invoice } from '../documents';
+import { Invoice, partySchema } from '../documents';
 import XMLAttributes from '../helpers/XMLAttributes';
 import getDateString from '../helpers/getDateString';
+import { z } from 'zod';
 
 export default class DocumentBuilder {
     private __xmlHeader = {
@@ -21,7 +22,6 @@ export default class DocumentBuilder {
      * @returns The Peppol invoice XML document as a string
      */
     public generatePeppolInvoice(invoice: Invoice): string {
-        console.log(this.__buildInvoice(invoice));
         return this.__builder.build(this.__buildInvoice(invoice));
     }
 
@@ -44,13 +44,50 @@ export default class DocumentBuilder {
                 'cbc:CustomizationID':
                     'urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0',
                 'cbc:ProfileID': 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0',
-                'cbc:ID': 'Snippet1',
+                'cbc:ID': invoice.ID,
                 'cbc:IssueDate': getDateString(invoice.issueDate),
                 'cbc:DueDate': invoice.dueDate
                     ? getDateString(invoice.dueDate)
                     : undefined,
                 'cbc:InvoiceTypeCode': invoice.invoiceTypeCode,
                 'cbc:DocumentCurrencyCode': invoice.documentCurrencyCode,
+                'cac:AccountingSupplierParty': this.__buildParty(
+                    invoice.seller
+                ),
+                'cac:AccountingCustomerParty': this.__buildParty(invoice.buyer),
+            },
+        };
+    }
+
+    /**
+     * Helper function to build a party object
+     * @param party The party data
+     * @returns The party object
+     */
+    private __buildParty(party: z.infer<typeof partySchema>) {
+        return {
+            'cac:Party': {
+                'cbc:EndpointID': {
+                    '#text': party.endPoint.id,
+                    ...XMLAttributes({
+                        schemeID: party.endPoint.scheme,
+                    }),
+                },
+                ...(party.identification && party.identification.length > 0
+                    ? {
+                          'cac:PartyIdentification': party.identification.map(
+                              (id) => ({
+                                  'cbc:ID': {
+                                      '#text': id.id,
+                                      ...XMLAttributes({
+                                          schemeID: id.scheme,
+                                      }),
+                                  },
+                              })
+                          ),
+                      }
+                    : {}),
+                ...(party.name ? { 'cac:PartyName': party.name } : {}),
             },
         };
     }

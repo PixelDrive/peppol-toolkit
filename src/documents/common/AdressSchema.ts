@@ -8,7 +8,5 @@ export const addressSchema = z.object({
     postalZone: z.string().optional(),
     countrySubentity: z.string().optional(),
     addressLine: z.string().optional(),
-    country: z.object({
-        identificationCode: CountryCodeSchema,
-    }),
+    country: CountryCodeSchema,
 });

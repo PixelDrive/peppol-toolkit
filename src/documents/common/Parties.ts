@@ -8,7 +8,13 @@ export const partySchema = z.object({
         scheme: EASCodeSchema,
         id: z.string().min(1),
     }),
-    identification: z.string().min(1).optional(),
+    identification: z
+        .object({
+            scheme: EASCodeSchema.optional(),
+            id: z.string().min(1),
+        })
+        .array()
+        .optional(),
     name: z.string().min(1).optional(),
     address: addressSchema,
     taxSchemeCompanyID: z.string().min(1).optional(),
