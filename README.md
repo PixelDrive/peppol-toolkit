@@ -66,6 +66,10 @@ Factory function that creates a new instance of PeppolToolkit.
 
 ⚠️ **Early Development**: This project is currently in early development. The Invoice type definitions and full feature set are still being implemented. Contributions and feedback are welcome!
 
+## Versioning
+
+Starting from version 1.0.0, this library will follow [Semantic Versioning (SemVer)](https://semver.org/). Until then, breaking changes may occur in minor and patch releases as the API is still being stabilized.
+
 ## Roadmap
 
 - [ ] Initial invoice-to-UBL XML generation API
