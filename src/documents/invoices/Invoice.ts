@@ -28,6 +28,10 @@ export const invoiceSchema = z.object({
     buyer: partySchema,
 
     paymentMeans: paymentMeansSchema.array().optional(),
+    paymentTermsNote: z
+        .string()
+        .optional()
+        .describe('Payment terms that apply (including penalties)'),
 });
 
 export type Invoice = z.infer<typeof invoiceSchema>;

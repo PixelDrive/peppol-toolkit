@@ -61,4 +61,7 @@ export const basicInvoice = {
             },
         },
     ],
+
+    paymentTermsNote:
+        "Toute facture non payée à l'échéance sera majorée de 15%",
 } satisfies Invoice;

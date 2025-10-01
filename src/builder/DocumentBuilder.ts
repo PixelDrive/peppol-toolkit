@@ -58,6 +58,13 @@ export class DocumentBuilder {
                 'cac:PaymentMeans': this.__buildPaymentMeans(
                     invoice.paymentMeans
                 ),
+                ...(invoice.paymentTermsNote
+                    ? {
+                          'cac:PaymentTerms': {
+                              'cbc:Note': invoice.paymentTermsNote,
+                          },
+                      }
+                    : {}),
             },
         };
     }
