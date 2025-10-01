@@ -1,6 +1,6 @@
 {
     "name": "@pixeldrive/peppol-toolkit",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "description": "A TypeScript toolkit for building and reading peppol UBL documents",
     "keywords": [
         "typescript",
