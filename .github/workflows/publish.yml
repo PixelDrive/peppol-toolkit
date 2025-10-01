@@ -5,6 +5,10 @@ on:
     branches:
       - main
 
+permissions:
+  id-token: write  # Required for OIDC
+  contents: read
+
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -18,9 +22,6 @@ jobs:
         with:
           node-version: 20
           registry-url: https://registry.npmjs.org/
-
-      - name: Install dependencies
-        run: npm ci
 
       - name: Get current package version
         id: pkg
@@ -43,8 +44,12 @@ jobs:
             echo "changed=true" >> $GITHUB_OUTPUT
           fi
 
+      - name: Install dependencies and build
+        if: steps.check.outputs.changed == 'true'
+        run: npm install -g npm@latest
+      - run: npm ci
+      - run: npm run build
+
       - name: Publish to npm
         if: steps.check.outputs.changed == 'true'
         run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
