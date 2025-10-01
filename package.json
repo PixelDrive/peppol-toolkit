@@ -1,7 +1,7 @@
 {
     "name": "@pixeldrive/peppol-toolkit",
-    "version": "0.1.0",
-    "description": "Unofficial SDK for Netfly API in TypeScript with ESM and CJS support",
+    "version": "0.1.1",
+    "description": "A TypeScript toolkit for building and reading peppol UBL documents",
     "keywords": [
         "typescript",
         "peppol",
