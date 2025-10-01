@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { PeppolToolkit } from '../src';
 import { basicInvoice } from './data/basic-invoice';
+import { Schema } from 'node-schematron';
 
-describe('Invoices Builder', () => {
+describe('InvoicesBuilder', () => {
     let toolkit = new PeppolToolkit();
 
     beforeEach(() => {
@@ -44,5 +45,20 @@ describe('Invoices Builder', () => {
         expect(invoiceXML).toContain(
             '<cbc:DocumentCurrencyCode>USD</cbc:DocumentCurrencyCode>'
         );
+    });
+
+    it('should generate a valid UBL invoice', async () => {
+        const response = await fetch(
+            'https://docs.peppol.eu/poacc/billing/3.0/files/PEPPOL-EN16931-UBL.sch'
+        );
+        const data = await response.text();
+
+        const schema = Schema.fromString(data);
+        const results = schema.validateString(
+            toolkit.invoiceToPeppolUBL(basicInvoice),
+            { debug: true }
+        );
+        console.info(results);
+        expect(results.length).toBe(0);
     });
 });

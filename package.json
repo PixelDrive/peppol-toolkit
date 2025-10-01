@@ -33,7 +33,7 @@
     "scripts": {
         "build": "tsup src/index.ts --format esm,cjs --dts --clean",
         "dev": "tsup src/index.ts --format esm,cjs --dts --watch",
-        "test": "npm run build && vitest run",
+        "test": "npm run build && vitest run --config vitest.config.ts",
         "lint": "eslint .",
         "format": "prettier --write .",
         "format:check": "prettier --check ."
@@ -45,10 +45,12 @@
         "eslint-config-prettier": "^9.1.0",
         "eslint-plugin-sonarjs": "^3.0.4",
         "eslint-plugin-turbo": "^2.5.5",
+        "node-schematron": "^2.1.0",
         "prettier": "^3.3.3",
         "tsup": "^8.2.4",
         "typescript": "^5.5.3",
         "typescript-eslint": "^8.8.1",
+        "vite": "^5.4.20",
         "vitest": "^2.0.5"
     },
     "dependencies": {

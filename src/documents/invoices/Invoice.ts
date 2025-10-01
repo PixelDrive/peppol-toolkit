@@ -1,7 +1,7 @@
 import { InvoiceTypeCodeSchema } from './InvoiceTypeCodes';
-import { CurrencyCodeSchema } from './CurrencyCodes';
 import { z } from 'zod';
-import { partySchema } from '../common';
+import { CurrencyCodeSchema, partySchema } from '../common';
+import { paymentMeansSchema } from '../common/PaymentMeans';
 
 const date = z.union([z.string(), z.date()]);
 
@@ -26,6 +26,8 @@ export const invoiceSchema = z.object({
 
     seller: partySchema,
     buyer: partySchema,
+
+    paymentMeans: paymentMeansSchema.array().optional(),
 });
 
 export type Invoice = z.infer<typeof invoiceSchema>;
