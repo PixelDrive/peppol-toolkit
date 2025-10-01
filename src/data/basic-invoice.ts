@@ -48,4 +48,17 @@ export const basicInvoice = {
             },
         ],
     },
+
+    paymentMeans: [
+        {
+            paymentId: '20250008',
+            name: 'Nom de la banque ou du moyen de payement',
+            code: '30',
+            financialAccount: {
+                financialInstitutionBranch: 'GEGBA',
+                name: 'Simon Loir',
+                id: 'BE11 0001 4455 6666 7894',
+            },
+        },
+    ],
 } satisfies Invoice;

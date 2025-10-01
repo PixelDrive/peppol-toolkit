@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { PeppolToolkit } from '../src';
-import { basicInvoice } from './data/basic-invoice';
 import { Schema } from 'node-schematron';
+import { basicInvoice } from '../src/data/basic-invoice';
 
 describe('InvoicesBuilder', () => {
     let toolkit = new PeppolToolkit();

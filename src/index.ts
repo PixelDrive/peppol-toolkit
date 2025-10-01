@@ -21,3 +21,4 @@ export default {
 
 export * from './documents';
 export * from './builder';
+export { basicInvoice as exempleInvoice } from './data/basic-invoice';

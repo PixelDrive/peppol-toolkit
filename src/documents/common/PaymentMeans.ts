@@ -9,4 +9,5 @@ export const paymentMeansSchema = z.object({
     financialAccount: financialAccountSchema
         .optional()
         .describe('Credit transfer informations such as IBAN, BIC'),
+    //TODO: add cardAccount and paymentMandate
 });

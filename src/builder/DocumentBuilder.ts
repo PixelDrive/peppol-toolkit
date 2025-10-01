@@ -55,6 +55,9 @@ export class DocumentBuilder {
                     invoice.seller
                 ),
                 'cac:AccountingCustomerParty': this.__buildParty(invoice.buyer),
+                'cac:PaymentMeans': this.__buildPaymentMeans(
+                    invoice.paymentMeans
+                ),
             },
         };
     }
@@ -132,5 +135,30 @@ export class DocumentBuilder {
                     : {}),
             },
         };
+    }
+
+    private __buildPaymentMeans(means: Invoice['paymentMeans']) {
+        return means?.map((m) => {
+            const financialAccount = m.financialAccount;
+            return {
+                'cbc:PaymentMeansCode': m.code,
+                'cbc:PaymentID': m.paymentId,
+                ...(financialAccount
+                    ? {
+                          'cac:PayeeFinancialAccount': {
+                              'cbc:ID': financialAccount.id,
+                              'cbc:Name': financialAccount.name,
+                              'cac:FinancialInstitutionBranch':
+                                  financialAccount.financialInstitutionBranch
+                                      ? {
+                                            'cbc:ID':
+                                                financialAccount.financialInstitutionBranch,
+                                        }
+                                      : undefined,
+                          },
+                      }
+                    : {}),
+            };
+        });
     }
 }
