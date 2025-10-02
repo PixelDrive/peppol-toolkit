@@ -65,6 +65,7 @@ export class DocumentBuilder {
                           },
                       }
                     : {}),
+                'cac:TaxTotal': this.__buildTaxTotal(invoice.taxTotal),
             },
         };
     }
@@ -165,6 +166,46 @@ export class DocumentBuilder {
                           },
                       }
                     : {}),
+            };
+        });
+    }
+
+    private __buildTaxTotal(total: Invoice['taxTotal']) {
+        return total.map((t) => {
+            return {
+                'cbc:TaxAmount': {
+                    '#text': t.taxAmount.toFixed(2),
+                    ...XMLAttributes({
+                        currencyID: t.taxAmountCurrency,
+                    }),
+                },
+                'cac:TaxSubtotal': t.subTotals.map((st) => ({
+                    'cbc:TaxableAmount': {
+                        '#text': st.taxableAmount.toFixed(2),
+                        ...XMLAttributes({
+                            currencyID:
+                                st.taxableAmountCurrency || t.taxAmountCurrency,
+                        }),
+                    },
+                    'cbc:TaxAmount': {
+                        '#text': st.taxAmount.toFixed(2),
+                        ...XMLAttributes({
+                            currencyID:
+                                st.taxAmountCurrency || t.taxAmountCurrency,
+                        }),
+                    },
+                    'cac:TaxCategory': {
+                        'cbc:ID': st.taxCategory.categoryCode,
+                        'cbc:Percent': st.taxCategory.percent?.toFixed(2),
+                        'cbc:TaxExemptionReason':
+                            st.taxCategory.exemptionReason,
+                        'cbc:TaxExemptionReasonCode':
+                            st.taxCategory.exemptionReasonCode,
+                        'cac:TaxScheme': {
+                            'cbc:ID': 'VAT',
+                        },
+                    },
+                })),
             };
         });
     }

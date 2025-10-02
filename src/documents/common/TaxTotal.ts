@@ -5,7 +5,6 @@ import { taxCategorySchema } from './TaxCategory';
 export const taxSubtotalSchema = z.object({
     taxableAmount: z.number().min(0),
     taxAmount: z.number().min(0),
-    calculationSequence: z.number().min(1).optional(),
     taxCategory: taxCategorySchema,
 
     // Required in the peppol specification, but we make it optional here for flexibility since

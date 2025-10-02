@@ -64,4 +64,19 @@ export const basicInvoice = {
 
     paymentTermsNote:
         "Toute facture non payée à l'échéance sera majorée de 15%",
+    taxTotal: [
+        {
+            taxAmountCurrency: 'EUR',
+            taxAmount: 21.0,
+            subTotals: [
+                {
+                    taxableAmount: 100.0,
+                    taxAmount: 21.0,
+                    taxCategory: {
+                        categoryCode: 'S',
+                    },
+                },
+            ],
+        },
+    ],
 } satisfies Invoice;

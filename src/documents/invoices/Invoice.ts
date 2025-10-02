@@ -2,6 +2,7 @@ import { InvoiceTypeCodeSchema } from './InvoiceTypeCodes';
 import { z } from 'zod';
 import { CurrencyCodeSchema, partySchema } from '../common';
 import { paymentMeansSchema } from '../common/PaymentMeans';
+import { taxTotalSchema } from '../common/TaxTotal';
 
 const date = z.union([z.string(), z.date()]);
 
@@ -32,6 +33,7 @@ export const invoiceSchema = z.object({
         .string()
         .optional()
         .describe('Payment terms that apply (including penalties)'),
+    taxTotal: z.array(taxTotalSchema).min(1).max(2),
 });
 
 export type Invoice = z.infer<typeof invoiceSchema>;
