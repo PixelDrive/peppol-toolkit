@@ -62,6 +62,100 @@ The main class that provides invoice conversion functionality.
 
 Factory function that creates a new instance of PeppolToolkit.
 
+## PEPPOL BIS UBL Invoice Elements Checklist
+
+This toolkit supports the following PEPPOL BIS UBL invoice elements based on the current implementation:
+
+### 📄 Document Level Elements
+- [x] **CustomizationID** - PEPPOL compliance identifier
+- [x] **ProfileID** - PEPPOL business process identifier  
+- [x] **ID** - Invoice number/identifier
+- [x] **IssueDate** - Invoice issue date
+- [x] **DueDate** - Payment due date (optional)
+- [x] **InvoiceTypeCode** - Type of invoice (e.g., 380, 383)
+- [x] **DocumentCurrencyCode** - Currency for the invoice
+- [x] **BuyerReference** - Buyer's reference identifier
+
+### 👤 Party Information (Seller & Buyer)
+- [x] **EndpointID** - Electronic address with scheme
+- [x] **PartyIdentification** - Party identifiers with schemes
+- [x] **PartyName** - Party name (optional)
+- [x] **PostalAddress** - Complete address information
+  - [x] StreetName
+  - [x] AdditionalStreetName (optional)
+  - [x] CityName
+  - [x] PostalZone
+  - [x] Country identification code
+- [x] **PartyTaxScheme** - VAT information
+  - [x] CompanyID (VAT number)
+  - [x] TaxScheme ID (VAT)
+- [x] **PartyLegalEntity** - Legal entity details
+  - [x] RegistrationName
+  - [x] CompanyID (optional)
+  - [x] CompanyLegalForm (optional)
+- [x] **Contact** - Contact information (optional)
+  - [x] Name
+  - [x] Telephone
+  - [x] ElectronicMail
+
+### 💳 Payment Information
+- [x] **PaymentMeans** - Payment method details
+  - [x] PaymentMeansCode
+  - [x] PaymentID
+  - [x] PayeeFinancialAccount (optional)
+    - [x] Account ID
+    - [x] Account Name
+    - [x] FinancialInstitutionBranch
+- [x] **PaymentTerms** - Payment terms note (optional)
+
+### 💰 Tax Information
+- [x] **TaxTotal** - Complete tax breakdown
+  - [x] TaxAmount with currency
+  - [x] TaxSubtotal details
+    - [x] TaxableAmount with currency
+    - [x] TaxAmount with currency
+    - [x] TaxCategory information
+      - [x] Category ID/Code
+      - [x] Percent rate
+      - [x] TaxExemptionReason (optional)
+      - [x] TaxExemptionReasonCode (optional)
+      - [x] TaxScheme (VAT)
+
+### 🧮 Monetary Totals
+- [x] **LegalMonetaryTotal** - Invoice totals
+  - [x] LineExtensionAmount - Sum of line amounts
+  - [x] TaxExclusiveAmount - Amount excluding tax
+  - [x] TaxInclusiveAmount - Amount including tax
+  - [x] PayableAmount - Final payable amount
+  - [x] AllowanceTotalAmount (optional)
+  - [x] ChargeTotalAmount (optional)
+  - [x] PrepaidAmount (optional)
+  - [x] PayableRoundingAmount (optional)
+
+### 📋 Invoice Lines
+- [x] **InvoiceLine** - Individual line items
+  - [x] ID - Line identifier
+  - [x] Note (optional)
+  - [x] InvoicedQuantity with unit code
+  - [x] LineExtensionAmount with currency
+  - [x] Item information
+    - [x] Name
+    - [x] Description (optional)
+    - [x] ClassifiedTaxCategory
+      - [x] Category ID
+      - [x] Percent rate
+      - [x] TaxScheme (VAT)
+  - [x] Price information
+    - [x] PriceAmount with currency
+
+### 🔧 Technical Features
+- [x] **XML Namespaces** - Proper UBL 2.1 namespaces
+- [x] **Currency Support** - Multi-currency handling
+- [x] **Unit Codes** - UN/ECE Recommendation No. 20 unit codes
+- [x] **Country Codes** - ISO 3166-1 alpha-2 country codes
+- [x] **Schema Validation** - Zod-based type validation
+- [x] **XML Formatting** - Properly formatted XML output
+
 ## Development Status
 
 ⚠️ **Early Development**: This project is currently in early development. The Invoice type definitions and full feature set are still being implemented. Contributions and feedback are welcome!
