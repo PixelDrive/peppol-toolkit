@@ -5,14 +5,14 @@ describe('Legal Monetary Total Schema', () => {
     it('should validate a complete monetary total', () => {
         const validMonetaryTotal = {
             currency: 'EUR',
-            lineExtensionAmount: 1000.00,
-            taxExclusiveAmount: 1000.00,
-            taxInclusiveAmount: 1210.00,
-            payableAmount: 1210.00,
-            payableRoundingAmount: 0.00,
-            prepaidAmount: 100.00,
-            allowanceTotalAmount: 50.00,
-            chargeTotalAmount: 25.00,
+            lineExtensionAmount: 1000.0,
+            taxExclusiveAmount: 1000.0,
+            taxInclusiveAmount: 1210.0,
+            payableAmount: 1210.0,
+            payableRoundingAmount: 0.0,
+            prepaidAmount: 0.0,
+            allowanceTotalAmount: 0.0,
+            chargeTotalAmount: 0.0,
             lineExtensionAmountCurrency: 'EUR',
             taxExclusiveAmountCurrency: 'EUR',
             taxInclusiveAmountCurrency: 'EUR',
@@ -30,10 +30,10 @@ describe('Legal Monetary Total Schema', () => {
     it('should validate minimal required fields only', () => {
         const minimalMonetaryTotal = {
             currency: 'USD',
-            lineExtensionAmount: 500.00,
-            taxExclusiveAmount: 500.00,
-            taxInclusiveAmount: 605.00,
-            payableAmount: 605.00,
+            lineExtensionAmount: 500.0,
+            taxExclusiveAmount: 500.0,
+            taxInclusiveAmount: 605.0,
+            payableAmount: 605.0,
         };
 
         const result = legalMonetaryTotalSchema.safeParse(minimalMonetaryTotal);
@@ -42,10 +42,10 @@ describe('Legal Monetary Total Schema', () => {
 
     it('should reject missing currency', () => {
         const invalidMonetaryTotal = {
-            lineExtensionAmount: 1000.00,
-            taxExclusiveAmount: 1000.00,
-            taxInclusiveAmount: 1210.00,
-            payableAmount: 1210.00,
+            lineExtensionAmount: 1000.0,
+            taxExclusiveAmount: 1000.0,
+            taxInclusiveAmount: 1210.0,
+            payableAmount: 1210.0,
         };
 
         const result = legalMonetaryTotalSchema.safeParse(invalidMonetaryTotal);
@@ -56,10 +56,10 @@ describe('Legal Monetary Total Schema', () => {
     it('should reject missing required amount fields', () => {
         const invalidMonetaryTotal = {
             currency: 'GBP',
-            lineExtensionAmount: 1000.00,
+            lineExtensionAmount: 1000.0,
             // Missing taxExclusiveAmount
-            taxInclusiveAmount: 1210.00,
-            payableAmount: 1210.00,
+            taxInclusiveAmount: 1210.0,
+            payableAmount: 1210.0,
         };
 
         const result = legalMonetaryTotalSchema.safeParse(invalidMonetaryTotal);
@@ -76,17 +76,19 @@ describe('Legal Monetary Total Schema', () => {
             payableAmount: 110000,
         };
 
-        const result = legalMonetaryTotalSchema.safeParse(monetaryTotalWithDifferentCurrency);
+        const result = legalMonetaryTotalSchema.safeParse(
+            monetaryTotalWithDifferentCurrency
+        );
         expect(result.success).toBe(true);
     });
 
     it('should reject invalid currency code', () => {
         const invalidMonetaryTotal = {
             currency: 'INVALID',
-            lineExtensionAmount: 1000.00,
-            taxExclusiveAmount: 1000.00,
-            taxInclusiveAmount: 1210.00,
-            payableAmount: 1210.00,
+            lineExtensionAmount: 1000.0,
+            taxExclusiveAmount: 1000.0,
+            taxInclusiveAmount: 1210.0,
+            payableAmount: 1210.0,
         };
 
         const result = legalMonetaryTotalSchema.safeParse(invalidMonetaryTotal);
@@ -106,37 +108,43 @@ describe('Legal Monetary Total Schema', () => {
             chargeTotalAmount: 0,
         };
 
-        const result = legalMonetaryTotalSchema.safeParse(monetaryTotalWithZeros);
+        const result = legalMonetaryTotalSchema.safeParse(
+            monetaryTotalWithZeros
+        );
         expect(result.success).toBe(true);
     });
 
     it('should handle negative amounts', () => {
         const monetaryTotalWithNegatives = {
             currency: 'EUR',
-            lineExtensionAmount: -100.00,
-            taxExclusiveAmount: -100.00,
-            taxInclusiveAmount: -121.00,
-            payableAmount: -121.00,
-            allowanceTotalAmount: 50.00, // Allowances can be positive to reduce the total
+            lineExtensionAmount: -100.0,
+            taxExclusiveAmount: -100.0,
+            taxInclusiveAmount: -121.0,
+            payableAmount: -121.0,
+            allowanceTotalAmount: 50.0, // Allowances can be positive to reduce the total
         };
 
-        const result = legalMonetaryTotalSchema.safeParse(monetaryTotalWithNegatives);
+        const result = legalMonetaryTotalSchema.safeParse(
+            monetaryTotalWithNegatives
+        );
         expect(result.success).toBe(true);
     });
 
     it('should validate with mixed optional currency fields', () => {
         const monetaryTotalMixedCurrencies = {
             currency: 'EUR',
-            lineExtensionAmount: 1000.00,
-            taxExclusiveAmount: 1000.00,
-            taxInclusiveAmount: 1210.00,
-            payableAmount: 1210.00,
-            prepaidAmount: 100.00,
+            lineExtensionAmount: 1000.0,
+            taxExclusiveAmount: 1000.0,
+            taxInclusiveAmount: 1210.0,
+            payableAmount: 1210.0,
+            prepaidAmount: 100.0,
             lineExtensionAmountCurrency: 'USD', // Different from main currency
             prepaidAmountCurrency: 'GBP', // Different from main currency
         };
 
-        const result = legalMonetaryTotalSchema.safeParse(monetaryTotalMixedCurrencies);
+        const result = legalMonetaryTotalSchema.safeParse(
+            monetaryTotalMixedCurrencies
+        );
         expect(result.success).toBe(true);
     });
 
@@ -144,9 +152,9 @@ describe('Legal Monetary Total Schema', () => {
         const invalidMonetaryTotal = {
             currency: 'EUR',
             lineExtensionAmount: 'not-a-number',
-            taxExclusiveAmount: 1000.00,
-            taxInclusiveAmount: 1210.00,
-            payableAmount: 1210.00,
+            taxExclusiveAmount: 1000.0,
+            taxInclusiveAmount: 1210.0,
+            payableAmount: 1210.0,
         };
 
         const result = legalMonetaryTotalSchema.safeParse(invalidMonetaryTotal);
