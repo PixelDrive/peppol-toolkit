@@ -79,4 +79,12 @@ export const basicInvoice = {
             ],
         },
     ],
+    legalMonetaryTotal: {
+        currency: 'EUR',
+        lineExtensionAmount: 100.0,
+        taxExclusiveAmount: 100.0,
+        taxInclusiveAmount: 121.0,
+        prepaidAmount: 0.0,
+        payableAmount: 121.0,
+    },
 } satisfies Invoice;

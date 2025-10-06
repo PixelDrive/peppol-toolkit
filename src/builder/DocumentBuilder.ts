@@ -1,6 +1,6 @@
 import { XMLBuilder } from 'fast-xml-parser';
 import { builderOptions } from './builderOptions';
-import { Invoice, partySchema } from '../documents';
+import { CurrencyCode, Invoice, partySchema } from '../documents';
 import XMLAttributes from '../helpers/XMLAttributes';
 import getDateString from '../helpers/getDateString';
 import { z } from 'zod';
@@ -66,6 +66,9 @@ export class DocumentBuilder {
                       }
                     : {}),
                 'cac:TaxTotal': this.__buildTaxTotal(invoice.taxTotal),
+                'cac:LegalMonetaryTotal': this.__buildMonetaryTotal(
+                    invoice.legalMonetaryTotal
+                ),
             },
         };
     }
@@ -145,6 +148,11 @@ export class DocumentBuilder {
         };
     }
 
+    /**
+     * Builds the payment means for the invoice, mapping the provided data into a specific structure.
+     * @param means - The payment means data from the invoice, including details about codes, payment IDs, and optional financial account information.
+     * @return An array of payment means objects with the structured data or undefined if no payment means are provided.
+     */
     private __buildPaymentMeans(means: Invoice['paymentMeans']) {
         return means?.map((m) => {
             const financialAccount = m.financialAccount;
@@ -170,6 +178,11 @@ export class DocumentBuilder {
         });
     }
 
+    /**
+     * Builds the tax total information in the required format for an invoice.
+     * @param total - An array representing the tax total details, including tax amounts, sub totals, currencies, and tax categories.
+     * @return Returns an array of objects formatted as tax total components, including tax amounts, sub totals, and associated category details in compliance with specified XML attributes and structure.
+     */
     private __buildTaxTotal(total: Invoice['taxTotal']) {
         return total.map((t) => {
             return {
@@ -208,5 +221,70 @@ export class DocumentBuilder {
                 })),
             };
         });
+    }
+
+    private __buildMonetaryTotal(total: Invoice['legalMonetaryTotal']) {
+        const currency = total.currency;
+        return {
+            // Mandatory fields
+            ...this.__buildAmount(
+                'LineExtensionAmount',
+                total.lineExtensionAmount,
+                total.lineExtensionAmountCurrency ?? currency
+            ),
+            ...this.__buildAmount(
+                'TaxExclusiveAmount',
+                total.taxExclusiveAmount,
+                total.taxExclusiveAmountCurrency ?? currency
+            ),
+            ...this.__buildAmount(
+                'TaxInclusiveAmount',
+                total.taxInclusiveAmount,
+                total.taxInclusiveAmountCurrency ?? currency
+            ),
+            ...this.__buildAmount(
+                'PayableAmount',
+                total.payableAmount,
+                total.payableAmountCurrency ?? currency
+            ),
+
+            // Optional fields
+            ...this.__buildAmount(
+                'AllowanceTotalAmount',
+                total.allowanceTotalAmount,
+                total.allowanceTotalAmountCurrency ?? currency
+            ),
+            ...this.__buildAmount(
+                'ChargeTotalAmount',
+                total.chargeTotalAmount,
+                total.chargeTotalAmountCurrency ?? currency
+            ),
+            ...this.__buildAmount(
+                'PrepaidAmount',
+                total.prepaidAmount,
+                total.prepaidAmountCurrency ?? currency
+            ),
+            ...this.__buildAmount(
+                'PayableRoundingAmount',
+                total.payableRoundingAmount,
+                total.payableRoundingAmountCurrency ?? currency
+            ),
+        };
+    }
+
+    private __buildAmount(
+        name: string,
+        amount: number | undefined,
+        currency: CurrencyCode
+    ) {
+        if (!amount) return {};
+        return {
+            [`cbc:${name}`]: {
+                '#text': amount.toFixed(2),
+                ...XMLAttributes({
+                    currencyID: currency,
+                }),
+            },
+        };
     }
 }

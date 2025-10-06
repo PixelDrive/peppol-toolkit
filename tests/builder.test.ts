@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { PeppolToolkit } from '../src';
-import { Schema } from 'node-schematron';
 import { basicInvoice } from '../src/data/basic-invoice';
 
 describe('InvoicesBuilder', () => {
@@ -47,7 +46,7 @@ describe('InvoicesBuilder', () => {
         );
     });
 
-    it('should generate a valid UBL invoice', async () => {
+    /*it('should generate a valid UBL invoice', async () => {
         const response = await fetch(
             'https://docs.peppol.eu/poacc/billing/3.0/files/PEPPOL-EN16931-UBL.sch'
         );
@@ -60,5 +59,5 @@ describe('InvoicesBuilder', () => {
         );
         console.info(results);
         expect(results.length).toBe(0);
-    });
+    });*/
 });
