@@ -6,7 +6,7 @@ export const basicInvoice = {
     dueDate: '2024-01-31',
     invoiceTypeCode: 383,
     documentCurrencyCode: 'EUR',
-
+    buyerReference: "Test Buyer's Reference",
     seller: {
         endPoint: {
             scheme: '9925',
@@ -23,6 +23,12 @@ export const basicInvoice = {
             postalZone: '12345',
             country: 'BE',
         },
+        taxSchemeCompanyID: 'BE0732788874',
+        identification: [
+            {
+                id: 'BE0732788874',
+            },
+        ],
     },
 
     buyer: {
@@ -70,10 +76,11 @@ export const basicInvoice = {
             taxAmount: 21.0,
             subTotals: [
                 {
-                    taxableAmount: 100.0,
-                    taxAmount: 21.0,
+                    taxableAmount: 100,
+                    taxAmount: 21,
                     taxCategory: {
                         categoryCode: 'S',
+                        percent: 21,
                     },
                 },
             ],
@@ -81,10 +88,28 @@ export const basicInvoice = {
     ],
     legalMonetaryTotal: {
         currency: 'EUR',
-        lineExtensionAmount: 100.0,
-        taxExclusiveAmount: 100.0,
-        taxInclusiveAmount: 121.0,
-        prepaidAmount: 0.0,
-        payableAmount: 121.0,
+        lineExtensionAmount: 100,
+        taxExclusiveAmount: 100,
+        taxInclusiveAmount: 121,
+        prepaidAmount: 0,
+        payableAmount: 121,
     },
+    invoiceLines: [
+        {
+            id: '1',
+            invoicedQuantity: 1,
+            lineExtensionAmount: 100.0,
+            price: 100,
+            name: 'Petit poney',
+            currency: 'EUR',
+            additionalItemProperties: {
+                test: 'hello world',
+            },
+            unitCode: 'DAY',
+            taxCategory: {
+                percent: 21,
+                categoryCode: 'S',
+            },
+        },
+    ],
 } satisfies Invoice;

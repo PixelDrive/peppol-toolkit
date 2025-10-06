@@ -51,6 +51,7 @@ export class DocumentBuilder {
                     : undefined,
                 'cbc:InvoiceTypeCode': invoice.invoiceTypeCode,
                 'cbc:DocumentCurrencyCode': invoice.documentCurrencyCode,
+                'cbc:BuyerReference': invoice.buyerReference,
                 'cac:AccountingSupplierParty': this.__buildParty(
                     invoice.seller
                 ),
@@ -68,6 +69,9 @@ export class DocumentBuilder {
                 'cac:TaxTotal': this.__buildTaxTotal(invoice.taxTotal),
                 'cac:LegalMonetaryTotal': this.__buildMonetaryTotal(
                     invoice.legalMonetaryTotal
+                ),
+                'cac:InvoiceLine': invoice.invoiceLines.map(
+                    this.__buildInvoiceLine
                 ),
             },
         };
@@ -284,6 +288,44 @@ export class DocumentBuilder {
                 ...XMLAttributes({
                     currencyID: currency,
                 }),
+            },
+        };
+    }
+
+    private __buildInvoiceLine(line: Invoice['invoiceLines'][number]) {
+        return {
+            'cbc:ID': line.id,
+            ...(line.note ? { 'cbc:Note': line.note } : {}),
+            'cbc:InvoicedQuantity': {
+                '#text': line.invoicedQuantity.toFixed(2),
+                ...XMLAttributes({
+                    unitCode: line.unitCode,
+                }),
+            },
+            'cbc:LineExtensionAmount': {
+                '#text': line.lineExtensionAmount.toFixed(2),
+                ...XMLAttributes({
+                    currencyID: line.currency,
+                }),
+            },
+            'cac:Item': {
+                'cbc:Name': line.name,
+                'cbc:Description': line.description,
+                'cac:ClassifiedTaxCategory': {
+                    'cbc:ID': line.taxCategory.categoryCode,
+                    'cbc:Percent': line.taxCategory.percent?.toFixed(2),
+                    'cac:TaxScheme': {
+                        'cbc:ID': 'VAT',
+                    },
+                },
+            },
+            'cac:Price': {
+                'cbc:PriceAmount': {
+                    '#text': line.price.toFixed(2),
+                    ...XMLAttributes({
+                        currencyID: line.currency,
+                    }),
+                },
             },
         };
     }
