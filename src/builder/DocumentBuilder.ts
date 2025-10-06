@@ -197,14 +197,14 @@ export class DocumentBuilder {
                         '#text': st.taxableAmount.toFixed(2),
                         ...XMLAttributes({
                             currencyID:
-                                st.taxableAmountCurrency || t.taxAmountCurrency,
+                                st.taxableAmountCurrency ?? t.taxAmountCurrency,
                         }),
                     },
                     'cbc:TaxAmount': {
                         '#text': st.taxAmount.toFixed(2),
                         ...XMLAttributes({
                             currencyID:
-                                st.taxAmountCurrency || t.taxAmountCurrency,
+                                st.taxAmountCurrency ?? t.taxAmountCurrency,
                         }),
                     },
                     'cac:TaxCategory': {

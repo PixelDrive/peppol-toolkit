@@ -11,3 +11,4 @@ export * from './LegalMonetaryTotal';
 export * from './TaxTotal';
 export * from './Line';
 export * from './InvoicePeriodSchema';
+export * from './PaymentMeans';
