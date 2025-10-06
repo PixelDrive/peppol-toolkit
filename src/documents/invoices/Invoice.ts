@@ -1,17 +1,11 @@
 import { InvoiceTypeCodeSchema } from './InvoiceTypeCodes';
 import { z } from 'zod';
-import { CurrencyCodeSchema, partySchema } from '../common';
+import { CurrencyCodeSchema, date, partySchema } from '../common';
 import { paymentMeansSchema } from '../common/PaymentMeans';
 import { taxTotalSchema } from '../common/TaxTotal';
 import { legalMonetaryTotalSchema } from '../common/LegalMonetaryTotal';
-
-const date = z.union([z.string(), z.date()]);
-
-const invoicePeriodSchema = z.object({
-    startDate: date.optional(),
-    endDate: date.optional(),
-    descriptionCode: z.enum(['3', '35', '432']),
-});
+import { lineSchema } from '../common/Line';
+import { invoicePeriodSchema } from '../common/InvoicePeriodSchema';
 
 export const invoiceSchema = z.object({
     ID: z.string().min(1),
@@ -36,6 +30,7 @@ export const invoiceSchema = z.object({
         .describe('Payment terms that apply (including penalties)'),
     taxTotal: z.array(taxTotalSchema).min(1).max(2),
     legalMonetaryTotal: legalMonetaryTotalSchema,
+    invoiceLines: z.array(lineSchema).min(1),
 });
 
 export type Invoice = z.infer<typeof invoiceSchema>;
