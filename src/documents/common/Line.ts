@@ -3,6 +3,7 @@ import { date } from './Date';
 import { CountryCodeSchema } from './CountryCodes';
 import { taxCategorySchema } from './TaxCategory';
 import { CurrencyCodeSchema } from './CurrencyCodes';
+import { UnitCodeSchema } from './UnitCodes';
 
 export const lineSchema = z.object({
     id: z.string().min(1),
@@ -34,5 +35,5 @@ export const lineSchema = z.object({
     price: z.number().min(0),
     currency: CurrencyCodeSchema,
     //TODO: add price allowance and baseQT
-    unitCode: z.string().optional(),
+    unitCode: UnitCodeSchema,
 });

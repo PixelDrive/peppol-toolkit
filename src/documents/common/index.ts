@@ -2,6 +2,7 @@ export * from './EASCodes';
 export * from './CountryCodes';
 export * from './AdressSchema';
 export * from './CurrencyCodes';
+export * from './UnitCodes';
 export * from './PaymentMeansCodes';
 export * from './TaxCategory';
 export * from './Parties';
