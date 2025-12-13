@@ -4,7 +4,7 @@ export const basicInvoice = {
     ID: 'TEST-003',
     issueDate: '2024-01-01',
     dueDate: '2024-01-31',
-    invoiceTypeCode: 383,
+    invoiceTypeCode: 380,
     documentCurrencyCode: 'EUR',
     buyerReference: "Test Buyer's Reference",
     seller: {
@@ -68,8 +68,7 @@ export const basicInvoice = {
         },
     ],
 
-    paymentTermsNote:
-        "Toute facture non payée à l'échéance sera majorée de 15%",
+    paymentTermsNote: "Toute facture non payée à l'échéance sera majorée de 15%",
     taxTotal: [
         {
             taxAmountCurrency: 'EUR',
@@ -111,5 +110,5 @@ export const basicInvoice = {
                 categoryCode: 'S',
             },
         },
-    ],
+    ]
 } satisfies Invoice;

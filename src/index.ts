@@ -26,5 +26,5 @@ export default {
 
 export * from './documents';
 export * from './builder';
-export { basicInvoice as exempleInvoice } from './data/basic-invoice';
+export { basicInvoice as exampleInvoice } from './data/basic-invoice';
 export { basicCreditNote as exampleCreditNote } from './data/basic-creditNote';
