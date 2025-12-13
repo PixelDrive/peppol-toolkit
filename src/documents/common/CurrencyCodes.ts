@@ -206,5 +206,8 @@ export function isValidCurrencyCode(code: string): code is CurrencyCode {
 }
 
 // Zod schema for currency codes
-const currencyCodeKeys = Object.keys(CurrencyCodes) as unknown as [CurrencyCode, ...CurrencyCode[]];
+const currencyCodeKeys = Object.keys(CurrencyCodes) as unknown as [
+    CurrencyCode,
+    ...CurrencyCode[],
+];
 export const CurrencyCodeSchema = z.enum(currencyCodeKeys);

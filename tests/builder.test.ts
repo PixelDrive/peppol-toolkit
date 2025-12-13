@@ -1,63 +1,94 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { PeppolToolkit } from '../src';
 import { basicInvoice } from '../src/data/basic-invoice';
+import { basicCreditNote } from '../src/data/basic-creditNote';
 
 describe('InvoicesBuilder', () => {
     let toolkit = new PeppolToolkit();
 
-    beforeEach(() => {
-        toolkit = new PeppolToolkit();
-    });
-
-    it('should generate a non empty string', () => {
-        const invoiceXML = toolkit.invoiceToPeppolUBL(basicInvoice);
-        console.log(invoiceXML);
-        expect(invoiceXML.length).toBeGreaterThan(0);
-    });
-
-    it('should work with different invoice type codes', () => {
-        const invoiceXML1 = toolkit.invoiceToPeppolUBL({
-            ...basicInvoice,
-            invoiceTypeCode: 71,
+    describe('Peppol Invoice', () => {
+        beforeEach(() => {
+            toolkit = new PeppolToolkit();
         });
 
-        const invoiceXML2 = toolkit.invoiceToPeppolUBL({
-            ...basicInvoice,
-            invoiceTypeCode: 383,
+        it('should generate a non empty string', () => {
+            const invoiceXML = toolkit.invoiceToPeppolUBL(basicInvoice);
+            console.log(invoiceXML);
+            expect(invoiceXML.length).toBeGreaterThan(0);
         });
 
-        expect(invoiceXML1).toContain(
-            '<cbc:InvoiceTypeCode>71</cbc:InvoiceTypeCode>'
-        );
-        expect(invoiceXML2).toContain(
-            '<cbc:InvoiceTypeCode>383</cbc:InvoiceTypeCode>'
-        );
-    });
+        it('should work with different invoice type codes', () => {
+            const invoiceXML1 = toolkit.invoiceToPeppolUBL({
+                ...basicInvoice,
+                invoiceTypeCode: 71,
+            });
 
-    it('should work with currency codes', () => {
-        const invoiceXML = toolkit.invoiceToPeppolUBL({
-            ...basicInvoice,
-            documentCurrencyCode: 'USD',
+            const invoiceXML2 = toolkit.invoiceToPeppolUBL({
+                ...basicInvoice,
+                invoiceTypeCode: 383,
+            });
+
+            expect(invoiceXML1).toContain(
+                '<cbc:InvoiceTypeCode>71</cbc:InvoiceTypeCode>'
+            );
+            expect(invoiceXML2).toContain(
+                '<cbc:InvoiceTypeCode>383</cbc:InvoiceTypeCode>'
+            );
         });
 
-        expect(invoiceXML.length).toBeGreaterThan(0);
-        expect(invoiceXML).toContain(
-            '<cbc:DocumentCurrencyCode>USD</cbc:DocumentCurrencyCode>'
-        );
+        it('should work with currency codes', () => {
+            const invoiceXML = toolkit.invoiceToPeppolUBL({
+                ...basicInvoice,
+                documentCurrencyCode: 'USD',
+            });
+
+            expect(invoiceXML.length).toBeGreaterThan(0);
+            expect(invoiceXML).toContain(
+                '<cbc:DocumentCurrencyCode>USD</cbc:DocumentCurrencyCode>'
+            );
+        });
     });
 
-    /*it('should generate a valid UBL invoice', async () => {
-        const response = await fetch(
-            'https://docs.peppol.eu/poacc/billing/3.0/files/PEPPOL-EN16931-UBL.sch'
-        );
-        const data = await response.text();
+    describe('Peppol Credit Note', () => {
+        beforeEach(() => {
+            toolkit = new PeppolToolkit();
+        });
 
-        const schema = Schema.fromString(data);
-        const results = schema.validateString(
-            toolkit.invoiceToPeppolUBL(basicInvoice),
-            { debug: true }
-        );
-        console.info(results);
-        expect(results.length).toBe(0);
-    });*/
+        it('should generate a non empty string', () => {
+            const invoiceXML = toolkit.creditNoteToPeppolUBL(basicCreditNote);
+            console.log(invoiceXML);
+            expect(invoiceXML.length).toBeGreaterThan(0);
+        });
+
+        it('should work with different credit-note type codes', () => {
+            const invoiceXML1 = toolkit.creditNoteToPeppolUBL({
+                ...basicCreditNote,
+                creditNoteTypeCode: 381,
+            });
+
+            const invoiceXML2 = toolkit.creditNoteToPeppolUBL({
+                ...basicCreditNote,
+                creditNoteTypeCode: 261,
+            });
+
+            expect(invoiceXML1).toContain(
+                '<cbc:CreditNoteTypeCode>381</cbc:CreditNoteTypeCode>'
+            );
+            expect(invoiceXML2).toContain(
+                '<cbc:CreditNoteTypeCode>261</cbc:CreditNoteTypeCode>'
+            );
+        });
+
+        it('should work with currency codes', () => {
+            const invoiceXML = toolkit.creditNoteToPeppolUBL({
+                ...basicCreditNote,
+                documentCurrencyCode: 'USD',
+            });
+
+            expect(invoiceXML.length).toBeGreaterThan(0);
+            expect(invoiceXML).toContain(
+                '<cbc:DocumentCurrencyCode>USD</cbc:DocumentCurrencyCode>'
+            );
+        });
+    });
 });

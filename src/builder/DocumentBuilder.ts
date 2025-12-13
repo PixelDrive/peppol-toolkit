@@ -4,6 +4,7 @@ import { CurrencyCode, Invoice, partySchema } from '../documents';
 import XMLAttributes from '../helpers/XMLAttributes';
 import getDateString from '../helpers/getDateString';
 import { z } from 'zod';
+import { CreditNote } from '../documents/invoices/CreditNote';
 
 export class DocumentBuilder {
     private __xmlHeader = {
@@ -25,6 +26,15 @@ export class DocumentBuilder {
         return this.__builder.build(this.__buildInvoice(invoice));
     }
 
+    /***
+     * Generates a Peppol invoice from the given invoice data
+     * @param invoice The invoice data
+     * @returns The Peppol invoice XML document as a string
+     */
+    public generatePeppolCreditNote(creditNote: CreditNote): string {
+        return this.__builder.build(this.__buildCreditNote(creditNote));
+    }
+
     /**
      * Helper function to generate the invoice in Peppol format as an object
      * @param invoice The invoice data
@@ -41,9 +51,8 @@ export class DocumentBuilder {
                         'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2',
                     xmlns: 'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2',
                 }),
-                'cbc:CustomizationID':
-                    'urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0',
-                'cbc:ProfileID': 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0',
+                'cbc:CustomizationID': invoice.customizationID,
+                'cbc:ProfileID': invoice.profileID,
                 'cbc:ID': invoice.ID,
                 'cbc:IssueDate': getDateString(invoice.issueDate),
                 'cbc:DueDate': invoice.dueDate
@@ -72,6 +81,60 @@ export class DocumentBuilder {
                 ),
                 'cac:InvoiceLine': invoice.invoiceLines.map(
                     this.__buildInvoiceLine
+                ),
+            },
+        };
+    }
+
+    /**
+     * Helper function to generate the creditNote in Peppol format as an object
+     * @param creditNote The credit-note data
+     * @returns The creditNote in Peppol format as an object
+     */
+    private __buildCreditNote(creditNote: CreditNote) {
+        return {
+            ...this.__xmlHeader,
+            CreditNote: {
+                ...XMLAttributes({
+                    'xmlns:cac':
+                        'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                    'xmlns:cbc':
+                        'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2',
+                    xmlns: 'urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2',
+                }),
+                'cbc:CustomizationID': creditNote.customizationID,
+                'cbc:ProfileID': creditNote.profileID,
+                'cbc:ID': creditNote.ID || 'AUTOGENERATE',
+                'cbc:IssueDate': getDateString(creditNote.issueDate),
+                'cbc:DueDate': creditNote.dueDate
+                    ? getDateString(creditNote.dueDate)
+                    : 0,
+                'cbc:CreditNoteTypeCode': creditNote.creditNoteTypeCode ?? 381,
+                'cbc:DocumentCurrencyCode':
+                    creditNote.documentCurrencyCode || 'EUR',
+                'cbc:BuyerReference': creditNote.buyerReference,
+                'cac:AccountingSupplierParty': this.__buildParty(
+                    creditNote.seller
+                ),
+                'cac:AccountingCustomerParty': this.__buildParty(
+                    creditNote.buyer
+                ),
+                'cac:PaymentMeans': this.__buildPaymentMeans(
+                    creditNote.paymentMeans
+                ),
+                ...(creditNote.paymentTermsNote
+                    ? {
+                          'cac:PaymentTerms': {
+                              'cbc:Note': creditNote.paymentTermsNote,
+                          },
+                      }
+                    : {}),
+                'cac:TaxTotal': this.__buildTaxTotal(creditNote.taxTotal),
+                'cac:LegalMonetaryTotal': this.__buildMonetaryTotal(
+                    creditNote.legalMonetaryTotal
+                ),
+                'cac:CreditNoteLine': creditNote.creditNoteLines.map(
+                    this._buildCreditNoteLine
                 ),
             },
         };
@@ -297,6 +360,44 @@ export class DocumentBuilder {
             'cbc:ID': line.id,
             ...(line.note ? { 'cbc:Note': line.note } : {}),
             'cbc:InvoicedQuantity': {
+                '#text': line.invoicedQuantity.toFixed(2),
+                ...XMLAttributes({
+                    unitCode: line.unitCode,
+                }),
+            },
+            'cbc:LineExtensionAmount': {
+                '#text': line.lineExtensionAmount.toFixed(2),
+                ...XMLAttributes({
+                    currencyID: line.currency,
+                }),
+            },
+            'cac:Item': {
+                'cbc:Name': line.name,
+                'cbc:Description': line.description,
+                'cac:ClassifiedTaxCategory': {
+                    'cbc:ID': line.taxCategory.categoryCode,
+                    'cbc:Percent': line.taxCategory.percent?.toFixed(2),
+                    'cac:TaxScheme': {
+                        'cbc:ID': 'VAT',
+                    },
+                },
+            },
+            'cac:Price': {
+                'cbc:PriceAmount': {
+                    '#text': line.price.toFixed(2),
+                    ...XMLAttributes({
+                        currencyID: line.currency,
+                    }),
+                },
+            },
+        };
+    }
+
+    private _buildCreditNoteLine(line: CreditNote['creditNoteLines'][number]) {
+        return {
+            'cbc:ID': line.id,
+            ...(line.note ? { 'cbc:Note': line.note } : {}),
+            'cbc:CreditedQuantity': {
                 '#text': line.invoicedQuantity.toFixed(2),
                 ...XMLAttributes({
                     unitCode: line.unitCode,
