@@ -3,13 +3,14 @@ import { invoiceSchema } from './Invoice';
 import { CreditNoteTypeCodeSchema } from './CreditNoteTypeCodes';
 import { date } from '../common';
 
-
-const billingReference = z.object({
-    invoiceDocReference: z.object({
-        id: z.string(),
-        issueDate: date.optional()
+const billingReference = z
+    .object({
+        invoiceDocReference: z.object({
+            id: z.string(),
+            issueDate: date.optional(),
+        }),
     })
-}).optional();
+    .optional();
 
 export const creditNoteSchema = invoiceSchema
     .extend({

@@ -8,9 +8,9 @@ export const basicCreditNote = {
     buyerReference: "Test Buyer's Reference",
     billingReference: {
         invoiceDocReference: {
-            "id": "INV-001",
-            issueDate: "2017-09-15"
-        }
+            id: 'INV-001',
+            issueDate: '2017-09-15',
+        },
     },
     seller: {
         endPoint: {
