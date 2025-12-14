@@ -3,10 +3,15 @@ import { CreditNote } from '../documents/invoices/CreditNote';
 export const basicCreditNote = {
     ID: 'TEST-003',
     issueDate: '2024-01-01',
-    dueDate: '2024-01-31',
     creditNoteTypeCode: 381,
     documentCurrencyCode: 'EUR',
     buyerReference: "Test Buyer's Reference",
+    billingReference: {
+        invoiceDocReference: {
+            "id": "INV-001",
+            issueDate: "2017-09-15"
+        }
+    },
     seller: {
         endPoint: {
             scheme: '9925',
@@ -48,6 +53,7 @@ export const basicCreditNote = {
             postalZone: '12345',
             country: 'BE',
         },
+        taxSchemeCompanyID: 'BE0732788874',
         identification: [
             {
                 id: 'BE0732788874',

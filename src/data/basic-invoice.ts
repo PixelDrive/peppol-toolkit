@@ -48,6 +48,7 @@ export const basicInvoice = {
             postalZone: '12345',
             country: 'BE',
         },
+        taxSchemeCompanyID: 'BE0732788874',
         identification: [
             {
                 id: 'BE0732788874',
@@ -68,7 +69,8 @@ export const basicInvoice = {
         },
     ],
 
-    paymentTermsNote: "Toute facture non payée à l'échéance sera majorée de 15%",
+    paymentTermsNote:
+        "Toute facture non payée à l'échéance sera majorée de 15%",
     taxTotal: [
         {
             taxAmountCurrency: 'EUR',
@@ -110,5 +112,5 @@ export const basicInvoice = {
                 categoryCode: 'S',
             },
         },
-    ]
+    ],
 } satisfies Invoice;

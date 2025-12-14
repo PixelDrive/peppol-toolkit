@@ -6,6 +6,10 @@ import getDateString from '../helpers/getDateString';
 import { z } from 'zod';
 import { CreditNote } from '../documents/invoices/CreditNote';
 
+const DEFAULT_CUSTOMIZATION_ID =
+    'urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0';
+const DEFAULT_PROFILE_ID = 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0';
+
 export class DocumentBuilder {
     private __xmlHeader = {
         '?xml': {
@@ -49,10 +53,13 @@ export class DocumentBuilder {
                         'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
                     'xmlns:cbc':
                         'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2',
+                    'xmlns:cec':
+                        'urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2',
                     xmlns: 'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2',
                 }),
-                'cbc:CustomizationID': invoice.customizationID,
-                'cbc:ProfileID': invoice.profileID,
+                'cbc:CustomizationID':
+                    invoice.customizationID ?? DEFAULT_CUSTOMIZATION_ID,
+                'cbc:ProfileID': invoice.profileID ?? DEFAULT_PROFILE_ID,
                 'cbc:ID': invoice.ID,
                 'cbc:IssueDate': getDateString(invoice.issueDate),
                 'cbc:DueDate': invoice.dueDate
@@ -100,19 +107,25 @@ export class DocumentBuilder {
                         'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
                     'xmlns:cbc':
                         'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2',
+                    'xmlns:cec':
+                        'urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2',
                     xmlns: 'urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2',
                 }),
-                'cbc:CustomizationID': creditNote.customizationID,
-                'cbc:ProfileID': creditNote.profileID,
+                'cbc:CustomizationID':
+                    creditNote.customizationID ?? DEFAULT_CUSTOMIZATION_ID,
+                'cbc:ProfileID': creditNote.profileID ?? DEFAULT_PROFILE_ID,
                 'cbc:ID': creditNote.ID || 'AUTOGENERATE',
                 'cbc:IssueDate': getDateString(creditNote.issueDate),
-                'cbc:DueDate': creditNote.dueDate
-                    ? getDateString(creditNote.dueDate)
-                    : 0,
                 'cbc:CreditNoteTypeCode': creditNote.creditNoteTypeCode ?? 381,
                 'cbc:DocumentCurrencyCode':
                     creditNote.documentCurrencyCode || 'EUR',
                 'cbc:BuyerReference': creditNote.buyerReference,
+                'cac:BillingReference': creditNote.billingReference && creditNote.billingReference?.invoiceDocReference ? {
+                    'cac:InvoiceDocumentReference': {
+                        'cbc:ID': creditNote.billingReference.invoiceDocReference.id,
+                        'cbc:IssueDate': creditNote.billingReference.invoiceDocReference.issueDate ?? 0
+                    }
+                } : {},
                 'cac:AccountingSupplierParty': this.__buildParty(
                     creditNote.seller
                 ),

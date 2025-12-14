@@ -10,13 +10,10 @@ import {
     paymentMeansSchema,
     taxTotalSchema,
 } from '../common';
+
 export const invoiceSchema = z.object({
-    customizationID: z.string().default(
-        'urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0'
-    ).optional(),
-    profileID: z.string().default(
-        'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0'
-    ).optional(),
+    customizationID: z.string().optional(),
+    profileID: z.string().optional(),
     ID: z.string().min(1),
     issueDate: date,
     dueDate: date.optional(),

@@ -47,6 +47,19 @@ describe('InvoicesBuilder', () => {
                 '<cbc:DocumentCurrencyCode>USD</cbc:DocumentCurrencyCode>'
             );
         });
+
+        it('should return default profileId and customizationId', () => {
+            const invoiceXML1 = toolkit.invoiceToPeppolUBL({
+                ...basicInvoice,
+            });
+
+            expect(invoiceXML1).toContain(
+                '<cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0</cbc:CustomizationID>'
+            );
+            expect(invoiceXML1).toContain(
+                '<cbc:ProfileID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</cbc:ProfileID>'
+            );
+        });
     });
 
     describe('Peppol Credit Note', () => {
@@ -88,6 +101,19 @@ describe('InvoicesBuilder', () => {
             expect(invoiceXML.length).toBeGreaterThan(0);
             expect(invoiceXML).toContain(
                 '<cbc:DocumentCurrencyCode>USD</cbc:DocumentCurrencyCode>'
+            );
+        });
+
+         it('should return default profileId and customizationId', () => {
+            const invoiceXML1 = toolkit.creditNoteToPeppolUBL({
+                ...basicCreditNote,
+            });
+
+            expect(invoiceXML1).toContain(
+                '<cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0</cbc:CustomizationID>'
+            );
+            expect(invoiceXML1).toContain(
+                '<cbc:ProfileID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</cbc:ProfileID>'
             );
         });
     });

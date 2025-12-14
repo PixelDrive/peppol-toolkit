@@ -1,20 +1,24 @@
 import z from 'zod';
 import { invoiceSchema } from './Invoice';
 import { CreditNoteTypeCodeSchema } from './CreditNoteTypeCodes';
+import { date } from '../common';
+
+
+const billingReference = z.object({
+    invoiceDocReference: z.object({
+        id: z.string(),
+        issueDate: date.optional()
+    })
+}).optional();
 
 export const creditNoteSchema = invoiceSchema
     .extend({
-        customizationID: z
-            .string()
-            .default(
-                'urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0'
-            ).optional(),
-        profileID: z
-            .string()
-            .default('urn:fdc:peppol.eu:2017:poacc:billing:01:1.0').optional(),
+        customizationID: z.string().optional(),
+        profileID: z.string().optional(),
         creditNoteTypeCode: CreditNoteTypeCodeSchema.default(381).optional(),
         creditNoteLines: invoiceSchema.shape.invoiceLines.min(1),
+        billingReference: billingReference,
     })
-    .omit({ invoiceTypeCode: true, invoiceLines: true });
+    .omit({ invoiceTypeCode: true, invoiceLines: true, dueDate: true });
 
 export type CreditNote = z.infer<typeof creditNoteSchema>;
