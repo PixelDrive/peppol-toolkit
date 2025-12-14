@@ -17,7 +17,7 @@ export const invoiceSchema = z.object({
     ID: z.string().min(1),
     issueDate: date,
     dueDate: date.optional(),
-    invoiceTypeCode: InvoiceTypeCodeSchema.default(380).optional(),
+    invoiceTypeCode: InvoiceTypeCodeSchema,
     note: z.string().optional(),
     taxPointDate: date.optional(),
     documentCurrencyCode: CurrencyCodeSchema,

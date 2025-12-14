@@ -15,7 +15,7 @@ export const creditNoteSchema = invoiceSchema
     .extend({
         customizationID: z.string().optional(),
         profileID: z.string().optional(),
-        creditNoteTypeCode: CreditNoteTypeCodeSchema.default(381).optional(),
+        creditNoteTypeCode: CreditNoteTypeCodeSchema,
         creditNoteLines: invoiceSchema.shape.invoiceLines.min(1),
         billingReference: billingReference,
     })
