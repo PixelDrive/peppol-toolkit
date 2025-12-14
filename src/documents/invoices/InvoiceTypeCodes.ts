@@ -50,8 +50,7 @@ export function getInvoiceTypeCodeDescription(code: InvoiceTypeCode): string {
  * @param code The code to check
  */
 export function isValidInvoiceTypeCode(code: number): code is InvoiceTypeCode {
-    // return code in InvoiceTypeCodes;
-    return code > 1000
+    return code in InvoiceTypeCodes;
 }
 
 // Zod schema for invoice type codes (numeric codes)

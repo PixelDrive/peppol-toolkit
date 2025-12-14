@@ -26,7 +26,7 @@ export class DocumentBuilder {
      * @param invoice The invoice data
      * @returns The Peppol invoice XML document as a string
      */
-    public generatePeppolInvoice(invoice: Invoice): string {
+    public generatePeppolInvoice(invoice: Invoice) {
         return this.__builder.build(this.__buildInvoice(invoice));
     }
 
@@ -35,7 +35,7 @@ export class DocumentBuilder {
      * @param invoice The invoice data
      * @returns The Peppol invoice XML document as a string
      */
-    public generatePeppolCreditNote(creditNote: CreditNote): string {
+    public generatePeppolCreditNote(creditNote: CreditNote) {
         return this.__builder.build(this.__buildCreditNote(creditNote));
     }
 
@@ -120,12 +120,20 @@ export class DocumentBuilder {
                 'cbc:DocumentCurrencyCode':
                     creditNote.documentCurrencyCode || 'EUR',
                 'cbc:BuyerReference': creditNote.buyerReference,
-                'cac:BillingReference': creditNote.billingReference && creditNote.billingReference?.invoiceDocReference ? {
-                    'cac:InvoiceDocumentReference': {
-                        'cbc:ID': creditNote.billingReference.invoiceDocReference.id,
-                        'cbc:IssueDate': creditNote.billingReference.invoiceDocReference.issueDate ?? 0
-                    }
-                } : {},
+                'cac:BillingReference':
+                    creditNote.billingReference &&
+                    creditNote.billingReference?.invoiceDocReference
+                        ? {
+                              'cac:InvoiceDocumentReference': {
+                                  'cbc:ID':
+                                      creditNote.billingReference
+                                          .invoiceDocReference.id,
+                                  'cbc:IssueDate':
+                                      creditNote.billingReference
+                                          .invoiceDocReference.issueDate ?? 0,
+                              },
+                          }
+                        : {},
                 'cac:AccountingSupplierParty': this.__buildParty(
                     creditNote.seller
                 ),

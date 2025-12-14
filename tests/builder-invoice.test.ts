@@ -11,8 +11,7 @@ describe('Invoices Builder', () => {
 
     it('should generate a non empty string', () => {
         const invoiceXML = toolkit.invoiceToPeppolUBL(basicInvoice);
-        console.log(invoiceXML);
-        expect(invoiceXML.length).toBeGreaterThan(0);
+        expect(invoiceXML.data.length).toBeGreaterThan(0);
     });
 
     it('should work with different invoice type codes', () => {
@@ -26,16 +25,12 @@ describe('Invoices Builder', () => {
             invoiceTypeCode: 383,
         });
 
-        
-
-        expect(invoiceXML1).toContain(
+        expect(invoiceXML1.data).toContain(
             '<cbc:InvoiceTypeCode>71</cbc:InvoiceTypeCode>'
         );
-        expect(invoiceXML2).toContain(
+        expect(invoiceXML2.data).toContain(
             '<cbc:InvoiceTypeCode>383</cbc:InvoiceTypeCode>'
         );
-
-        
     });
 
     it('should work with currency codes', () => {
@@ -44,8 +39,8 @@ describe('Invoices Builder', () => {
             documentCurrencyCode: 'USD',
         });
 
-        expect(invoiceXML.length).toBeGreaterThan(0);
-        expect(invoiceXML).toContain(
+        expect(invoiceXML.data.length).toBeGreaterThan(0);
+        expect(invoiceXML.data).toContain(
             '<cbc:DocumentCurrencyCode>USD</cbc:DocumentCurrencyCode>'
         );
     });
@@ -55,13 +50,21 @@ describe('Invoices Builder', () => {
             ...basicInvoice,
         });
 
-        expect(invoiceXML1).toContain(
+        expect(invoiceXML1.data).toContain(
             '<cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0</cbc:CustomizationID>'
         );
-        expect(invoiceXML1).toContain(
+        expect(invoiceXML1.data).toContain(
             '<cbc:ProfileID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</cbc:ProfileID>'
         );
     });
 
+    it('should return error if invoice-type-code in data is not supported', () => {
+        const invoiceXML1 = toolkit.invoiceToPeppolUBL({
+            ...basicInvoice,
+            invoiceTypeCode: 290,
+        });
 
+        expect(invoiceXML1.success).toBeFalsy();
+        expect(invoiceXML1.message).toContain('Invalid InvoiceTypeCode');
+    });
 });
