@@ -57,6 +57,7 @@ export class DocumentBuilder {
                         'urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2',
                     xmlns: 'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2',
                 }),
+                'cbc:UBLVersionID': '2.1',
                 'cbc:CustomizationID':
                     invoice.customizationID ?? DEFAULT_CUSTOMIZATION_ID,
                 'cbc:ProfileID': invoice.profileID ?? DEFAULT_PROFILE_ID,
@@ -111,6 +112,7 @@ export class DocumentBuilder {
                         'urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2',
                     xmlns: 'urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2',
                 }),
+                'cbc:UBLVersionID': '2.1',
                 'cbc:CustomizationID':
                     creditNote.customizationID ?? DEFAULT_CUSTOMIZATION_ID,
                 'cbc:ProfileID': creditNote.profileID ?? DEFAULT_PROFILE_ID,
