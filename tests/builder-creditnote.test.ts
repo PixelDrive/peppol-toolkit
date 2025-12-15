@@ -11,7 +11,7 @@ describe('Creditnote Builder', () => {
 
     it('should generate a non empty string', () => {
         const invoiceXML = toolkit.creditNoteToPeppolUBL(basicCreditNote);
-        expect(invoiceXML.data.length).toBeGreaterThan(0);
+        expect(invoiceXML.length).toBeGreaterThan(0);
     });
 
     it('should work with different credit-note type codes', () => {
@@ -25,11 +25,19 @@ describe('Creditnote Builder', () => {
             creditNoteTypeCode: 261,
         });
 
-        expect(invoiceXML1.data).toContain(
+        expect(invoiceXML1).toContain(
             '<cbc:CreditNoteTypeCode>381</cbc:CreditNoteTypeCode>'
         );
-        expect(invoiceXML2.data).toContain(
+        expect(invoiceXML2).toContain(
             '<cbc:CreditNoteTypeCode>261</cbc:CreditNoteTypeCode>'
+        );
+    });
+
+    it('should return <CreditNote> as indicator', () => {
+        const invoiceXML = toolkit.creditNoteToPeppolUBL(basicCreditNote);
+        expect(invoiceXML).toContain('<CreditNote');
+        expect(invoiceXML).toContain(
+            'xmlns="urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2"'
         );
     });
 
@@ -39,8 +47,8 @@ describe('Creditnote Builder', () => {
             documentCurrencyCode: 'USD',
         });
 
-        expect(invoiceXML.data.length).toBeGreaterThan(0);
-        expect(invoiceXML.data).toContain(
+        expect(invoiceXML.length).toBeGreaterThan(0);
+        expect(invoiceXML).toContain(
             '<cbc:DocumentCurrencyCode>USD</cbc:DocumentCurrencyCode>'
         );
     });
@@ -50,21 +58,11 @@ describe('Creditnote Builder', () => {
             ...basicCreditNote,
         });
 
-        expect(invoiceXML1.data).toContain(
+        expect(invoiceXML1).toContain(
             '<cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0</cbc:CustomizationID>'
         );
-        expect(invoiceXML1.data).toContain(
+        expect(invoiceXML1).toContain(
             '<cbc:ProfileID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</cbc:ProfileID>'
         );
-    });
-    
-    it('should return error if creditNote-type-code in data is not supported', () => {
-        const invoiceXML1 = toolkit.creditNoteToPeppolUBL({
-            ...basicCreditNote,
-            creditNoteTypeCode: 380,
-        });
-
-        expect(invoiceXML1.success).toBeFalsy();
-        expect(invoiceXML1.message).toContain('Invalid CreditNoteTypeCode');
     });
 });

@@ -111,7 +111,7 @@ export const basicCreditNote = {
             additionalItemProperties: {
                 test: 'hello world',
             },
-            unitCode: 'DAY',
+            unitCode: 'H67',
             taxCategory: {
                 percent: 21,
                 categoryCode: 'S',

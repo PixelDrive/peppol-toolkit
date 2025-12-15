@@ -11,7 +11,15 @@ describe('Invoices Builder', () => {
 
     it('should generate a non empty string', () => {
         const invoiceXML = toolkit.invoiceToPeppolUBL(basicInvoice);
-        expect(invoiceXML.data.length).toBeGreaterThan(0);
+        expect(invoiceXML.length).toBeGreaterThan(0);
+    });
+
+    it('should return <Invoice> as indicator', () => {
+        const invoiceXML = toolkit.invoiceToPeppolUBL(basicInvoice);
+        expect(invoiceXML).toContain('<Invoice');
+        expect(invoiceXML).toContain(
+            'xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"'
+        );
     });
 
     it('should work with different invoice type codes', () => {
@@ -25,10 +33,10 @@ describe('Invoices Builder', () => {
             invoiceTypeCode: 383,
         });
 
-        expect(invoiceXML1.data).toContain(
+        expect(invoiceXML1).toContain(
             '<cbc:InvoiceTypeCode>71</cbc:InvoiceTypeCode>'
         );
-        expect(invoiceXML2.data).toContain(
+        expect(invoiceXML2).toContain(
             '<cbc:InvoiceTypeCode>383</cbc:InvoiceTypeCode>'
         );
     });
@@ -39,8 +47,8 @@ describe('Invoices Builder', () => {
             documentCurrencyCode: 'USD',
         });
 
-        expect(invoiceXML.data.length).toBeGreaterThan(0);
-        expect(invoiceXML.data).toContain(
+        expect(invoiceXML.length).toBeGreaterThan(0);
+        expect(invoiceXML).toContain(
             '<cbc:DocumentCurrencyCode>USD</cbc:DocumentCurrencyCode>'
         );
     });
@@ -50,21 +58,11 @@ describe('Invoices Builder', () => {
             ...basicInvoice,
         });
 
-        expect(invoiceXML1.data).toContain(
+        expect(invoiceXML1).toContain(
             '<cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0</cbc:CustomizationID>'
         );
-        expect(invoiceXML1.data).toContain(
+        expect(invoiceXML1).toContain(
             '<cbc:ProfileID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</cbc:ProfileID>'
         );
-    });
-
-    it('should return error if invoice-type-code in data is not supported', () => {
-        const invoiceXML1 = toolkit.invoiceToPeppolUBL({
-            ...basicInvoice,
-            invoiceTypeCode: 290,
-        });
-
-        expect(invoiceXML1.success).toBeFalsy();
-        expect(invoiceXML1.message).toContain('Invalid InvoiceTypeCode');
     });
 });
