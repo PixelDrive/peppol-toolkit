@@ -1,10 +1,9 @@
 import { XMLBuilder } from 'fast-xml-parser';
 import { builderOptions } from './builderOptions';
-import { CurrencyCode, Invoice, partySchema } from '../documents';
+import { CurrencyCode, Invoice, partySchema, CreditNote } from '../documents';
 import XMLAttributes from '../helpers/XMLAttributes';
 import getDateString from '../helpers/getDateString';
 import { z } from 'zod';
-import { CreditNote } from '../documents/invoices/CreditNote';
 
 const DEFAULT_CUSTOMIZATION_ID =
     'urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0';
