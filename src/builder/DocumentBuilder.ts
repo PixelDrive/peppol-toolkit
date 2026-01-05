@@ -30,9 +30,9 @@ export class DocumentBuilder {
     }
 
     /***
-     * Generates a Peppol invoice from the given invoice data
-     * @param invoice The invoice data
-     * @returns The Peppol invoice XML document as a string
+     * Generates a Peppol credit note from the given credit note data
+     * @param creditNote The credit note data
+     * @returns The Peppol credit note XML document as a string
      */
     public generatePeppolCreditNote(creditNote: CreditNote) {
         return this.__builder.build(this.__buildCreditNote(creditNote));
