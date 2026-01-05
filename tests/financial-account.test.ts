@@ -73,7 +73,7 @@ describe('Financial Account Schema', () => {
             'NL91ABNA0417164300', // Netherlands
         ];
 
-        ibanFormats.forEach(iban => {
+        ibanFormats.forEach((iban) => {
             const account = { id: iban };
             const result = financialAccountSchema.safeParse(account);
             expect(result.success).toBe(true);
@@ -87,7 +87,7 @@ describe('Financial Account Schema', () => {
             { id: '0123-456-789' }, // Account with dashes
         ];
 
-        nonIbanAccounts.forEach(account => {
+        nonIbanAccounts.forEach((account) => {
             const result = financialAccountSchema.safeParse(account);
             expect(result.success).toBe(true);
         });
@@ -102,7 +102,7 @@ describe('Financial Account Schema', () => {
             'CHASUS33XXX', // US BIC
         ];
 
-        bicCodes.forEach(bic => {
+        bicCodes.forEach((bic) => {
             const account = {
                 id: 'DE89370400440532013000',
                 financialInstitutionBranch: bic,
@@ -128,7 +128,9 @@ describe('Financial Account Schema', () => {
             name: 'Compagnie Française & Co. - Compte Principal',
         };
 
-        const result = financialAccountSchema.safeParse(accountWithSpecialChars);
+        const result = financialAccountSchema.safeParse(
+            accountWithSpecialChars
+        );
         expect(result.success).toBe(true);
     });
 
@@ -139,7 +141,9 @@ describe('Financial Account Schema', () => {
             financialInstitutionBranch: '',
         };
 
-        const result = financialAccountSchema.safeParse(accountWithEmptyOptionals);
+        const result = financialAccountSchema.safeParse(
+            accountWithEmptyOptionals
+        );
         expect(result.success).toBe(true);
     });
 });

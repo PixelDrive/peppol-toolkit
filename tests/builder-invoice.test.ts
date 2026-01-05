@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { PeppolToolkit } from '../src';
 import { basicInvoice } from '../src/data/basic-invoice';
 
-describe('InvoicesBuilder', () => {
+describe('Invoices Builder', () => {
     let toolkit = new PeppolToolkit();
 
     beforeEach(() => {
@@ -11,8 +11,15 @@ describe('InvoicesBuilder', () => {
 
     it('should generate a non empty string', () => {
         const invoiceXML = toolkit.invoiceToPeppolUBL(basicInvoice);
-        console.log(invoiceXML);
         expect(invoiceXML.length).toBeGreaterThan(0);
+    });
+
+    it('should return <Invoice> as indicator', () => {
+        const invoiceXML = toolkit.invoiceToPeppolUBL(basicInvoice);
+        expect(invoiceXML).toContain('<Invoice');
+        expect(invoiceXML).toContain(
+            'xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"'
+        );
     });
 
     it('should work with different invoice type codes', () => {
@@ -46,18 +53,16 @@ describe('InvoicesBuilder', () => {
         );
     });
 
-    /*it('should generate a valid UBL invoice', async () => {
-        const response = await fetch(
-            'https://docs.peppol.eu/poacc/billing/3.0/files/PEPPOL-EN16931-UBL.sch'
-        );
-        const data = await response.text();
+    it('should return default profileId and customizationId', () => {
+        const invoiceXML1 = toolkit.invoiceToPeppolUBL({
+            ...basicInvoice,
+        });
 
-        const schema = Schema.fromString(data);
-        const results = schema.validateString(
-            toolkit.invoiceToPeppolUBL(basicInvoice),
-            { debug: true }
+        expect(invoiceXML1).toContain(
+            '<cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0</cbc:CustomizationID>'
         );
-        console.info(results);
-        expect(results.length).toBe(0);
-    });*/
+        expect(invoiceXML1).toContain(
+            '<cbc:ProfileID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</cbc:ProfileID>'
+        );
+    });
 });

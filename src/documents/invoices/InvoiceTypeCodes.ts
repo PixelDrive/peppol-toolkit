@@ -57,4 +57,6 @@ export function isValidInvoiceTypeCode(code: number): code is InvoiceTypeCode {
 export const InvoiceTypeCodeSchema = z
     .number()
     .int()
-    .refine((code) => isValidInvoiceTypeCode(code), { message: 'Invalid InvoiceTypeCode' });
+    .refine((code) => isValidInvoiceTypeCode(code), {
+        message: 'Invalid InvoiceTypeCode',
+    });

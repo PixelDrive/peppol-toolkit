@@ -1,12 +1,17 @@
-import { Invoice } from '../../src';
+import { CreditNote } from '../documents/invoices/CreditNote';
 
-export const basicInvoice = {
+export const basicCreditNote = {
     ID: 'TEST-003',
     issueDate: '2024-01-01',
-    dueDate: '2024-01-31',
-    invoiceTypeCode: 380,
+    creditNoteTypeCode: 381,
     documentCurrencyCode: 'EUR',
     buyerReference: "Test Buyer's Reference",
+    billingReference: {
+        invoiceDocReference: {
+            id: 'INV-001',
+            issueDate: '2017-09-15',
+        },
+    },
     seller: {
         endPoint: {
             scheme: '9925',
@@ -95,7 +100,7 @@ export const basicInvoice = {
         prepaidAmount: 0,
         payableAmount: 121,
     },
-    invoiceLines: [
+    creditNoteLines: [
         {
             id: '1',
             invoicedQuantity: 1,
@@ -113,4 +118,4 @@ export const basicInvoice = {
             },
         },
     ],
-} satisfies Invoice;
+} satisfies CreditNote;

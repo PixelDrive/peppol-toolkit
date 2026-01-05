@@ -1,24 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { 
-    EASCodeSchema, 
-    getEASDescription, 
+import {
+    EASCodeSchema,
+    getEASDescription,
     isValidEASCode,
-    EASCodes 
+    EASCodes,
 } from '../src/documents/common/EASCodes';
 
 describe('EAS Codes', () => {
     describe('EASCodeSchema', () => {
         it('should validate common EAS codes', () => {
             const validCodes = ['0060', '0088', '0199', '9920', '9930', '9944'];
-            
-            validCodes.forEach(code => {
+
+            validCodes.forEach((code) => {
                 const result = EASCodeSchema.safeParse(code);
                 expect(result.success).toBe(true);
             });
         });
 
         it('should validate all defined EAS codes', () => {
-            Object.keys(EASCodes).forEach(code => {
+            Object.keys(EASCodes).forEach((code) => {
                 const result = EASCodeSchema.safeParse(code);
                 expect(result.success).toBe(true);
             });
@@ -26,8 +26,8 @@ describe('EAS Codes', () => {
 
         it('should reject invalid EAS codes', () => {
             const invalidCodes = ['9999', '0000', '1234', 'INVALID', 'ABC'];
-            
-            invalidCodes.forEach(code => {
+
+            invalidCodes.forEach((code) => {
                 const result = EASCodeSchema.safeParse(code);
                 expect(result.success).toBe(false);
             });
@@ -61,7 +61,7 @@ describe('EAS Codes', () => {
         });
 
         it('should validate all keys from EASCodes object', () => {
-            Object.keys(EASCodes).forEach(code => {
+            Object.keys(EASCodes).forEach((code) => {
                 expect(isValidEASCode(code)).toBe(true);
             });
         });
@@ -69,10 +69,16 @@ describe('EAS Codes', () => {
 
     describe('getEASDescription function', () => {
         it('should return correct descriptions for common codes', () => {
-            expect(getEASDescription('0060')).toBe('Data Universal Numbering System (D-U-N-S Number)');
+            expect(getEASDescription('0060')).toBe(
+                'Data Universal Numbering System (D-U-N-S Number)'
+            );
             expect(getEASDescription('0088')).toBe('EAN Location Code');
-            expect(getEASDescription('0199')).toBe('Legal Entity Identifier (LEI)');
-            expect(getEASDescription('9920')).toBe('Agencia Española de Administración Tributaria');
+            expect(getEASDescription('0199')).toBe(
+                'Legal Entity Identifier (LEI)'
+            );
+            expect(getEASDescription('9920')).toBe(
+                'Agencia Española de Administración Tributaria'
+            );
             expect(getEASDescription('9930')).toBe('Germany VAT number');
         });
 
@@ -80,26 +86,34 @@ describe('EAS Codes', () => {
             const vatCodes = ['9925', '9930', '9932', '9944', '9957'];
             const expectedDescriptions = [
                 'Belgium VAT number',
-                'Germany VAT number', 
+                'Germany VAT number',
                 'United Kingdom VAT number',
                 'Netherlands VAT number',
-                'French VAT number'
+                'French VAT number',
             ];
 
             vatCodes.forEach((code, index) => {
-                expect(getEASDescription(code as keyof typeof EASCodes)).toBe(expectedDescriptions[index]);
+                expect(getEASDescription(code as keyof typeof EASCodes)).toBe(
+                    expectedDescriptions[index]
+                );
             });
         });
 
         it('should return descriptions for business register codes', () => {
             expect(getEASDescription('0009')).toBe('SIRET-CODE');
-            expect(getEASDescription('0151')).toBe('Australian Business Number (ABN) Scheme');
-            expect(getEASDescription('0183')).toBe("Numéro d'identification suisse des enterprises (IDE), Swiss Unique Business Identification Number (UIDB)");
+            expect(getEASDescription('0151')).toBe(
+                'Australian Business Number (ABN) Scheme'
+            );
+            expect(getEASDescription('0183')).toBe(
+                "Numéro d'identification suisse des enterprises (IDE), Swiss Unique Business Identification Number (UIDB)"
+            );
         });
 
         it('should return descriptions for all defined codes', () => {
             Object.entries(EASCodes).forEach(([code, description]) => {
-                expect(getEASDescription(code as keyof typeof EASCodes)).toBe(description);
+                expect(getEASDescription(code as keyof typeof EASCodes)).toBe(
+                    description
+                );
             });
         });
     });
@@ -111,14 +125,14 @@ describe('EAS Codes', () => {
         });
 
         it('should have consistent code format', () => {
-            Object.keys(EASCodes).forEach(code => {
+            Object.keys(EASCodes).forEach((code) => {
                 expect(code).toMatch(/^\d{4}$/); // All codes should be 4 digits
                 expect(code.length).toBe(4);
             });
         });
 
         it('should have non-empty descriptions', () => {
-            Object.values(EASCodes).forEach(description => {
+            Object.values(EASCodes).forEach((description) => {
                 expect(description).toBeTruthy();
                 expect(typeof description).toBe('string');
                 expect(description.length).toBeGreaterThan(0);
@@ -134,9 +148,11 @@ describe('EAS Codes', () => {
 
         it('should include European VAT numbers', () => {
             const europeanVatCodes = ['9925', '9930', '9932', '9944', '9957'];
-            europeanVatCodes.forEach(code => {
+            europeanVatCodes.forEach((code) => {
                 expect(EASCodes).toHaveProperty(code);
-                expect(EASCodes[code as keyof typeof EASCodes]).toContain('VAT number');
+                expect(EASCodes[code as keyof typeof EASCodes]).toContain(
+                    'VAT number'
+                );
             });
         });
     });

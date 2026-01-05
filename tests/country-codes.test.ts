@@ -3,27 +3,60 @@ import { CountryCodeSchema } from '../src/documents/common/CountryCodes';
 
 describe('Country Codes Schema', () => {
     it('should validate common country codes', () => {
-        const validCodes = ['US', 'GB', 'DE', 'FR', 'IT', 'ES', 'NL', 'BE', 'AT', 'CH'];
-        
-        validCodes.forEach(code => {
+        const validCodes = [
+            'US',
+            'GB',
+            'DE',
+            'FR',
+            'IT',
+            'ES',
+            'NL',
+            'BE',
+            'AT',
+            'CH',
+        ];
+
+        validCodes.forEach((code) => {
             const result = CountryCodeSchema.safeParse(code);
             expect(result.success).toBe(true);
         });
     });
 
     it('should validate additional European country codes', () => {
-        const europeanCodes = ['DK', 'SE', 'NO', 'FI', 'PL', 'CZ', 'HU', 'PT', 'GR', 'IE'];
-        
-        europeanCodes.forEach(code => {
+        const europeanCodes = [
+            'DK',
+            'SE',
+            'NO',
+            'FI',
+            'PL',
+            'CZ',
+            'HU',
+            'PT',
+            'GR',
+            'IE',
+        ];
+
+        europeanCodes.forEach((code) => {
             const result = CountryCodeSchema.safeParse(code);
             expect(result.success).toBe(true);
         });
     });
 
     it('should validate Asia-Pacific country codes', () => {
-        const asiaPacificCodes = ['JP', 'CN', 'KR', 'AU', 'NZ', 'SG', 'HK', 'TW', 'TH', 'IN'];
-        
-        asiaPacificCodes.forEach(code => {
+        const asiaPacificCodes = [
+            'JP',
+            'CN',
+            'KR',
+            'AU',
+            'NZ',
+            'SG',
+            'HK',
+            'TW',
+            'TH',
+            'IN',
+        ];
+
+        asiaPacificCodes.forEach((code) => {
             const result = CountryCodeSchema.safeParse(code);
             expect(result.success).toBe(true);
         });
@@ -31,8 +64,8 @@ describe('Country Codes Schema', () => {
 
     it('should reject invalid country codes', () => {
         const invalidCodes = ['XX', 'ZZ', 'INVALID', '99', 'ABC'];
-        
-        invalidCodes.forEach(code => {
+
+        invalidCodes.forEach((code) => {
             const result = CountryCodeSchema.safeParse(code);
             expect(result.success).toBe(false);
         });
@@ -45,8 +78,8 @@ describe('Country Codes Schema', () => {
 
     it('should reject lowercase country codes', () => {
         const lowercaseCodes = ['us', 'gb', 'de', 'fr'];
-        
-        lowercaseCodes.forEach(code => {
+
+        lowercaseCodes.forEach((code) => {
             const result = CountryCodeSchema.safeParse(code);
             expect(result.success).toBe(false);
         });

@@ -10,7 +10,10 @@ import {
     paymentMeansSchema,
     taxTotalSchema,
 } from '../common';
+
 export const invoiceSchema = z.object({
+    customizationID: z.string().optional(),
+    profileID: z.string().optional(),
     ID: z.string().min(1),
     issueDate: date,
     dueDate: date.optional(),

@@ -27,7 +27,9 @@ describe('Payment Means Codes', () => {
         expect(getPaymentMeansDescription('10')).toBe('In cash');
         expect(getPaymentMeansDescription('20')).toBe('Cheque');
         expect(getPaymentMeansDescription('30')).toBe('Credit transfer');
-        expect(getPaymentMeansDescription('42')).toBe('Payment to bank account');
+        expect(getPaymentMeansDescription('42')).toBe(
+            'Payment to bank account'
+        );
         expect(getPaymentMeansDescription('48')).toBe('Bank card');
         expect(getPaymentMeansDescription('49')).toBe('Direct debit');
         expect(getPaymentMeansDescription('58')).toBe('SEPA credit transfer');
