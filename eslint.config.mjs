@@ -1,6 +1,5 @@
 import js from '@eslint/js';
 import eslintConfigPrettier from 'eslint-config-prettier';
-import turboPlugin from 'eslint-plugin-turbo';
 import sonarjs from 'eslint-plugin-sonarjs';
 import tseslint from 'typescript-eslint';
 
@@ -8,14 +7,6 @@ const eslintConfig = [
     js.configs.recommended,
     eslintConfigPrettier,
     ...tseslint.configs.recommended,
-    {
-        plugins: {
-            turbo: turboPlugin,
-        },
-        rules: {
-            'turbo/no-undeclared-env-vars': 'off',
-        },
-    },
     {
         plugins: { sonarjs },
         rules: {
