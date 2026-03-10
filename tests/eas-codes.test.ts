@@ -3,8 +3,9 @@ import {
     EASCodeSchema,
     getEASDescription,
     isValidEASCode,
+    getEASFromTaxId,
     EASCodes,
-} from '../src/documents/common/EASCodes';
+} from '../src';
 
 describe('EAS Codes', () => {
     describe('EASCodeSchema', () => {
@@ -154,6 +155,52 @@ describe('EAS Codes', () => {
                     'VAT number'
                 );
             });
+        });
+    });
+
+    describe('getEASFromTaxId function', () => {
+        it('should return correct EAS code for Belgian VAT number', () => {
+            expect(getEASFromTaxId('BE0123456789')).toBe('9925');
+        });
+
+        it('should return correct EAS code for French VAT number', () => {
+            expect(getEASFromTaxId('FR12345678901')).toBe('9957');
+        });
+
+        it('should return correct EAS code for Italian VAT number', () => {
+            expect(getEASFromTaxId('IT12345678901')).toBe('0211');
+        });
+
+        it('should return correct EAS code for Finnish VAT number', () => {
+            expect(getEASFromTaxId('FI12345678')).toBe('0213');
+        });
+
+        it('should return correct EAS code for Spanish VAT number', () => {
+            expect(getEASFromTaxId('ESB12345678')).toBe('9920');
+        });
+
+        it('should handle lowercase country codes', () => {
+            expect(getEASFromTaxId('be0123456789')).toBe('9925');
+        });
+
+        it('should return undefined for unknown country codes', () => {
+            expect(getEASFromTaxId('XX123456789')).toBeUndefined();
+        });
+
+        it('should return undefined for short strings', () => {
+            expect(getEASFromTaxId('A')).toBeUndefined();
+        });
+
+        it('should return undefined for empty string', () => {
+            expect(getEASFromTaxId('')).toBeUndefined();
+        });
+
+        it('should return correct EAS code for German VAT number', () => {
+            expect(getEASFromTaxId('DE123456789')).toBe('9930');
+        });
+
+        it('should return correct EAS code for Dutch VAT number', () => {
+            expect(getEASFromTaxId('NL123456789B01')).toBe('9944');
         });
     });
 });

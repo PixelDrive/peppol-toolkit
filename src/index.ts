@@ -1,7 +1,8 @@
 import { DocumentBuilder } from './builder';
 import { DocumentParser } from './parser';
-import { CreditNote } from './documents/invoices/CreditNote';
-import { Invoice } from './documents/invoices/Invoice';
+import { CreditNote, getEASFromTaxId } from './documents';
+import { Invoice } from './documents';
+import { computeTotals } from './helpers/computeTotals';
 
 export class PeppolToolkit {
     private __builder = new DocumentBuilder();
@@ -22,6 +23,9 @@ export class PeppolToolkit {
     public peppolUBLToCreditNote(xml: string): CreditNote {
         return this.__parser.parseCreditNote(xml);
     }
+
+    public static computeTotals = computeTotals;
+    public static getEASFromTaxId = getEASFromTaxId;
 }
 
 export function createToolkit() {
