@@ -119,6 +119,61 @@ export function isValidEASCode(code: string): code is EASCode {
     return code in EASCodes;
 }
 
+/**
+ * Mapping of country codes to their default VAT-related EAS codes
+ * @see https://docs.peppol.eu/poacc/billing/3.0/codelist/eas/
+ */
+const CountryVATScheme: Record<string, EASCode> = {
+    AD: '9922', // Andorra VAT number
+    AL: '9923', // Albania VAT number
+    AT: '9914', // Österreichische Umsatzsteuer-Identifikationsnummer
+    BA: '9924', // Bosnia and Herzegovina VAT number
+    BE: '9925', // Belgium VAT number
+    BG: '9926', // Bulgaria VAT number
+    CH: '9927', // Switzerland VAT number
+    CY: '9928', // Cyprus VAT number
+    CZ: '9929', // Czech Republic VAT number
+    DE: '9930', // Germany VAT number
+    EE: '9931', // Estonia VAT number
+    ES: '9920', // Agencia Española de Administración Tributaria
+    FI: '0213', // Finnish Organization Value Add Tax Identifier
+    FR: '9957', // French VAT number
+    GB: '9932', // United Kingdom VAT number
+    GR: '9933', // Greece VAT number
+    HR: '9934', // Croatia VAT number
+    HU: '9910', // Hungary VAT number
+    IE: '9935', // Ireland VAT number
+    IT: '0211', // PARTITA IVA
+    LI: '9936', // Liechtenstein VAT number
+    LT: '9937', // Lithuania VAT number
+    LU: '9938', // Luxemburg VAT number
+    LV: '9939', // Latvia VAT number
+    MC: '9940', // Monaco VAT number
+    ME: '9941', // Montenegro VAT number
+    MK: '9942', // Macedonia, the former Yugoslav Republic of VAT number
+    MT: '9943', // Malta VAT number
+    NL: '9944', // Netherlands VAT number
+    PL: '9945', // Poland VAT number
+    PT: '9946', // Portugal VAT number
+    RO: '9947', // Romania VAT number
+    RS: '9948', // Serbia VAT number
+    SI: '9949', // Slovenia VAT number
+    SK: '9950', // Slovakia VAT number
+    SM: '9951', // San Marino VAT number
+    TR: '9952', // Turkey VAT number
+    VA: '9953', // Holy See (Vatican City State) VAT number
+};
+
+/**
+ * Get the EAS code for a given tax ID
+ * @param taxId The tax ID to get the EAS code for (e.g. "BE0123456789")
+ * @returns The EAS code for the tax ID, or undefined if not found
+ */
+export function getEASFromTaxId(taxId: string): EASCode | undefined {
+    const countryCode = taxId.substring(0, 2).toUpperCase();
+    return CountryVATScheme[countryCode];
+}
+
 // Zod schema for EAS codes
 const easCodeKeys = Object.keys(EASCodes) as unknown as [EASCode, ...EASCode[]];
 export const EASCodeSchema = z.enum(easCodeKeys);

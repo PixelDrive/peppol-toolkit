@@ -1,6 +1,6 @@
 import { DocumentBuilder } from './builder';
 import { DocumentParser } from './parser';
-import { CreditNote } from './documents';
+import { CreditNote, getEASFromTaxId } from './documents';
 import { Invoice } from './documents';
 import { computeTotals } from './helpers/computeTotals';
 
@@ -25,6 +25,7 @@ export class PeppolToolkit {
     }
 
     public static computeTotals = computeTotals;
+    public static getEASFromTaxId = getEASFromTaxId;
 }
 
 export function createToolkit() {
