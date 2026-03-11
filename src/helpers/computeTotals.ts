@@ -10,11 +10,16 @@ export type UBLLineItem = {
  * Compute the totals of a list of items based on their base price and invoicedQuantity following EN16931 rules
  * @param items
  */
-export const computeTotals = (items: UBLLineItem[]) => {
-    const lines = items.map((item) =>
-        new Decimal(item.price)
+export const computeTotals = <T extends UBLLineItem>(items: T[]) => {
+    const itemsWithLineExtensionAmount = items.map((item) => ({
+        ...item,
+        lineExtensionAmount: new Decimal(item.price)
             .mul(new Decimal(item.quantity))
-            .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+            .toDecimalPlaces(2, Decimal.ROUND_HALF_UP),
+    }));
+
+    const lines = itemsWithLineExtensionAmount.map(
+        (i) => i.lineExtensionAmount
     );
 
     const baseAmount = lines.reduce((acc, amt) => acc.add(amt), new Decimal(0));
@@ -42,5 +47,6 @@ export const computeTotals = (items: UBLLineItem[]) => {
         taxAmount,
         taxableAmountPerRate,
         totalAmount: baseAmount.add(taxAmount),
+        itemsWithLineExtensionAmount,
     };
 };

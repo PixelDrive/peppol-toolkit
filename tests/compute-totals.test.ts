@@ -116,4 +116,24 @@ describe('computePeppolTotals', () => {
             expect(totalAmount.toString()).toBe('0');
         });
     });
+
+    describe('lines', () => {
+        it('returns items with lineExtensionAmount', () => {
+            const { itemsWithLineExtensionAmount } = computePeppolTotals([
+                { price: '2.45', quantity: 2, taxPercent: 0 },
+            ]);
+            expect(itemsWithLineExtensionAmount.length).toBe(1);
+            expect(
+                itemsWithLineExtensionAmount[0].lineExtensionAmount.toString()
+            ).toBe('4.9');
+        });
+
+        it('returns items with custom properties', () => {
+            const { itemsWithLineExtensionAmount } = computePeppolTotals([
+                { price: '2.45', quantity: 2, taxPercent: 0, taxCategory: 'A' },
+            ]);
+
+            expect(itemsWithLineExtensionAmount[0].taxCategory).toBe('A');
+        });
+    });
 });
