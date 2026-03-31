@@ -2,10 +2,16 @@ import { DocumentBuilder } from './builder';
 import { DocumentParser } from './parser';
 import { CreditNote, getEASFromTaxId, Invoice } from './documents';
 import { computeTotals } from './helpers/computeTotals';
+import {
+    KositValidator,
+    KositValidatorOptions,
+    KositValidationResult,
+} from './validator';
 
 export class PeppolToolkit {
     private __builder = new DocumentBuilder();
     private __parser = new DocumentParser();
+    private __kositValidator: KositValidator | null = null;
 
     public invoiceToPeppolUBL(invoice: Invoice): string {
         return this.__builder.generatePeppolInvoice(invoice);
@@ -21,6 +27,22 @@ export class PeppolToolkit {
 
     public peppolUBLToCreditNote(xml: string): CreditNote {
         return this.__parser.parseCreditNote(xml);
+    }
+
+    /**
+     * Validates a UBL XML document using the Kosit validator service.
+     * @param xml The XML document to validate.
+     * @param options Optional configuration for the validator endpoint.
+     * @returns The validation result including validity status, errors, and warnings.
+     */
+    public async validateWithKosit(
+        xml: string,
+        options?: KositValidatorOptions
+    ): Promise<KositValidationResult> {
+        if (!this.__kositValidator || options) {
+            this.__kositValidator = new KositValidator(options);
+        }
+        return await this.__kositValidator.validate(xml);
     }
 
     public static computeTotals = computeTotals;
@@ -40,5 +62,6 @@ export default {
 export * from './documents';
 export * from './builder';
 export * from './parser';
+export * from './validator';
 export { basicInvoice as exampleInvoice } from './data/basic-invoice';
 export { basicCreditNote as exampleCreditNote } from './data/basic-creditNote';
