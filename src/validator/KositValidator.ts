@@ -43,11 +43,13 @@ export class KositValidator {
     public async validate(xml: string): Promise<KositValidationResult> {
         const response = await fetch(this.endpoint, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/xml' },
+            headers: {
+                'Content-Type': 'application/xml',
+            },
             body: xml,
         });
 
-        if (!response.ok) {
+        if (!response.ok && response.status !== 406) {
             throw new Error(
                 `Kosit validator returned HTTP ${response.status}: ${response.statusText}`
             );
@@ -86,9 +88,7 @@ export class KositValidator {
         return { valid, errors, warnings, rawXml };
     }
 
-    private inferValidityFromResults(
-        report: Record<string, unknown>
-    ): boolean {
+    private inferValidityFromResults(report: Record<string, unknown>): boolean {
         const scenarioMatched = report['scenarioMatched'] as
             | Record<string, unknown>
             | undefined;
@@ -101,9 +101,7 @@ export class KositValidator {
         const stepArray = Array.isArray(steps) ? steps : steps ? [steps] : [];
 
         return stepArray.every((step: Record<string, unknown>) => {
-            const recommendation = step['recommendation'] as
-                | string
-                | undefined;
+            const recommendation = step['recommendation'] as string | undefined;
             return recommendation === 'accept';
         });
     }
