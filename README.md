@@ -7,6 +7,7 @@ PEPPOL (Pan-European Public Procurement On-Line) is a set of specifications that
 ## Features
 
 - 🚀 Generate PEPPOL-compliant UBL XML invoices
+- ✅ Validate UBL XML against a KoSIT validator service
 - 📦 ESM and CommonJS builds for broad compatibility
 - 🔷 Written in TypeScript with bundled type definitions
 - 🧪 Built with fast-xml-parser for reliable XML generation
@@ -307,6 +308,31 @@ const creditNoteXml = toolkit.creditNoteToPeppolUBL(exampleCreditNote);
 console.log(creditNoteXml);
 ```
 
+### Validate UBL XML with KoSIT
+
+You can validate generated (or external) UBL XML through a running KoSIT validator service.
+
+```typescript
+import { PeppolToolkit, exampleInvoice } from '@pixeldrive/peppol-toolkit';
+
+const toolkit = new PeppolToolkit();
+const xml = toolkit.invoiceToPeppolUBL(exampleInvoice);
+
+const result = await toolkit.validateWithKosit(xml, {
+    endpoint: 'http://localhost:8081/',
+});
+
+console.log(result.valid);     // true | false
+console.log(result.errors);    // validation errors
+console.log(result.warnings);  // validation warnings
+```
+
+Notes:
+
+- Default endpoint is `http://localhost:8081/`.
+- Requests are sent as `POST` with `Content-Type: application/xml`.
+- Some KoSIT deployments can return HTTP `406` together with an XML report for invalid documents; this toolkit still parses that report and returns structured `errors`/`warnings`.
+
 ## API Reference
 
 ### `PeppolToolkit`
@@ -321,6 +347,7 @@ The main class that provides invoice and credit note conversion functionality.
 | `creditNoteToPeppolUBL(creditNote: CreditNote): string` | Converts a `CreditNote` object to a PEPPOL-compliant UBL XML string |
 | `peppolUBLToInvoice(xml: string): Invoice` | Parses a PEPPOL UBL XML string into an `Invoice` object |
 | `peppolUBLToCreditNote(xml: string): CreditNote` | Parses a PEPPOL UBL XML string into a `CreditNote` object |
+| `validateWithKosit(xml: string, options?: KositValidatorOptions): Promise<KositValidationResult>` | Sends XML to a KoSIT validator service and returns parsed validation outcome |
 
 #### Static Helpers
 
@@ -338,6 +365,15 @@ import { createToolkit } from '@pixeldrive/peppol-toolkit';
 
 const toolkit = createToolkit();
 ```
+
+### `KositValidator` and Related Types
+
+Also exported for direct use:
+
+- `KositValidator`
+- `KositValidatorOptions`
+- `KositValidationResult`
+- `KositValidationMessage`
 
 ## PEPPOL BIS UBL Invoice Elements Checklist
 
@@ -456,13 +492,13 @@ Starting from version 1.0.0, this library will follow [Semantic Versioning (SemV
 - [x] Support CreditNote documents
 - [ ] Implement UBL 2.1 schema validation (offline)
 - [ ] Implement PEPPOL BIS profile validation (offline)
-- [ ] Enable online validation against remote services
+- [x] Enable online validation against remote services
 - [ ] Support attachments/binary objects embedding (e.g., PDF)
 - [ ] CLI: Convert JSON invoices to UBL XML
 - [x] Documentation: Examples and recipe-style guides
 - [ ] QA: Expand unit tests
 
-Last updated: 2026-03-10
+Last updated: 2026-03-31
 
 ## Development Scripts
 
