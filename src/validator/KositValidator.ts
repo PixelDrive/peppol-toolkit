@@ -144,7 +144,7 @@ export class KositValidator {
         for (const msg of messageArray as Record<string, unknown>[]) {
             const entry: KositValidationMessage = {
                 id: String(msg['$id'] ?? msg['id'] ?? ''),
-                text: String(msg['#text'] ?? msg['text'] ?? msg ?? ''),
+                text: String(msg['#text'] ?? msg['text'] ?? ''),
                 location: String(msg['$location'] ?? msg['location'] ?? ''),
             };
 

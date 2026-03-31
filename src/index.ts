@@ -39,10 +39,10 @@ export class PeppolToolkit {
         xml: string,
         options?: KositValidatorOptions
     ): Promise<KositValidationResult> {
-        if (!this.__kositValidator || options) {
-            this.__kositValidator = new KositValidator(options);
-        }
-        return await this.__kositValidator.validate(xml);
+        const validator = options
+            ? new KositValidator(options)
+            : (this.__kositValidator ??= new KositValidator());
+        return await validator.validate(xml);
     }
 
     public static computeTotals = computeTotals;
