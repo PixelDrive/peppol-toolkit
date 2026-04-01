@@ -399,9 +399,7 @@ export class DocumentParser {
                 unknown
             >;
             return {
-                chargeIndicator:
-                    ac['cbc:ChargeIndicator'] === 'true' ||
-                    ac['cbc:ChargeIndicator'] === true,
+                chargeIndicator: this.__bool(ac['cbc:ChargeIndicator']),
                 reasonCode: this.__str(ac['cbc:AllowanceChargeReasonCode']),
                 reason: this.__str(ac['cbc:AllowanceChargeReason']),
                 multiplierFactorNumeric:
@@ -655,9 +653,9 @@ export class DocumentParser {
                           const acAmtEl = a['cbc:Amount'];
                           const acBaseEl = a['cbc:BaseAmount'];
                           return {
-                              chargeIndicator:
-                                  a['cbc:ChargeIndicator'] === 'true' ||
-                                  a['cbc:ChargeIndicator'] === true,
+                              chargeIndicator: this.__bool(
+                                  a['cbc:ChargeIndicator']
+                              ),
                               reasonCode: this.__str(
                                   a['cbc:AllowanceChargeReasonCode']
                               ),

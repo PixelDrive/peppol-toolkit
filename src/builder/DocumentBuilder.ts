@@ -207,8 +207,8 @@ export class DocumentBuilder {
                 'cac:LegalMonetaryTotal': this.__buildMonetaryTotal(
                     invoice.legalMonetaryTotal
                 ),
-                'cac:InvoiceLine': invoice.invoiceLines.map(
-                    this.__buildInvoiceLine
+                'cac:InvoiceLine': invoice.invoiceLines.map((line) =>
+                    this.__buildLineItem(line, 'InvoicedQuantity')
                 ),
             },
         };
@@ -380,7 +380,8 @@ export class DocumentBuilder {
                     creditNote.legalMonetaryTotal
                 ),
                 'cac:CreditNoteLine': creditNote.creditNoteLines.map(
-                    this._buildCreditNoteLine
+                    (line) =>
+                        this.__buildLineItem(line, 'CreditedQuantity')
                 ),
             },
         };
@@ -1016,19 +1017,5 @@ export class DocumentBuilder {
                     : {}),
             },
         };
-    }
-
-    private __buildInvoiceLine(line: Invoice['invoiceLines'][number]) {
-        return DocumentBuilder.prototype.__buildLineItem(
-            line,
-            'InvoicedQuantity'
-        );
-    }
-
-    private _buildCreditNoteLine(line: CreditNote['creditNoteLines'][number]) {
-        return DocumentBuilder.prototype.__buildLineItem(
-            line,
-            'CreditedQuantity'
-        );
     }
 }
