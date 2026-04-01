@@ -796,4 +796,11 @@ export class DocumentParser {
         }
         return undefined;
     }
+
+    /**
+     * Parses a boolean value from XML (handles both string "true"/"false" and native booleans).
+     */
+    private __bool(value: unknown): boolean {
+        return value === 'true' || value === true;
+    }
 }
