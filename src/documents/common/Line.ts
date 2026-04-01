@@ -4,6 +4,7 @@ import { CountryCodeSchema } from './CountryCodes';
 import { taxCategorySchema } from './TaxCategory';
 import { CurrencyCodeSchema } from './CurrencyCodes';
 import { UnitCodeSchema } from './UnitCodes';
+import { lineAllowanceChargeSchema } from './AllowanceCharge';
 
 export const lineSchema = z.object({
     id: z.string().min(1),
@@ -19,21 +20,49 @@ export const lineSchema = z.object({
         .optional(),
     orderLineReference: z.string().optional(),
     documentReference: z.string().optional(),
-    //TODO: add AllowanceCharge
+    allowanceCharge: z.array(lineAllowanceChargeSchema).optional(),
     name: z.string(),
     description: z.string().optional(),
     buyersItemIdentification: z.string().optional(),
     sellersItemIdentification: z.string().optional(),
-    standardItemIdentification: z.string().optional(),
+    standardItemIdentification: z
+        .object({
+            id: z.string().min(1),
+            schemeID: z.string().min(1),
+        })
+        .optional(),
     originCountry: CountryCodeSchema.optional(),
-    //TODO: add item classification
+    commodityClassification: z
+        .array(
+            z.object({
+                code: z.string().min(1),
+                listID: z.string().min(1),
+                listVersionID: z.string().optional(),
+            })
+        )
+        .optional(),
     taxCategory: taxCategorySchema.pick({
         categoryCode: true,
         percent: true,
     }),
-    additionalItemProperties: z.record(z.string(), z.any()).optional(),
+    additionalItemProperties: z
+        .array(
+            z.object({
+                name: z.string().min(1),
+                value: z.string().min(1),
+            })
+        )
+        .optional(),
     price: z.number().min(0),
     currency: CurrencyCodeSchema,
-    //TODO: add price allowance and baseQT
     unitCode: UnitCodeSchema,
+    baseQuantity: z.number().min(0).optional(),
+    priceAllowanceCharge: z
+        .object({
+            amount: z.number(),
+            /** Currency – defaults to line/document currency when omitted */
+            currency: CurrencyCodeSchema.optional(),
+            baseAmount: z.number().optional(),
+        })
+        .optional(),
 });
