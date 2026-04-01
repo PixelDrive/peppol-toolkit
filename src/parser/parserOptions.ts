@@ -12,6 +12,11 @@ export const parserOptions = {
             'cac:TaxTotal',
             'cac:TaxSubtotal',
             'cac:PartyIdentification',
+            'cac:BillingReference',
+            'cac:AllowanceCharge',
+            'cac:AdditionalDocumentReference',
+            'cac:CommodityClassification',
+            'cac:AdditionalItemProperty',
         ].includes(tagName);
     },
 } satisfies X2jOptions;

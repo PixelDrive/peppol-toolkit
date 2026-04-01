@@ -12,3 +12,6 @@ export * from './TaxTotal';
 export * from './Line';
 export * from './InvoicePeriodSchema';
 export * from './PaymentMeans';
+export * from './Delivery';
+export * from './AllowanceCharge';
+export * from './AdditionalDocumentReference';

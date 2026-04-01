@@ -6,12 +6,14 @@ export const basicCreditNote = {
     creditNoteTypeCode: 381,
     documentCurrencyCode: 'EUR',
     buyerReference: "Test Buyer's Reference",
-    billingReference: {
-        invoiceDocReference: {
-            id: 'INV-001',
-            issueDate: '2017-09-15',
+    billingReference: [
+        {
+            invoiceDocReference: {
+                id: 'INV-001',
+                issueDate: '2017-09-15',
+            },
         },
-    },
+    ],
     seller: {
         endPoint: {
             scheme: '9925',
@@ -108,9 +110,12 @@ export const basicCreditNote = {
             price: 100,
             name: 'Petit poney',
             currency: 'EUR',
-            additionalItemProperties: {
-                test: 'hello world',
-            },
+            additionalItemProperties: [
+                {
+                    name: 'test',
+                    value: 'hello world',
+                },
+            ],
             unitCode: 'H67',
             taxCategory: {
                 percent: 21,

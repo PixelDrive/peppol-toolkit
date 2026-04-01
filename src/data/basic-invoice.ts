@@ -103,9 +103,12 @@ export const basicInvoice = {
             price: 100,
             name: 'Petit poney',
             currency: 'EUR',
-            additionalItemProperties: {
-                test: 'hello world',
-            },
+            additionalItemProperties: [
+                {
+                    name: 'test',
+                    value: 'hello world',
+                },
+            ],
             unitCode: 'H67',
             taxCategory: {
                 percent: 21,
