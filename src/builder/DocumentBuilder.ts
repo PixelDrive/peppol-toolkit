@@ -66,9 +66,7 @@ export class DocumentBuilder {
                     ? getDateString(invoice.dueDate)
                     : undefined,
                 'cbc:InvoiceTypeCode': invoice.invoiceTypeCode,
-                ...(invoice.note
-                    ? { 'cbc:Note': invoice.note }
-                    : {}),
+                ...(invoice.note ? { 'cbc:Note': invoice.note } : {}),
                 ...(invoice.taxPointDate
                     ? {
                           'cbc:TaxPointDate': getDateString(
@@ -88,8 +86,9 @@ export class DocumentBuilder {
                 'cbc:BuyerReference': invoice.buyerReference,
                 ...(invoice.invoicePeriod
                     ? {
-                          'cac:InvoicePeriod':
-                              this.__buildInvoicePeriod(invoice.invoicePeriod),
+                          'cac:InvoicePeriod': this.__buildInvoicePeriod(
+                              invoice.invoicePeriod
+                          ),
                       }
                     : {}),
                 ...(invoice.orderReference
@@ -99,8 +98,7 @@ export class DocumentBuilder {
                               ...(invoice.orderReference.salesOrderId
                                   ? {
                                         'cbc:SalesOrderID':
-                                            invoice.orderReference
-                                                .salesOrderId,
+                                            invoice.orderReference.salesOrderId,
                                     }
                                   : {}),
                           },
@@ -109,21 +107,21 @@ export class DocumentBuilder {
                 ...(invoice.billingReference &&
                 invoice.billingReference.length > 0
                     ? {
-                          'cac:BillingReference':
-                              invoice.billingReference.map((ref) => ({
+                          'cac:BillingReference': invoice.billingReference.map(
+                              (ref) => ({
                                   'cac:InvoiceDocumentReference': {
                                       'cbc:ID': ref.invoiceDocReference.id,
                                       ...(ref.invoiceDocReference.issueDate
                                           ? {
-                                                'cbc:IssueDate':
-                                                    getDateString(
-                                                        ref.invoiceDocReference
-                                                            .issueDate
-                                                    ),
+                                                'cbc:IssueDate': getDateString(
+                                                    ref.invoiceDocReference
+                                                        .issueDate
+                                                ),
                                             }
                                           : {}),
                                   },
-                              })),
+                              })
+                          ),
                       }
                     : {}),
                 ...(invoice.despatchDocumentReference
@@ -194,13 +192,13 @@ export class DocumentBuilder {
                 ...(invoice.allowanceCharge &&
                 invoice.allowanceCharge.length > 0
                     ? {
-                          'cac:AllowanceCharge':
-                              invoice.allowanceCharge.map((ac) =>
+                          'cac:AllowanceCharge': invoice.allowanceCharge.map(
+                              (ac) =>
                                   this.__buildAllowanceCharge(
                                       ac,
                                       invoice.documentCurrencyCode
                                   )
-                              ),
+                          ),
                       }
                     : {}),
                 'cac:TaxTotal': this.__buildTaxTotal(invoice.taxTotal),
@@ -246,9 +244,7 @@ export class DocumentBuilder {
                       }
                     : {}),
                 'cbc:CreditNoteTypeCode': creditNote.creditNoteTypeCode ?? 381,
-                ...(creditNote.note
-                    ? { 'cbc:Note': creditNote.note }
-                    : {}),
+                ...(creditNote.note ? { 'cbc:Note': creditNote.note } : {}),
                 'cbc:DocumentCurrencyCode':
                     creditNote.documentCurrencyCode || 'EUR',
                 ...(creditNote.taxCurrencyCode
@@ -262,10 +258,9 @@ export class DocumentBuilder {
                 'cbc:BuyerReference': creditNote.buyerReference,
                 ...(creditNote.invoicePeriod
                     ? {
-                          'cac:InvoicePeriod':
-                              this.__buildInvoicePeriod(
-                                  creditNote.invoicePeriod
-                              ),
+                          'cac:InvoicePeriod': this.__buildInvoicePeriod(
+                              creditNote.invoicePeriod
+                          ),
                       }
                     : {}),
                 ...(creditNote.orderReference
@@ -291,11 +286,10 @@ export class DocumentBuilder {
                                       'cbc:ID': ref.invoiceDocReference.id,
                                       ...(ref.invoiceDocReference.issueDate
                                           ? {
-                                                'cbc:IssueDate':
-                                                    getDateString(
-                                                        ref.invoiceDocReference
-                                                            .issueDate
-                                                    ),
+                                                'cbc:IssueDate': getDateString(
+                                                    ref.invoiceDocReference
+                                                        .issueDate
+                                                ),
                                             }
                                           : {}),
                                   },
@@ -335,8 +329,7 @@ export class DocumentBuilder {
                 ...(creditNote.originatorDocumentReference
                     ? {
                           'cac:OriginatorDocumentReference': {
-                              'cbc:ID':
-                                  creditNote.originatorDocumentReference,
+                              'cbc:ID': creditNote.originatorDocumentReference,
                           },
                       }
                     : {}),
@@ -366,22 +359,21 @@ export class DocumentBuilder {
                 ...(creditNote.allowanceCharge &&
                 creditNote.allowanceCharge.length > 0
                     ? {
-                          'cac:AllowanceCharge':
-                              creditNote.allowanceCharge.map((ac) =>
+                          'cac:AllowanceCharge': creditNote.allowanceCharge.map(
+                              (ac) =>
                                   this.__buildAllowanceCharge(
                                       ac,
                                       creditNote.documentCurrencyCode
                                   )
-                              ),
+                          ),
                       }
                     : {}),
                 'cac:TaxTotal': this.__buildTaxTotal(creditNote.taxTotal),
                 'cac:LegalMonetaryTotal': this.__buildMonetaryTotal(
                     creditNote.legalMonetaryTotal
                 ),
-                'cac:CreditNoteLine': creditNote.creditNoteLines.map(
-                    (line) =>
-                        this.__buildLineItem(line, 'CreditedQuantity')
+                'cac:CreditNoteLine': creditNote.creditNoteLines.map((line) =>
+                    this.__buildLineItem(line, 'CreditedQuantity')
                 ),
             },
         };
@@ -429,12 +421,16 @@ export class DocumentBuilder {
                     },
                 },
 
-                'cac:PartyTaxScheme': {
-                    'cbc:CompanyID': party.taxSchemeCompanyID,
-                    'cac:TaxScheme': {
-                        'cbc:ID': 'VAT',
-                    },
-                },
+                ...(party.taxSchemeCompanyID
+                    ? {
+                          'cac:PartyTaxScheme': {
+                              'cbc:CompanyID': party.taxSchemeCompanyID,
+                              'cac:TaxScheme': {
+                                  'cbc:ID': 'VAT',
+                              },
+                          },
+                      }
+                    : {}),
                 'cac:PartyLegalEntity': {
                     'cbc:RegistrationName': party.legalEntity.registrationName,
                     ...(party.legalEntity.companyId
@@ -695,13 +691,10 @@ export class DocumentBuilder {
                       'cbc:AllowanceChargeReasonCode': ac.reasonCode,
                   }
                 : {}),
-            ...(ac.reason
-                ? { 'cbc:AllowanceChargeReason': ac.reason }
-                : {}),
+            ...(ac.reason ? { 'cbc:AllowanceChargeReason': ac.reason } : {}),
             ...(ac.multiplierFactorNumeric !== undefined
                 ? {
-                      'cbc:MultiplierFactorNumeric':
-                          ac.multiplierFactorNumeric,
+                      'cbc:MultiplierFactorNumeric': ac.multiplierFactorNumeric,
                   }
                 : {}),
             'cbc:Amount': {
@@ -744,13 +737,10 @@ export class DocumentBuilder {
                       'cbc:AllowanceChargeReasonCode': ac.reasonCode,
                   }
                 : {}),
-            ...(ac.reason
-                ? { 'cbc:AllowanceChargeReason': ac.reason }
-                : {}),
+            ...(ac.reason ? { 'cbc:AllowanceChargeReason': ac.reason } : {}),
             ...(ac.multiplierFactorNumeric !== undefined
                 ? {
-                      'cbc:MultiplierFactorNumeric':
-                          ac.multiplierFactorNumeric,
+                      'cbc:MultiplierFactorNumeric': ac.multiplierFactorNumeric,
                   }
                 : {}),
             'cbc:Amount': {
@@ -875,12 +865,8 @@ export class DocumentBuilder {
                 : {}),
             ...(line.allowanceCharge && line.allowanceCharge.length > 0
                 ? {
-                      'cac:AllowanceCharge': line.allowanceCharge.map(
-                          (ac) =>
-                              this.__buildLineAllowanceCharge(
-                                  ac,
-                                  line.currency
-                              )
+                      'cac:AllowanceCharge': line.allowanceCharge.map((ac) =>
+                          this.__buildLineAllowanceCharge(ac, line.currency)
                       ),
                   }
                 : {}),
@@ -907,8 +893,7 @@ export class DocumentBuilder {
                     ? {
                           'cac:StandardItemIdentification': {
                               'cbc:ID': {
-                                  '#text':
-                                      line.standardItemIdentification.id,
+                                  '#text': line.standardItemIdentification.id,
                                   ...XMLAttributes({
                                       schemeID:
                                           line.standardItemIdentification
