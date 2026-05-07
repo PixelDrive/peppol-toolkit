@@ -66,7 +66,20 @@ export class DocumentBuilder {
                     ? getDateString(invoice.dueDate)
                     : undefined,
                 'cbc:InvoiceTypeCode': invoice.invoiceTypeCode,
-                ...(invoice.note ? { 'cbc:Note': invoice.note } : {}),
+                ...(invoice.note && invoice.note.length > 0
+                    ? {
+                          'cbc:Note': invoice.note.map((n) =>
+                              n.languageID
+                                  ? {
+                                        '#text': n.content,
+                                        ...XMLAttributes({
+                                            languageID: n.languageID,
+                                        }),
+                                    }
+                                  : n.content
+                          ),
+                      }
+                    : {}),
                 ...(invoice.taxPointDate
                     ? {
                           'cbc:TaxPointDate': getDateString(
@@ -172,6 +185,21 @@ export class DocumentBuilder {
                     invoice.seller
                 ),
                 'cac:AccountingCustomerParty': this.__buildParty(invoice.buyer),
+                ...(invoice.payeeParty
+                    ? {
+                          'cac:PayeeParty': this.__buildPayeeParty(
+                              invoice.payeeParty
+                          ),
+                      }
+                    : {}),
+                ...(invoice.taxRepresentativeParty
+                    ? {
+                          'cac:TaxRepresentativeParty':
+                              this.__buildTaxRepresentativeParty(
+                                  invoice.taxRepresentativeParty
+                              ),
+                      }
+                    : {}),
                 ...(invoice.delivery
                     ? {
                           'cac:Delivery': this.__buildDelivery(
@@ -244,7 +272,20 @@ export class DocumentBuilder {
                       }
                     : {}),
                 'cbc:CreditNoteTypeCode': creditNote.creditNoteTypeCode ?? 381,
-                ...(creditNote.note ? { 'cbc:Note': creditNote.note } : {}),
+                ...(creditNote.note && creditNote.note.length > 0
+                    ? {
+                          'cbc:Note': creditNote.note.map((n) =>
+                              n.languageID
+                                  ? {
+                                        '#text': n.content,
+                                        ...XMLAttributes({
+                                            languageID: n.languageID,
+                                        }),
+                                    }
+                                  : n.content
+                          ),
+                      }
+                    : {}),
                 'cbc:DocumentCurrencyCode':
                     creditNote.documentCurrencyCode || 'EUR',
                 ...(creditNote.taxCurrencyCode
@@ -339,6 +380,21 @@ export class DocumentBuilder {
                 'cac:AccountingCustomerParty': this.__buildParty(
                     creditNote.buyer
                 ),
+                ...(creditNote.payeeParty
+                    ? {
+                          'cac:PayeeParty': this.__buildPayeeParty(
+                              creditNote.payeeParty
+                          ),
+                      }
+                    : {}),
+                ...(creditNote.taxRepresentativeParty
+                    ? {
+                          'cac:TaxRepresentativeParty':
+                              this.__buildTaxRepresentativeParty(
+                                  creditNote.taxRepresentativeParty
+                              ),
+                      }
+                    : {}),
                 ...(creditNote.delivery
                     ? {
                           'cac:Delivery': this.__buildDelivery(
@@ -380,6 +436,90 @@ export class DocumentBuilder {
     }
 
     /**
+     * Helper function to build a PayeeParty object (BG-10)
+     * @param payee The payee data
+     * @returns The PayeeParty XML object
+     */
+    private __buildPayeeParty(
+        payee: NonNullable<Invoice['payeeParty']>
+    ): Record<string, unknown> {
+        return {
+            'cac:Party': {
+                ...(payee.identification
+                    ? {
+                          'cac:PartyIdentification': {
+                              'cbc:ID': {
+                                  '#text': payee.identification.id,
+                                  ...(payee.identification.schemeID
+                                      ? XMLAttributes({
+                                            schemeID:
+                                                payee.identification.schemeID,
+                                        })
+                                      : {}),
+                              },
+                          },
+                      }
+                    : {}),
+                'cac:PartyName': {
+                    'cbc:Name': payee.name,
+                },
+                ...(payee.legalEntity
+                    ? {
+                          'cac:PartyLegalEntity': {
+                              ...(payee.legalEntity.companyId
+                                  ? {
+                                        'cbc:CompanyID': {
+                                            '#text':
+                                                payee.legalEntity.companyId.id,
+                                            ...(payee.legalEntity.companyId
+                                                .schemeID
+                                                ? XMLAttributes({
+                                                      schemeID:
+                                                          payee.legalEntity
+                                                              .companyId
+                                                              .schemeID,
+                                                  })
+                                                : {}),
+                                        },
+                                    }
+                                  : {}),
+                          },
+                      }
+                    : {}),
+            },
+        };
+    }
+
+    /**
+     * Helper function to build a TaxRepresentativeParty object (BG-11)
+     * @param taxRep The tax representative data
+     * @returns The TaxRepresentativeParty XML object
+     */
+    private __buildTaxRepresentativeParty(
+        taxRep: NonNullable<Invoice['taxRepresentativeParty']>
+    ): Record<string, unknown> {
+        return {
+            'cac:Party': {
+                'cac:PartyName': {
+                    'cbc:Name': taxRep.name,
+                },
+                'cac:PostalAddress': {
+                    'cbc:StreetName': taxRep.address.streetName,
+                    'cbc:AdditionalStreetName':
+                        taxRep.address.additionalStreetName,
+                    'cbc:CityName': taxRep.address.cityName,
+                    'cbc:PostalZone': taxRep.address.postalZone,
+                    'cbc:CountrySubentity': taxRep.address.countrySubentity,
+                    'cbc:AddressLine': taxRep.address.addressLine,
+                    'cac:Country': {
+                        'cbc:IdentificationCode': taxRep.address.country,
+                    },
+                },
+            },
+        };
+    }
+
+    /**
      * Helper function to build a party object
      * @param party The party data
      * @returns The party object
@@ -416,26 +556,45 @@ export class DocumentBuilder {
                         party.address.additionalStreetName,
                     'cbc:CityName': party.address.cityName,
                     'cbc:PostalZone': party.address.postalZone,
+                    'cbc:CountrySubentity': party.address.countrySubentity,
+                    'cbc:AddressLine': party.address.addressLine,
                     'cac:Country': {
                         'cbc:IdentificationCode': party.address.country,
                     },
                 },
 
-                ...(party.taxSchemeCompanyID
+                ...(party.taxSchemes && party.taxSchemes.length > 0
                     ? {
-                          'cac:PartyTaxScheme': {
-                              'cbc:CompanyID': party.taxSchemeCompanyID,
-                              'cac:TaxScheme': {
-                                  'cbc:ID': 'VAT',
-                              },
-                          },
+                          'cac:PartyTaxScheme': party.taxSchemes.map((ts) => ({
+                              'cbc:CompanyID': ts.companyId,
+                              ...(ts.schemeID
+                                  ? {
+                                        'cac:TaxScheme': {
+                                            'cbc:ID': ts.schemeID,
+                                        },
+                                    }
+                                  : {
+                                        'cac:TaxScheme': {
+                                            'cbc:ID': 'VAT',
+                                        },
+                                    }),
+                          })),
                       }
                     : {}),
                 'cac:PartyLegalEntity': {
                     'cbc:RegistrationName': party.legalEntity.registrationName,
                     ...(party.legalEntity.companyId
                         ? {
-                              'cbc:CompanyID': party.legalEntity.companyId,
+                              'cbc:CompanyID': {
+                                  '#text': party.legalEntity.companyId.id,
+                                  ...(party.legalEntity.companyId.schemeID
+                                      ? XMLAttributes({
+                                            schemeID:
+                                                party.legalEntity.companyId
+                                                    .schemeID,
+                                        })
+                                      : {}),
+                              },
                           }
                         : {}),
                     ...(party.legalEntity.legalForm
@@ -466,8 +625,22 @@ export class DocumentBuilder {
     private __buildPaymentMeans(means: Invoice['paymentMeans']) {
         return means?.map((m) => {
             const financialAccount = m.financialAccount;
+            const cardAccount = m.cardAccount;
+            const paymentMandate = m.paymentMandate;
             return {
-                'cbc:PaymentMeansCode': m.code,
+                'cbc:PaymentMeansCode': m.name
+                    ? {
+                          '#text': m.code,
+                          ...XMLAttributes({ name: m.name }),
+                      }
+                    : m.code,
+                ...(m.paymentDueDate
+                    ? {
+                          'cbc:PaymentDueDate': getDateString(
+                              m.paymentDueDate
+                          ),
+                      }
+                    : {}),
                 'cbc:PaymentID': m.paymentId,
                 ...(financialAccount
                     ? {
@@ -481,6 +654,40 @@ export class DocumentBuilder {
                                                 financialAccount.financialInstitutionBranch,
                                         }
                                       : undefined,
+                          },
+                      }
+                    : {}),
+                ...(cardAccount
+                    ? {
+                          'cac:CardAccount': {
+                              'cbc:PrimaryAccountNumberID':
+                                  cardAccount.primaryAccountNumberId,
+                              'cbc:NetworkID': cardAccount.networkId,
+                              ...(cardAccount.holderName
+                                  ? {
+                                        'cbc:HolderName':
+                                            cardAccount.holderName,
+                                    }
+                                  : {}),
+                          },
+                      }
+                    : {}),
+                ...(paymentMandate
+                    ? {
+                          'cac:PaymentMandate': {
+                              ...(paymentMandate.id
+                                  ? {
+                                        'cbc:ID': paymentMandate.id,
+                                    }
+                                  : {}),
+                              ...(paymentMandate.payerFinancialAccountId
+                                  ? {
+                                        'cac:PayerFinancialAccount': {
+                                            'cbc:ID':
+                                                paymentMandate.payerFinancialAccountId,
+                                        },
+                                    }
+                                  : {}),
                           },
                       }
                     : {}),
@@ -656,6 +863,12 @@ export class DocumentBuilder {
                                         'cbc:PostalZone':
                                             delivery.deliveryLocation.address
                                                 .postalZone,
+                                        'cbc:CountrySubentity':
+                                            delivery.deliveryLocation.address
+                                                .countrySubentity,
+                                        'cbc:AddressLine':
+                                            delivery.deliveryLocation.address
+                                                .addressLine,
                                         'cac:Country': {
                                             'cbc:IdentificationCode':
                                                 delivery.deliveryLocation
@@ -812,7 +1025,20 @@ export class DocumentBuilder {
     ) {
         return {
             'cbc:ID': line.id,
-            ...(line.note ? { 'cbc:Note': line.note } : {}),
+            ...(line.note && line.note.length > 0
+                ? {
+                      'cbc:Note': line.note.map((n) =>
+                          n.languageID
+                              ? {
+                                    '#text': n.content,
+                                    ...XMLAttributes({
+                                        languageID: n.languageID,
+                                    }),
+                                }
+                              : n.content
+                      ),
+                  }
+                : {}),
             [`cbc:${quantityTag}`]: {
                 '#text': line.invoicedQuantity.toFixed(2),
                 ...XMLAttributes({
@@ -858,8 +1084,9 @@ export class DocumentBuilder {
             ...(line.documentReference
                 ? {
                       'cac:DocumentReference': {
-                          'cbc:ID': line.documentReference,
-                          'cbc:DocumentTypeCode': '130',
+                          'cbc:ID': line.documentReference.id,
+                          'cbc:DocumentTypeCode':
+                              line.documentReference.documentTypeCode ?? '130',
                       },
                   }
                 : {}),
@@ -933,6 +1160,18 @@ export class DocumentBuilder {
                 'cac:ClassifiedTaxCategory': {
                     'cbc:ID': line.taxCategory.categoryCode,
                     'cbc:Percent': line.taxCategory.percent?.toFixed(2),
+                    ...(line.taxCategory.exemptionReason
+                        ? {
+                              'cbc:TaxExemptionReason':
+                                  line.taxCategory.exemptionReason,
+                          }
+                        : {}),
+                    ...(line.taxCategory.exemptionReasonCode
+                        ? {
+                              'cbc:TaxExemptionReasonCode':
+                                  line.taxCategory.exemptionReasonCode,
+                          }
+                        : {}),
                     'cac:TaxScheme': {
                         'cbc:ID': 'VAT',
                     },

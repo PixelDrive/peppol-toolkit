@@ -13,7 +13,7 @@ export const basicInvoice = {
             id: '0732788874',
         },
         legalEntity: {
-            companyId: '0732788874',
+            companyId: { id: '0732788874' },
             registrationName: 'Loir, Simon',
         },
         name: 'Test Seller',
@@ -23,7 +23,12 @@ export const basicInvoice = {
             postalZone: '12345',
             country: 'BE',
         },
-        taxSchemeCompanyID: 'BE0732788874',
+        taxSchemes: [
+            {
+                companyId: 'BE0732788874',
+                schemeID: 'VAT',
+            },
+        ],
         identification: [
             {
                 id: 'BE0732788874',
@@ -37,7 +42,7 @@ export const basicInvoice = {
             id: '0732788874',
         },
         legalEntity: {
-            companyId: '0732788874',
+            companyId: { id: '0732788874' },
             legalForm: 'SRL',
             registrationName: 'Loir, Simon',
         },
@@ -48,7 +53,12 @@ export const basicInvoice = {
             postalZone: '12345',
             country: 'BE',
         },
-        taxSchemeCompanyID: 'BE0732788874',
+        taxSchemes: [
+            {
+                companyId: 'BE0732788874',
+                schemeID: 'VAT',
+            },
+        ],
         identification: [
             {
                 id: 'BE0732788874',
