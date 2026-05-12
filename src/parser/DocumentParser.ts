@@ -31,19 +31,7 @@ export class DocumentParser {
             issueDate: this.__str(inv['cbc:IssueDate'])!,
             dueDate: this.__str(inv['cbc:DueDate']),
             invoiceTypeCode: Number(inv['cbc:InvoiceTypeCode']),
-            note: (() => {
-                const notes = inv['cbc:Note'];
-                if (!notes) return undefined;
-                const notesArray = Array.isArray(notes) ? notes : [notes];
-                return notesArray.map((n) => {
-                    const noteStr = this.__str(n);
-                    const noteObj = n as Record<string, unknown>;
-                    return {
-                        content: noteStr!,
-                        languageID: this.__attr(noteObj, 'languageID'),
-                    };
-                });
-            })(),
+            note: this.__parseNotes(inv['cbc:Note']),
             taxPointDate: this.__str(inv['cbc:TaxPointDate']),
             documentCurrencyCode: this.__str(inv['cbc:DocumentCurrencyCode'])!,
             taxCurrencyCode: this.__str(inv['cbc:TaxCurrencyCode']),
@@ -123,19 +111,7 @@ export class DocumentParser {
             ID: this.__str(cn['cbc:ID'])!,
             issueDate: this.__str(cn['cbc:IssueDate'])!,
             creditNoteTypeCode: Number(cn['cbc:CreditNoteTypeCode']),
-            note: (() => {
-                const notes = cn['cbc:Note'];
-                if (!notes) return undefined;
-                const notesArray = Array.isArray(notes) ? notes : [notes];
-                return notesArray.map((n) => {
-                    const noteStr = this.__str(n);
-                    const noteObj = n as Record<string, unknown>;
-                    return {
-                        content: noteStr!,
-                        languageID: this.__attr(noteObj, 'languageID'),
-                    };
-                });
-            })(),
+            note: this.__parseNotes(cn['cbc:Note']),
             taxPointDate: this.__str(cn['cbc:TaxPointDate']),
             documentCurrencyCode: this.__str(cn['cbc:DocumentCurrencyCode'])!,
             taxCurrencyCode: this.__str(cn['cbc:TaxCurrencyCode']),
@@ -790,19 +766,7 @@ export class DocumentParser {
 
         return {
             id: this.__str(l['cbc:ID'])!,
-            note: (() => {
-                const notes = l['cbc:Note'];
-                if (!notes) return undefined;
-                const notesArray = Array.isArray(notes) ? notes : [notes];
-                return notesArray.map((n) => {
-                    const noteStr = this.__str(n);
-                    const noteObj = n as Record<string, unknown>;
-                    return {
-                        content: noteStr!,
-                        languageID: this.__attr(noteObj, 'languageID'),
-                    };
-                });
-            })(),
+            note: this.__parseNotes(l['cbc:Note']),
             invoicedQuantity: Number(this.__text(qtyEl)),
             unitCode: this.__attr(
                 qtyEl,
@@ -987,6 +951,17 @@ export class DocumentParser {
             return String((value as Record<string, unknown>)['#text']);
         }
         return String(value);
+    }
+
+    private __parseNotes(
+        notes: unknown
+    ): Array<{ content: string; languageID?: string }> | undefined {
+        if (!notes) return undefined;
+        const notesArray = Array.isArray(notes) ? notes : [notes];
+        return notesArray.map((note) => ({
+            content: this.__str(note)!,
+            languageID: this.__attr(note, 'languageID'),
+        }));
     }
 
     /**
