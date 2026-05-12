@@ -711,10 +711,10 @@ export class DocumentBuilder {
                     'cac:TaxCategory': {
                         'cbc:ID': st.taxCategory.categoryCode,
                         'cbc:Percent': st.taxCategory.percent?.toFixed(2),
-                        'cbc:TaxExemptionReason':
-                            st.taxCategory.exemptionReason,
                         'cbc:TaxExemptionReasonCode':
                             st.taxCategory.exemptionReasonCode,
+                        'cbc:TaxExemptionReason':
+                            st.taxCategory.exemptionReason,
                         'cac:TaxScheme': {
                             'cbc:ID': 'VAT',
                         },
