@@ -444,49 +444,43 @@ export class DocumentBuilder {
         payee: NonNullable<Invoice['payeeParty']>
     ): Record<string, unknown> {
         return {
-            'cac:Party': {
-                ...(payee.identification
-                    ? {
-                          'cac:PartyIdentification': {
-                              'cbc:ID': {
-                                  '#text': payee.identification.id,
-                                  ...(payee.identification.schemeID
-                                      ? XMLAttributes({
-                                            schemeID:
-                                                payee.identification.schemeID,
-                                        })
-                                      : {}),
-                              },
-                          },
-                      }
-                    : {}),
-                'cac:PartyName': {
-                    'cbc:Name': payee.name,
-                },
-                ...(payee.legalEntity
-                    ? {
-                          'cac:PartyLegalEntity': {
-                              ...(payee.legalEntity.companyId
-                                  ? {
-                                        'cbc:CompanyID': {
-                                            '#text':
-                                                payee.legalEntity.companyId.id,
-                                            ...(payee.legalEntity.companyId
-                                                .schemeID
-                                                ? XMLAttributes({
-                                                      schemeID:
-                                                          payee.legalEntity
-                                                              .companyId
-                                                              .schemeID,
-                                                  })
-                                                : {}),
-                                        },
-                                    }
+            ...(payee.identification
+                ? {
+                      'cac:PartyIdentification': {
+                          'cbc:ID': {
+                              '#text': payee.identification.id,
+                              ...(payee.identification.schemeID
+                                  ? XMLAttributes({
+                                        schemeID: payee.identification.schemeID,
+                                    })
                                   : {}),
                           },
-                      }
-                    : {}),
+                      },
+                  }
+                : {}),
+            'cac:PartyName': {
+                'cbc:Name': payee.name,
             },
+            ...(payee.legalEntity
+                ? {
+                      'cac:PartyLegalEntity': {
+                          ...(payee.legalEntity.companyId
+                              ? {
+                                    'cbc:CompanyID': {
+                                        '#text': payee.legalEntity.companyId.id,
+                                        ...(payee.legalEntity.companyId.schemeID
+                                            ? XMLAttributes({
+                                                  schemeID:
+                                                      payee.legalEntity
+                                                          .companyId.schemeID,
+                                              })
+                                            : {}),
+                                    },
+                                }
+                              : {}),
+                      },
+                  }
+                : {}),
         };
     }
 
@@ -499,23 +493,55 @@ export class DocumentBuilder {
         taxRep: NonNullable<Invoice['taxRepresentativeParty']>
     ): Record<string, unknown> {
         return {
-            'cac:Party': {
-                'cac:PartyName': {
-                    'cbc:Name': taxRep.name,
-                },
-                'cac:PostalAddress': {
-                    'cbc:StreetName': taxRep.address.streetName,
-                    'cbc:AdditionalStreetName':
-                        taxRep.address.additionalStreetName,
-                    'cbc:CityName': taxRep.address.cityName,
-                    'cbc:PostalZone': taxRep.address.postalZone,
-                    'cbc:CountrySubentity': taxRep.address.countrySubentity,
-                    'cbc:AddressLine': taxRep.address.addressLine,
-                    'cac:Country': {
-                        'cbc:IdentificationCode': taxRep.address.country,
-                    },
-                },
+            'cac:PartyName': {
+                'cbc:Name': taxRep.name,
             },
+            'cac:PostalAddress': this.__buildAddress(taxRep.address),
+            'cac:PartyTaxScheme': this.__buildPartyTaxScheme(taxRep.taxScheme),
+        };
+    }
+
+    private __buildAddress(address: z.infer<typeof partySchema>['address']) {
+        return {
+            'cbc:StreetName': address.streetName,
+            'cbc:AdditionalStreetName': address.additionalStreetName,
+            'cbc:CityName': address.cityName,
+            'cbc:PostalZone': address.postalZone,
+            'cbc:CountrySubentity': address.countrySubentity,
+            ...(address.addressLine
+                ? {
+                      'cac:AddressLine': {
+                          'cbc:Line': address.addressLine,
+                      },
+                  }
+                : {}),
+            'cac:Country': {
+                'cbc:IdentificationCode': address.country,
+            },
+        };
+    }
+
+    /**
+     * Helper function to build a PartyTaxScheme object
+     * @param ts The tax scheme data
+     * @returns The PartyTaxScheme XML object
+     */
+    private __buildPartyTaxScheme(
+        ts: NonNullable<Invoice['taxRepresentativeParty']>['taxScheme']
+    ) {
+        return {
+            'cbc:CompanyID': ts.companyId,
+            ...(ts.schemeID
+                ? {
+                      'cac:TaxScheme': {
+                          'cbc:ID': ts.schemeID,
+                      },
+                  }
+                : {
+                      'cac:TaxScheme': {
+                          'cbc:ID': 'VAT',
+                      },
+                  }),
         };
     }
 
@@ -550,35 +576,13 @@ export class DocumentBuilder {
                 ...(party.name
                     ? { 'cac:PartyName': { 'cbc:Name': party.name } }
                     : {}),
-                'cac:PostalAddress': {
-                    'cbc:StreetName': party.address.streetName,
-                    'cbc:AdditionalStreetName':
-                        party.address.additionalStreetName,
-                    'cbc:CityName': party.address.cityName,
-                    'cbc:PostalZone': party.address.postalZone,
-                    'cbc:CountrySubentity': party.address.countrySubentity,
-                    'cbc:AddressLine': party.address.addressLine,
-                    'cac:Country': {
-                        'cbc:IdentificationCode': party.address.country,
-                    },
-                },
+                'cac:PostalAddress': this.__buildAddress(party.address),
 
                 ...(party.taxSchemes && party.taxSchemes.length > 0
                     ? {
-                          'cac:PartyTaxScheme': party.taxSchemes.map((ts) => ({
-                              'cbc:CompanyID': ts.companyId,
-                              ...(ts.schemeID
-                                  ? {
-                                        'cac:TaxScheme': {
-                                            'cbc:ID': ts.schemeID,
-                                        },
-                                    }
-                                  : {
-                                        'cac:TaxScheme': {
-                                            'cbc:ID': 'VAT',
-                                        },
-                                    }),
-                          })),
+                          'cac:PartyTaxScheme': party.taxSchemes.map((ts) =>
+                              this.__buildPartyTaxScheme(ts)
+                          ),
                       }
                     : {}),
                 'cac:PartyLegalEntity': {
@@ -636,9 +640,7 @@ export class DocumentBuilder {
                     : m.code,
                 ...(m.paymentDueDate
                     ? {
-                          'cbc:PaymentDueDate': getDateString(
-                              m.paymentDueDate
-                          ),
+                          'cbc:PaymentDueDate': getDateString(m.paymentDueDate),
                       }
                     : {}),
                 'cbc:PaymentID': m.paymentId,
@@ -850,31 +852,9 @@ export class DocumentBuilder {
                               : {}),
                           ...(delivery.deliveryLocation.address
                               ? {
-                                    'cac:Address': {
-                                        'cbc:StreetName':
-                                            delivery.deliveryLocation.address
-                                                .streetName,
-                                        'cbc:AdditionalStreetName':
-                                            delivery.deliveryLocation.address
-                                                .additionalStreetName,
-                                        'cbc:CityName':
-                                            delivery.deliveryLocation.address
-                                                .cityName,
-                                        'cbc:PostalZone':
-                                            delivery.deliveryLocation.address
-                                                .postalZone,
-                                        'cbc:CountrySubentity':
-                                            delivery.deliveryLocation.address
-                                                .countrySubentity,
-                                        'cbc:AddressLine':
-                                            delivery.deliveryLocation.address
-                                                .addressLine,
-                                        'cac:Country': {
-                                            'cbc:IdentificationCode':
-                                                delivery.deliveryLocation
-                                                    .address.country,
-                                        },
-                                    },
+                                      'cac:Address': this.__buildAddress(
+                                          delivery.deliveryLocation.address
+                                      ),
                                 }
                               : {}),
                       },

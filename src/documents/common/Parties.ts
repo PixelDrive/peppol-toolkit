@@ -4,6 +4,11 @@ import { ICDCodeSchema } from './ICDCodes';
 import { addressSchema } from './AdressSchema';
 import { contactSchema } from './Contact';
 
+export const partyTaxSchemeSchema = z.object({
+    companyId: z.string().min(1),
+    schemeID: z.string().min(1).optional(),
+});
+
 export const partySchema = z.object({
     endPoint: z.object({
         scheme: EASCodeSchema,
@@ -18,16 +23,7 @@ export const partySchema = z.object({
         .optional(),
     name: z.string().min(1).optional(),
     address: addressSchema,
-    taxSchemes: z
-        .array(
-            z.object({
-                companyId: z.string().min(1),
-                schemeID: z.string().min(1).optional(),
-            })
-        )
-        .min(0)
-        .max(2)
-        .optional(),
+    taxSchemes: z.array(partyTaxSchemeSchema).min(0).max(2).optional(),
     legalEntity: z.object({
         registrationName: z.string().min(1),
         legalForm: z.string().min(1).optional(),
