@@ -56,8 +56,6 @@ export const lineSchema = z.object({
     taxCategory: taxCategorySchema.pick({
         categoryCode: true,
         percent: true,
-        exemptionReason: true,
-        exemptionReasonCode: true,
     }),
     additionalItemProperties: z
         .array(

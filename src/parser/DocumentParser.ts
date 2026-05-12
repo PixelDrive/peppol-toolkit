@@ -903,10 +903,6 @@ export class DocumentParser {
                     taxCat['cbc:Percent'] !== undefined
                         ? Number(taxCat['cbc:Percent'])
                         : undefined,
-                exemptionReason: this.__str(taxCat['cbc:TaxExemptionReason']),
-                exemptionReasonCode: this.__str(
-                    taxCat['cbc:TaxExemptionReasonCode']
-                ),
             },
             additionalItemProperties:
                 additionalProperties.length > 0

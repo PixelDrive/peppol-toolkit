@@ -1124,18 +1124,6 @@ export class DocumentBuilder {
                 'cac:ClassifiedTaxCategory': {
                     'cbc:ID': line.taxCategory.categoryCode,
                     'cbc:Percent': line.taxCategory.percent?.toFixed(2),
-                    ...(line.taxCategory.exemptionReason
-                        ? {
-                              'cbc:TaxExemptionReason':
-                                  line.taxCategory.exemptionReason,
-                          }
-                        : {}),
-                    ...(line.taxCategory.exemptionReasonCode
-                        ? {
-                              'cbc:TaxExemptionReasonCode':
-                                  line.taxCategory.exemptionReasonCode,
-                          }
-                        : {}),
                     'cac:TaxScheme': {
                         'cbc:ID': 'VAT',
                     },
