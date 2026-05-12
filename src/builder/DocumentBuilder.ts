@@ -68,16 +68,7 @@ export class DocumentBuilder {
                 'cbc:InvoiceTypeCode': invoice.invoiceTypeCode,
                 ...(invoice.note && invoice.note.length > 0
                     ? {
-                          'cbc:Note': invoice.note.map((n) =>
-                              n.languageID
-                                  ? {
-                                        '#text': n.content,
-                                        ...XMLAttributes({
-                                            languageID: n.languageID,
-                                        }),
-                                    }
-                                  : n.content
-                          ),
+                          'cbc:Note': this.__buildNotes(invoice.note),
                       }
                     : {}),
                 ...(invoice.taxPointDate
@@ -274,16 +265,7 @@ export class DocumentBuilder {
                 'cbc:CreditNoteTypeCode': creditNote.creditNoteTypeCode ?? 381,
                 ...(creditNote.note && creditNote.note.length > 0
                     ? {
-                          'cbc:Note': creditNote.note.map((n) =>
-                              n.languageID
-                                  ? {
-                                        '#text': n.content,
-                                        ...XMLAttributes({
-                                            languageID: n.languageID,
-                                        }),
-                                    }
-                                  : n.content
-                          ),
+                          'cbc:Note': this.__buildNotes(creditNote.note),
                       }
                     : {}),
                 'cbc:DocumentCurrencyCode':
@@ -999,6 +981,17 @@ export class DocumentBuilder {
         };
     }
 
+    private __buildNotes(notes: NonNullable<Invoice['note']>) {
+        return notes.map((note) =>
+            note.languageID
+                ? {
+                      '#text': note.content,
+                      ...XMLAttributes({ languageID: note.languageID }),
+                  }
+                : note.content
+        );
+    }
+
     private __buildLineItem(
         line: Invoice['invoiceLines'][number],
         quantityTag: string
@@ -1007,16 +1000,7 @@ export class DocumentBuilder {
             'cbc:ID': line.id,
             ...(line.note && line.note.length > 0
                 ? {
-                      'cbc:Note': line.note.map((n) =>
-                          n.languageID
-                              ? {
-                                    '#text': n.content,
-                                    ...XMLAttributes({
-                                        languageID: n.languageID,
-                                    }),
-                                }
-                              : n.content
-                      ),
+                      'cbc:Note': this.__buildNotes(line.note),
                   }
                 : {}),
             [`cbc:${quantityTag}`]: {
