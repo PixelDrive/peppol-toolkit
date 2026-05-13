@@ -626,21 +626,6 @@ export class DocumentBuilder {
                       }
                     : {}),
                 'cbc:PaymentID': m.paymentId,
-                ...(financialAccount
-                    ? {
-                          'cac:PayeeFinancialAccount': {
-                              'cbc:ID': financialAccount.id,
-                              'cbc:Name': financialAccount.name,
-                              'cac:FinancialInstitutionBranch':
-                                  financialAccount.financialInstitutionBranch
-                                      ? {
-                                            'cbc:ID':
-                                                financialAccount.financialInstitutionBranch,
-                                        }
-                                      : undefined,
-                          },
-                      }
-                    : {}),
                 ...(cardAccount
                     ? {
                           'cac:CardAccount': {
@@ -656,6 +641,22 @@ export class DocumentBuilder {
                           },
                       }
                     : {}),
+                ...(financialAccount
+                    ? {
+                          'cac:PayeeFinancialAccount': {
+                              'cbc:ID': financialAccount.id,
+                              'cbc:Name': financialAccount.name,
+                              'cac:FinancialInstitutionBranch':
+                                  financialAccount.financialInstitutionBranch
+                                      ? {
+                                            'cbc:ID':
+                                                financialAccount.financialInstitutionBranch,
+                                        }
+                                      : undefined,
+                          },
+                      }
+                    : {}),
+
                 ...(paymentMandate
                     ? {
                           'cac:PaymentMandate': {
