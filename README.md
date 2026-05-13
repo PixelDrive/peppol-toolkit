@@ -1,12 +1,12 @@
 # @pixeldrive/peppol-toolkit
 
-A TypeScript toolkit for preparing and reading documents for e-invoicing and PEPPOL integration. This library helps you generate PEPPOL-compliant UBL XML invoices from structured data.
+A TypeScript toolkit for preparing and reading documents for e-invoicing and PEPPOL integration. This library helps you generate PEPPOL-compliant UBL XML invoices and credit notes from structured data.
 
 PEPPOL (Pan-European Public Procurement On-Line) is a set of specifications that enables cross-border e-procurement in Europe and beyond. This toolkit simplifies the process of creating compliant electronic invoices.
 
 ## Features
 
-- 🚀 Generate PEPPOL-compliant UBL XML invoices
+- 🚀 Generate PEPPOL-compliant UBL XML invoices and credit notes
 - ✅ Validate UBL XML against a KoSIT validator service
 - 📦 ESM and CommonJS builds for broad compatibility
 - 🔷 Written in TypeScript with bundled type definitions
@@ -17,6 +17,60 @@ PEPPOL (Pan-European Public Procurement On-Line) is a set of specifications that
 
 ```bash
 npm install @pixeldrive/peppol-toolkit
+```
+
+## Breaking changes in `0.8.0`
+
+Version `0.8.0` tightens the public data model to better match PEPPOL BIS Billing 3 / UBL expectations. If you are upgrading from `0.7.x` or earlier, review the following migrations.
+
+### Migration checklist
+
+| Before | Now | Notes |
+|---|---|---|
+| `party.taxSchemeCompanyID: string` | `party.taxSchemes: [{ companyId, schemeID? }]` | Supports 0..2 tax schemes instead of a single flat field |
+| `party.legalEntity.companyId: string` | `party.legalEntity.companyId: { id, schemeID? }` | Matches the XML structure and allows `schemeID` |
+| `invoice.note: string` | `invoice.note: { content, languageID? }[]` | Same change for `creditNote.note` and line `note` |
+| `billingReference: { ... }` | `billingReference: [{ ... }]` | Applies to invoices and credit notes |
+| `line.documentReference: string` | `line.documentReference: { id, documentTypeCode? }` | `documentTypeCode` defaults to `'130'` when omitted |
+| `identification[].scheme` using an EAS code | `identification[].scheme` must use an ICD code | `endPoint.scheme` still uses EAS |
+
+### Other notable changes
+
+- Party and delivery addresses now use the proper UBL `cac:AddressLine/cbc:Line` structure when XML is generated.
+- The parser still accepts legacy `cbc:AddressLine`, but that legacy shape is deprecated.
+- `payeeParty` and `taxRepresentativeParty` are now supported on invoices and credit notes.
+- `paymentMeans` supports `paymentDueDate`, `cardAccount`, and `paymentMandate`.
+- Tax exemption reasons should be modeled on `taxTotal[].subTotals[].taxCategory`.
+  Line `taxCategory` is intentionally limited to `categoryCode` and `percent` in the current TypeScript schema.
+- The package now ships several advanced invoice fixtures for testing: `mixedVatAllowanceInvoice`, `reverseChargeServiceInvoice`, `dualCurrencyInvoice`, `specialVatCategoriesInvoice`, and the grouped `exampleInvoices` export.
+
+### Before / after example
+
+```typescript
+// Before
+const seller = {
+    taxSchemeCompanyID: 'BE0123456789',
+    legalEntity: {
+        registrationName: 'Acme Corp',
+        companyId: '0123456789',
+    },
+};
+
+// Now
+const seller = {
+    taxSchemes: [
+        {
+            companyId: 'BE0123456789',
+            schemeID: 'VAT',
+        },
+    ],
+    legalEntity: {
+        registrationName: 'Acme Corp',
+        companyId: {
+            id: '0123456789',
+        },
+    },
+};
 ```
 
 ## Quick Start
@@ -57,7 +111,9 @@ const invoice: Invoice = {
         endPoint: { scheme: '9925', id: '0123456789' },
         legalEntity: {
             registrationName: 'Acme Corp',
-            companyId: '0123456789',
+            companyId: {
+                id: '0123456789',
+            },
         },
         name: 'Acme Corp',
         address: {
@@ -66,14 +122,16 @@ const invoice: Invoice = {
             postalZone: '1000',
             country: 'BE',
         },
-        taxSchemeCompanyID: 'BE0123456789',
+        taxSchemes: [{ companyId: 'BE0123456789', schemeID: 'VAT' }],
         identification: [{ id: 'BE0123456789' }],
     },
     buyer: {
         endPoint: { scheme: '9925', id: '9876543210' },
         legalEntity: {
             registrationName: 'Buyer Ltd',
-            companyId: '9876543210',
+            companyId: {
+                id: '9876543210',
+            },
             legalForm: 'SRL',
         },
         name: 'Buyer Ltd',
@@ -83,7 +141,7 @@ const invoice: Invoice = {
             postalZone: '1011',
             country: 'NL',
         },
-        taxSchemeCompanyID: 'NL9876543210',
+        taxSchemes: [{ companyId: 'NL9876543210', schemeID: 'VAT' }],
         identification: [{ id: 'NL9876543210' }],
     },
     paymentMeans: [
@@ -151,17 +209,21 @@ const creditNote: CreditNote = {
     creditNoteTypeCode: 381,
     documentCurrencyCode: 'EUR',
     buyerReference: 'PO-12345',
-    billingReference: {
-        invoiceDocReference: {
-            id: 'INV-2024-001',
-            issueDate: '2024-01-15',
+    billingReference: [
+        {
+            invoiceDocReference: {
+                id: 'INV-2024-001',
+                issueDate: '2024-01-15',
+            },
         },
-    },
+    ],
     seller: {
         endPoint: { scheme: '9925', id: '0123456789' },
         legalEntity: {
             registrationName: 'Acme Corp',
-            companyId: '0123456789',
+            companyId: {
+                id: '0123456789',
+            },
         },
         name: 'Acme Corp',
         address: {
@@ -170,14 +232,16 @@ const creditNote: CreditNote = {
             postalZone: '1000',
             country: 'BE',
         },
-        taxSchemeCompanyID: 'BE0123456789',
+        taxSchemes: [{ companyId: 'BE0123456789', schemeID: 'VAT' }],
         identification: [{ id: 'BE0123456789' }],
     },
     buyer: {
         endPoint: { scheme: '9925', id: '9876543210' },
         legalEntity: {
             registrationName: 'Buyer Ltd',
-            companyId: '9876543210',
+            companyId: {
+                id: '9876543210',
+            },
         },
         name: 'Buyer Ltd',
         address: {
@@ -186,7 +250,7 @@ const creditNote: CreditNote = {
             postalZone: '1011',
             country: 'NL',
         },
-        taxSchemeCompanyID: 'NL9876543210',
+        taxSchemes: [{ companyId: 'NL9876543210', schemeID: 'VAT' }],
         identification: [{ id: 'NL9876543210' }],
     },
     taxTotal: [
@@ -498,7 +562,7 @@ Starting from version 1.0.0, this library will follow [Semantic Versioning (SemV
 - [x] Documentation: Examples and recipe-style guides
 - [ ] QA: Expand unit tests
 
-Last updated: 2026-03-31
+Last updated: 2026-05-13
 
 ## Development Scripts
 
