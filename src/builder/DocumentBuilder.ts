@@ -4,6 +4,7 @@ import { CurrencyCode, Invoice, partySchema, CreditNote } from '../documents';
 import XMLAttributes from '../helpers/XMLAttributes';
 import getDateString from '../helpers/getDateString';
 import { z } from 'zod';
+import { isNullish } from '../helpers/isNullish';
 
 const DEFAULT_CUSTOMIZATION_ID =
     'urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0';
@@ -766,7 +767,8 @@ export class DocumentBuilder {
             ...this.__buildAmount(
                 'PayableAmount',
                 total.payableAmount,
-                total.payableAmountCurrency ?? currency
+                total.payableAmountCurrency ?? currency,
+                true
             ),
         };
     }
@@ -774,9 +776,11 @@ export class DocumentBuilder {
     private __buildAmount(
         name: string,
         amount: number | undefined,
-        currency: CurrencyCode
+        currency: CurrencyCode,
+        generateOnZero = false
     ) {
-        if (!amount) return {};
+        if (isNullish(amount)) return {};
+        if (!amount && !generateOnZero) return {};
         return {
             [`cbc:${name}`]: {
                 '#text': amount.toFixed(2),

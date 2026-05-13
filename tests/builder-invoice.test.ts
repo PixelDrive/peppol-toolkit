@@ -66,6 +66,42 @@ describe('Invoices Builder', () => {
         );
     });
 
+    it('should always include payable amount even when it is zero', () => {
+        const invoiceXML = toolkit.invoiceToPeppolUBL({
+            ...basicInvoice,
+            legalMonetaryTotal: {
+                ...basicInvoice.legalMonetaryTotal,
+                payableAmount: 0,
+            },
+        });
+
+        expect(invoiceXML).toContain(
+            '<cbc:PayableAmount currencyID="EUR">0.00</cbc:PayableAmount>'
+        );
+    });
+
+    it('should omit other zero monetary amounts when generateOnZero is false', () => {
+        const invoiceXML = toolkit.invoiceToPeppolUBL({
+            ...basicInvoice,
+            legalMonetaryTotal: {
+                ...basicInvoice.legalMonetaryTotal,
+                payableAmount: 0,
+                prepaidAmount: 0,
+                allowanceTotalAmount: 0,
+                chargeTotalAmount: 0,
+                payableRoundingAmount: 0,
+            },
+        });
+
+        expect(invoiceXML).toContain(
+            '<cbc:PayableAmount currencyID="EUR">0.00</cbc:PayableAmount>'
+        );
+        expect(invoiceXML).not.toContain('<cbc:PrepaidAmount');
+        expect(invoiceXML).not.toContain('<cbc:AllowanceTotalAmount');
+        expect(invoiceXML).not.toContain('<cbc:ChargeTotalAmount');
+        expect(invoiceXML).not.toContain('<cbc:PayableRoundingAmount');
+    });
+
     it('should not nest cac:Party inside specialized party nodes', () => {
         const invoiceXML = toolkit.invoiceToPeppolUBL({
             ...basicInvoice,

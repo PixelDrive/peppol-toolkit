@@ -66,6 +66,42 @@ describe('Creditnote Builder', () => {
         );
     });
 
+    it('should always include payable amount even when it is zero', () => {
+        const creditNoteXML = toolkit.creditNoteToPeppolUBL({
+            ...basicCreditNote,
+            legalMonetaryTotal: {
+                ...basicCreditNote.legalMonetaryTotal,
+                payableAmount: 0,
+            },
+        });
+
+        expect(creditNoteXML).toContain(
+            '<cbc:PayableAmount currencyID="EUR">0.00</cbc:PayableAmount>'
+        );
+    });
+
+    it('should omit other zero monetary amounts when generateOnZero is false', () => {
+        const creditNoteXML = toolkit.creditNoteToPeppolUBL({
+            ...basicCreditNote,
+            legalMonetaryTotal: {
+                ...basicCreditNote.legalMonetaryTotal,
+                payableAmount: 0,
+                prepaidAmount: 0,
+                allowanceTotalAmount: 0,
+                chargeTotalAmount: 0,
+                payableRoundingAmount: 0,
+            },
+        });
+
+        expect(creditNoteXML).toContain(
+            '<cbc:PayableAmount currencyID="EUR">0.00</cbc:PayableAmount>'
+        );
+        expect(creditNoteXML).not.toContain('<cbc:PrepaidAmount');
+        expect(creditNoteXML).not.toContain('<cbc:AllowanceTotalAmount');
+        expect(creditNoteXML).not.toContain('<cbc:ChargeTotalAmount');
+        expect(creditNoteXML).not.toContain('<cbc:PayableRoundingAmount');
+    });
+
     it('should not nest cac:Party inside specialized party nodes', () => {
         const creditNoteXML = toolkit.creditNoteToPeppolUBL({
             ...basicCreditNote,
