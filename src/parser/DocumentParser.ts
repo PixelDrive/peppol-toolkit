@@ -951,7 +951,7 @@ export class DocumentParser {
 
     private __parseNotes(
         notes: unknown
-    ): Array<{ content: string; languageID?: string }> | undefined {
+    ): { content: string; languageID?: string }[] | undefined {
         if (!notes) return undefined;
         const notesArray = Array.isArray(notes) ? notes : [notes];
         return notesArray.map((note) => ({
