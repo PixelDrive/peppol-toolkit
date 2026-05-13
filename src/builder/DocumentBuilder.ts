@@ -727,7 +727,6 @@ export class DocumentBuilder {
     private __buildMonetaryTotal(total: Invoice['legalMonetaryTotal']) {
         const currency = total.currency;
         return {
-            // Mandatory fields
             ...this.__buildAmount(
                 'LineExtensionAmount',
                 total.lineExtensionAmount,
@@ -743,13 +742,6 @@ export class DocumentBuilder {
                 total.taxInclusiveAmount,
                 total.taxInclusiveAmountCurrency ?? currency
             ),
-            ...this.__buildAmount(
-                'PayableAmount',
-                total.payableAmount,
-                total.payableAmountCurrency ?? currency
-            ),
-
-            // Optional fields
             ...this.__buildAmount(
                 'AllowanceTotalAmount',
                 total.allowanceTotalAmount,
@@ -769,6 +761,11 @@ export class DocumentBuilder {
                 'PayableRoundingAmount',
                 total.payableRoundingAmount,
                 total.payableRoundingAmountCurrency ?? currency
+            ),
+            ...this.__buildAmount(
+                'PayableAmount',
+                total.payableAmount,
+                total.payableAmountCurrency ?? currency
             ),
         };
     }
@@ -834,9 +831,9 @@ export class DocumentBuilder {
                               : {}),
                           ...(delivery.deliveryLocation.address
                               ? {
-                                      'cac:Address': this.__buildAddress(
-                                          delivery.deliveryLocation.address
-                                      ),
+                                    'cac:Address': this.__buildAddress(
+                                        delivery.deliveryLocation.address
+                                    ),
                                 }
                               : {}),
                       },
