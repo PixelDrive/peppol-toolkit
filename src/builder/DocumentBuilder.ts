@@ -66,7 +66,11 @@ export class DocumentBuilder {
                     ? getDateString(invoice.dueDate)
                     : undefined,
                 'cbc:InvoiceTypeCode': invoice.invoiceTypeCode,
-                ...(invoice.note ? { 'cbc:Note': invoice.note } : {}),
+                ...(invoice.note && invoice.note.length > 0
+                    ? {
+                          'cbc:Note': this.__buildNotes(invoice.note),
+                      }
+                    : {}),
                 ...(invoice.taxPointDate
                     ? {
                           'cbc:TaxPointDate': getDateString(
@@ -172,6 +176,21 @@ export class DocumentBuilder {
                     invoice.seller
                 ),
                 'cac:AccountingCustomerParty': this.__buildParty(invoice.buyer),
+                ...(invoice.payeeParty
+                    ? {
+                          'cac:PayeeParty': this.__buildPayeeParty(
+                              invoice.payeeParty
+                          ),
+                      }
+                    : {}),
+                ...(invoice.taxRepresentativeParty
+                    ? {
+                          'cac:TaxRepresentativeParty':
+                              this.__buildTaxRepresentativeParty(
+                                  invoice.taxRepresentativeParty
+                              ),
+                      }
+                    : {}),
                 ...(invoice.delivery
                     ? {
                           'cac:Delivery': this.__buildDelivery(
@@ -244,7 +263,11 @@ export class DocumentBuilder {
                       }
                     : {}),
                 'cbc:CreditNoteTypeCode': creditNote.creditNoteTypeCode ?? 381,
-                ...(creditNote.note ? { 'cbc:Note': creditNote.note } : {}),
+                ...(creditNote.note && creditNote.note.length > 0
+                    ? {
+                          'cbc:Note': this.__buildNotes(creditNote.note),
+                      }
+                    : {}),
                 'cbc:DocumentCurrencyCode':
                     creditNote.documentCurrencyCode || 'EUR',
                 ...(creditNote.taxCurrencyCode
@@ -339,6 +362,21 @@ export class DocumentBuilder {
                 'cac:AccountingCustomerParty': this.__buildParty(
                     creditNote.buyer
                 ),
+                ...(creditNote.payeeParty
+                    ? {
+                          'cac:PayeeParty': this.__buildPayeeParty(
+                              creditNote.payeeParty
+                          ),
+                      }
+                    : {}),
+                ...(creditNote.taxRepresentativeParty
+                    ? {
+                          'cac:TaxRepresentativeParty':
+                              this.__buildTaxRepresentativeParty(
+                                  creditNote.taxRepresentativeParty
+                              ),
+                      }
+                    : {}),
                 ...(creditNote.delivery
                     ? {
                           'cac:Delivery': this.__buildDelivery(
@@ -380,6 +418,116 @@ export class DocumentBuilder {
     }
 
     /**
+     * Helper function to build a PayeeParty object (BG-10)
+     * @param payee The payee data
+     * @returns The PayeeParty XML object
+     */
+    private __buildPayeeParty(
+        payee: NonNullable<Invoice['payeeParty']>
+    ): Record<string, unknown> {
+        return {
+            ...(payee.identification
+                ? {
+                      'cac:PartyIdentification': {
+                          'cbc:ID': {
+                              '#text': payee.identification.id,
+                              ...(payee.identification.schemeID
+                                  ? XMLAttributes({
+                                        schemeID: payee.identification.schemeID,
+                                    })
+                                  : {}),
+                          },
+                      },
+                  }
+                : {}),
+            'cac:PartyName': {
+                'cbc:Name': payee.name,
+            },
+            ...(payee.legalEntity
+                ? {
+                      'cac:PartyLegalEntity': {
+                          ...(payee.legalEntity.companyId
+                              ? {
+                                    'cbc:CompanyID': {
+                                        '#text': payee.legalEntity.companyId.id,
+                                        ...(payee.legalEntity.companyId.schemeID
+                                            ? XMLAttributes({
+                                                  schemeID:
+                                                      payee.legalEntity
+                                                          .companyId.schemeID,
+                                              })
+                                            : {}),
+                                    },
+                                }
+                              : {}),
+                      },
+                  }
+                : {}),
+        };
+    }
+
+    /**
+     * Helper function to build a TaxRepresentativeParty object (BG-11)
+     * @param taxRep The tax representative data
+     * @returns The TaxRepresentativeParty XML object
+     */
+    private __buildTaxRepresentativeParty(
+        taxRep: NonNullable<Invoice['taxRepresentativeParty']>
+    ): Record<string, unknown> {
+        return {
+            'cac:PartyName': {
+                'cbc:Name': taxRep.name,
+            },
+            'cac:PostalAddress': this.__buildAddress(taxRep.address),
+            'cac:PartyTaxScheme': this.__buildPartyTaxScheme(taxRep.taxScheme),
+        };
+    }
+
+    private __buildAddress(address: z.infer<typeof partySchema>['address']) {
+        return {
+            'cbc:StreetName': address.streetName,
+            'cbc:AdditionalStreetName': address.additionalStreetName,
+            'cbc:CityName': address.cityName,
+            'cbc:PostalZone': address.postalZone,
+            'cbc:CountrySubentity': address.countrySubentity,
+            ...(address.addressLine
+                ? {
+                      'cac:AddressLine': {
+                          'cbc:Line': address.addressLine,
+                      },
+                  }
+                : {}),
+            'cac:Country': {
+                'cbc:IdentificationCode': address.country,
+            },
+        };
+    }
+
+    /**
+     * Helper function to build a PartyTaxScheme object
+     * @param ts The tax scheme data
+     * @returns The PartyTaxScheme XML object
+     */
+    private __buildPartyTaxScheme(
+        ts: NonNullable<Invoice['taxRepresentativeParty']>['taxScheme']
+    ) {
+        return {
+            'cbc:CompanyID': ts.companyId,
+            ...(ts.schemeID
+                ? {
+                      'cac:TaxScheme': {
+                          'cbc:ID': ts.schemeID,
+                      },
+                  }
+                : {
+                      'cac:TaxScheme': {
+                          'cbc:ID': 'VAT',
+                      },
+                  }),
+        };
+    }
+
+    /**
      * Helper function to build a party object
      * @param party The party data
      * @returns The party object
@@ -410,32 +558,29 @@ export class DocumentBuilder {
                 ...(party.name
                     ? { 'cac:PartyName': { 'cbc:Name': party.name } }
                     : {}),
-                'cac:PostalAddress': {
-                    'cbc:StreetName': party.address.streetName,
-                    'cbc:AdditionalStreetName':
-                        party.address.additionalStreetName,
-                    'cbc:CityName': party.address.cityName,
-                    'cbc:PostalZone': party.address.postalZone,
-                    'cac:Country': {
-                        'cbc:IdentificationCode': party.address.country,
-                    },
-                },
+                'cac:PostalAddress': this.__buildAddress(party.address),
 
-                ...(party.taxSchemeCompanyID
+                ...(party.taxSchemes && party.taxSchemes.length > 0
                     ? {
-                          'cac:PartyTaxScheme': {
-                              'cbc:CompanyID': party.taxSchemeCompanyID,
-                              'cac:TaxScheme': {
-                                  'cbc:ID': 'VAT',
-                              },
-                          },
+                          'cac:PartyTaxScheme': party.taxSchemes.map((ts) =>
+                              this.__buildPartyTaxScheme(ts)
+                          ),
                       }
                     : {}),
                 'cac:PartyLegalEntity': {
                     'cbc:RegistrationName': party.legalEntity.registrationName,
                     ...(party.legalEntity.companyId
                         ? {
-                              'cbc:CompanyID': party.legalEntity.companyId,
+                              'cbc:CompanyID': {
+                                  '#text': party.legalEntity.companyId.id,
+                                  ...(party.legalEntity.companyId.schemeID
+                                      ? XMLAttributes({
+                                            schemeID:
+                                                party.legalEntity.companyId
+                                                    .schemeID,
+                                        })
+                                      : {}),
+                              },
                           }
                         : {}),
                     ...(party.legalEntity.legalForm
@@ -466,9 +611,36 @@ export class DocumentBuilder {
     private __buildPaymentMeans(means: Invoice['paymentMeans']) {
         return means?.map((m) => {
             const financialAccount = m.financialAccount;
+            const cardAccount = m.cardAccount;
+            const paymentMandate = m.paymentMandate;
             return {
-                'cbc:PaymentMeansCode': m.code,
+                'cbc:PaymentMeansCode': m.name
+                    ? {
+                          '#text': m.code,
+                          ...XMLAttributes({ name: m.name }),
+                      }
+                    : m.code,
+                ...(m.paymentDueDate
+                    ? {
+                          'cbc:PaymentDueDate': getDateString(m.paymentDueDate),
+                      }
+                    : {}),
                 'cbc:PaymentID': m.paymentId,
+                ...(cardAccount
+                    ? {
+                          'cac:CardAccount': {
+                              'cbc:PrimaryAccountNumberID':
+                                  cardAccount.primaryAccountNumberId,
+                              'cbc:NetworkID': cardAccount.networkId,
+                              ...(cardAccount.holderName
+                                  ? {
+                                        'cbc:HolderName':
+                                            cardAccount.holderName,
+                                    }
+                                  : {}),
+                          },
+                      }
+                    : {}),
                 ...(financialAccount
                     ? {
                           'cac:PayeeFinancialAccount': {
@@ -481,6 +653,26 @@ export class DocumentBuilder {
                                                 financialAccount.financialInstitutionBranch,
                                         }
                                       : undefined,
+                          },
+                      }
+                    : {}),
+
+                ...(paymentMandate
+                    ? {
+                          'cac:PaymentMandate': {
+                              ...(paymentMandate.id
+                                  ? {
+                                        'cbc:ID': paymentMandate.id,
+                                    }
+                                  : {}),
+                              ...(paymentMandate.payerFinancialAccountId
+                                  ? {
+                                        'cac:PayerFinancialAccount': {
+                                            'cbc:ID':
+                                                paymentMandate.payerFinancialAccountId,
+                                        },
+                                    }
+                                  : {}),
                           },
                       }
                     : {}),
@@ -536,7 +728,6 @@ export class DocumentBuilder {
     private __buildMonetaryTotal(total: Invoice['legalMonetaryTotal']) {
         const currency = total.currency;
         return {
-            // Mandatory fields
             ...this.__buildAmount(
                 'LineExtensionAmount',
                 total.lineExtensionAmount,
@@ -552,13 +743,6 @@ export class DocumentBuilder {
                 total.taxInclusiveAmount,
                 total.taxInclusiveAmountCurrency ?? currency
             ),
-            ...this.__buildAmount(
-                'PayableAmount',
-                total.payableAmount,
-                total.payableAmountCurrency ?? currency
-            ),
-
-            // Optional fields
             ...this.__buildAmount(
                 'AllowanceTotalAmount',
                 total.allowanceTotalAmount,
@@ -578,6 +762,11 @@ export class DocumentBuilder {
                 'PayableRoundingAmount',
                 total.payableRoundingAmount,
                 total.payableRoundingAmountCurrency ?? currency
+            ),
+            ...this.__buildAmount(
+                'PayableAmount',
+                total.payableAmount,
+                total.payableAmountCurrency ?? currency
             ),
         };
     }
@@ -643,25 +832,9 @@ export class DocumentBuilder {
                               : {}),
                           ...(delivery.deliveryLocation.address
                               ? {
-                                    'cac:Address': {
-                                        'cbc:StreetName':
-                                            delivery.deliveryLocation.address
-                                                .streetName,
-                                        'cbc:AdditionalStreetName':
-                                            delivery.deliveryLocation.address
-                                                .additionalStreetName,
-                                        'cbc:CityName':
-                                            delivery.deliveryLocation.address
-                                                .cityName,
-                                        'cbc:PostalZone':
-                                            delivery.deliveryLocation.address
-                                                .postalZone,
-                                        'cac:Country': {
-                                            'cbc:IdentificationCode':
-                                                delivery.deliveryLocation
-                                                    .address.country,
-                                        },
-                                    },
+                                    'cac:Address': this.__buildAddress(
+                                        delivery.deliveryLocation.address
+                                    ),
                                 }
                               : {}),
                       },
@@ -806,13 +979,28 @@ export class DocumentBuilder {
         };
     }
 
+    private __buildNotes(notes: NonNullable<Invoice['note']>) {
+        return notes.map((note) =>
+            note.languageID
+                ? {
+                      '#text': note.content,
+                      ...XMLAttributes({ languageID: note.languageID }),
+                  }
+                : note.content
+        );
+    }
+
     private __buildLineItem(
         line: Invoice['invoiceLines'][number],
         quantityTag: string
     ) {
         return {
             'cbc:ID': line.id,
-            ...(line.note ? { 'cbc:Note': line.note } : {}),
+            ...(line.note && line.note.length > 0
+                ? {
+                      'cbc:Note': this.__buildNotes(line.note),
+                  }
+                : {}),
             [`cbc:${quantityTag}`]: {
                 '#text': line.invoicedQuantity.toFixed(2),
                 ...XMLAttributes({
@@ -858,8 +1046,9 @@ export class DocumentBuilder {
             ...(line.documentReference
                 ? {
                       'cac:DocumentReference': {
-                          'cbc:ID': line.documentReference,
-                          'cbc:DocumentTypeCode': '130',
+                          'cbc:ID': line.documentReference.id,
+                          'cbc:DocumentTypeCode':
+                              line.documentReference.documentTypeCode ?? '130',
                       },
                   }
                 : {}),

@@ -8,7 +8,14 @@ import { lineAllowanceChargeSchema } from './AllowanceCharge';
 
 export const lineSchema = z.object({
     id: z.string().min(1),
-    note: z.string().optional(),
+    note: z
+        .array(
+            z.object({
+                content: z.string().min(1),
+                languageID: z.string().min(1).optional(),
+            })
+        )
+        .optional(),
     invoicedQuantity: z.number().min(0),
     lineExtensionAmount: z.number().min(0),
     accountingCost: z.string().optional(),
@@ -19,7 +26,12 @@ export const lineSchema = z.object({
         })
         .optional(),
     orderLineReference: z.string().optional(),
-    documentReference: z.string().optional(),
+    documentReference: z
+        .object({
+            id: z.string().min(1),
+            documentTypeCode: z.string().optional(),
+        })
+        .optional(),
     allowanceCharge: z.array(lineAllowanceChargeSchema).optional(),
     name: z.string(),
     description: z.string().optional(),

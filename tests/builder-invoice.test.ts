@@ -65,4 +65,35 @@ describe('Invoices Builder', () => {
             '<cbc:ProfileID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</cbc:ProfileID>'
         );
     });
+
+    it('should not nest cac:Party inside specialized party nodes', () => {
+        const invoiceXML = toolkit.invoiceToPeppolUBL({
+            ...basicInvoice,
+            payeeParty: {
+                name: 'Payee Name',
+            },
+            taxRepresentativeParty: {
+                name: 'Tax Rep',
+                address: {
+                    streetName: 'Tax Street',
+                    cityName: 'Tax City',
+                    postalZone: '1000',
+                    country: 'BE',
+                },
+                taxScheme: {
+                    companyId: 'BE0123456789',
+                    schemeID: 'VAT',
+                },
+            },
+        });
+
+        expect(invoiceXML).toMatch(/<cac:PayeeParty>\s*<cac:PartyName>/);
+        expect(invoiceXML).not.toMatch(/<cac:PayeeParty>\s*<cac:Party>/);
+        expect(invoiceXML).toMatch(
+            /<cac:TaxRepresentativeParty>\s*<cac:PartyName>/
+        );
+        expect(invoiceXML).not.toMatch(
+            /<cac:TaxRepresentativeParty>\s*<cac:Party>/
+        );
+    });
 });

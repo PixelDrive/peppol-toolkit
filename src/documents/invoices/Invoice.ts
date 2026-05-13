@@ -12,6 +12,8 @@ import {
     taxTotalSchema,
     allowanceChargeSchema,
     additionalDocumentReferenceSchema,
+    payeePartySchema,
+    taxRepresentativePartySchema,
 } from '../common';
 
 const billingReferenceSchema = z.object({
@@ -28,7 +30,14 @@ export const invoiceSchema = z.object({
     issueDate: date,
     dueDate: date.optional(),
     invoiceTypeCode: InvoiceTypeCodeSchema,
-    note: z.string().optional(),
+    note: z
+        .array(
+            z.object({
+                content: z.string().min(1),
+                languageID: z.string().min(1).optional(),
+            })
+        )
+        .optional(),
     taxPointDate: date.optional(),
     documentCurrencyCode: CurrencyCodeSchema,
     taxCurrencyCode: CurrencyCodeSchema.optional(),
@@ -54,6 +63,8 @@ export const invoiceSchema = z.object({
 
     seller: partySchema,
     buyer: partySchema,
+    payeeParty: payeePartySchema.optional(),
+    taxRepresentativeParty: taxRepresentativePartySchema.optional(),
 
     delivery: deliverySchema.optional(),
     paymentMeans: paymentMeansSchema.array().optional(),

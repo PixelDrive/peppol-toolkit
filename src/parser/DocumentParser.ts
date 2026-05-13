@@ -12,6 +12,7 @@ import { z } from 'zod';
 
 export class DocumentParser {
     private __parser = new XMLParser(parserOptions);
+    private __hasWarnedLegacyAddressLine = false;
 
     /***
      * Parses a Peppol UBL Invoice XML string into an Invoice object
@@ -30,7 +31,7 @@ export class DocumentParser {
             issueDate: this.__str(inv['cbc:IssueDate'])!,
             dueDate: this.__str(inv['cbc:DueDate']),
             invoiceTypeCode: Number(inv['cbc:InvoiceTypeCode']),
-            note: this.__str(inv['cbc:Note']),
+            note: this.__parseNotes(inv['cbc:Note']),
             taxPointDate: this.__str(inv['cbc:TaxPointDate']),
             documentCurrencyCode: this.__str(inv['cbc:DocumentCurrencyCode'])!,
             taxCurrencyCode: this.__str(inv['cbc:TaxCurrencyCode']),
@@ -68,6 +69,12 @@ export class DocumentParser {
             buyer: this.__parseParty(
                 inv['cac:AccountingCustomerParty']?.['cac:Party']
             ),
+            payeeParty: this.__parsePayeeParty(
+                inv['cac:PayeeParty']
+            ),
+            taxRepresentativeParty: this.__parseTaxRepresentativeParty(
+                inv['cac:TaxRepresentativeParty']
+            ),
             delivery: this.__parseDelivery(inv['cac:Delivery']),
             paymentMeans: this.__parsePaymentMeans(inv['cac:PaymentMeans']),
             paymentTermsNote: inv['cac:PaymentTerms']
@@ -104,7 +111,7 @@ export class DocumentParser {
             ID: this.__str(cn['cbc:ID'])!,
             issueDate: this.__str(cn['cbc:IssueDate'])!,
             creditNoteTypeCode: Number(cn['cbc:CreditNoteTypeCode']),
-            note: this.__str(cn['cbc:Note']),
+            note: this.__parseNotes(cn['cbc:Note']),
             taxPointDate: this.__str(cn['cbc:TaxPointDate']),
             documentCurrencyCode: this.__str(cn['cbc:DocumentCurrencyCode'])!,
             taxCurrencyCode: this.__str(cn['cbc:TaxCurrencyCode']),
@@ -138,6 +145,12 @@ export class DocumentParser {
             ),
             buyer: this.__parseParty(
                 cn['cac:AccountingCustomerParty']?.['cac:Party']
+            ),
+            payeeParty: this.__parsePayeeParty(
+                cn['cac:PayeeParty']
+            ),
+            taxRepresentativeParty: this.__parseTaxRepresentativeParty(
+                cn['cac:TaxRepresentativeParty']
             ),
             delivery: this.__parseDelivery(cn['cac:Delivery']),
             paymentMeans: this.__parsePaymentMeans(cn['cac:PaymentMeans']),
@@ -183,9 +196,6 @@ export class DocumentParser {
             (party['cac:PostalAddress'] as Record<string, unknown>) ?? {};
         const legalEntity =
             (party['cac:PartyLegalEntity'] as Record<string, unknown>) ?? {};
-        const taxScheme = party['cac:PartyTaxScheme'] as
-            | Record<string, unknown>
-            | undefined;
         const contact = party['cac:Contact'] as
             | Record<string, unknown>
             | undefined;
@@ -214,19 +224,39 @@ export class DocumentParser {
                 cityName: this.__str(postal['cbc:CityName']),
                 postalZone: this.__str(postal['cbc:PostalZone']),
                 countrySubentity: this.__str(postal['cbc:CountrySubentity']),
-                addressLine: this.__str(postal['cbc:AddressLine']),
+                addressLine: this.__parseAddressLine(postal),
                 country: this.__str(
                     country?.['cbc:IdentificationCode']
                 ) as z.infer<typeof partySchema>['address']['country'],
             },
-            taxSchemeCompanyID: taxScheme
-                ? this.__str(taxScheme['cbc:CompanyID'])
-                : undefined,
+            taxSchemes: (() => {
+                const pts = party['cac:PartyTaxScheme'];
+                if (!pts) return undefined;
+                const ptsArray = Array.isArray(pts) ? pts : [pts];
+                return ptsArray.map((ptsItem) => {
+                    const ts = ptsItem as Record<string, unknown>;
+                    const taxSchemeEl = ts['cac:TaxScheme'] as
+                        | Record<string, unknown>
+                        | undefined;
+                    return {
+                        companyId: this.__str(ts['cbc:CompanyID'])!,
+                        schemeID: this.__str(taxSchemeEl?.['cbc:ID']),
+                    };
+                });
+            })(),
             legalEntity: {
                 registrationName: this.__str(
                     legalEntity['cbc:RegistrationName']
                 )!,
-                companyId: this.__str(legalEntity['cbc:CompanyID']),
+                companyId: this.__str(legalEntity['cbc:CompanyID'])
+                    ? {
+                          id: this.__text(legalEntity['cbc:CompanyID'])!,
+                          schemeID: this.__attr(
+                              legalEntity['cbc:CompanyID'],
+                              'schemeID'
+                          ),
+                      }
+                    : undefined,
                 legalForm: this.__str(legalEntity['cbc:CompanyLegalForm']),
             },
             contact: contact
@@ -237,6 +267,110 @@ export class DocumentParser {
                   }
                 : undefined,
         };
+    }
+
+    private __parsePayeeParty(
+        party: Record<string, unknown> | undefined
+    ): Invoice['payeeParty'] {
+        if (!party) return undefined;
+
+        const identEl = party['cac:PartyIdentification'] as
+            | Record<string, unknown>
+            | undefined;
+        const idEl = identEl?.['cbc:ID'];
+        const partyNameEl = party['cac:PartyName'] as
+            | Record<string, unknown>
+            | undefined;
+        const legalEntity = party['cac:PartyLegalEntity'] as
+            | Record<string, unknown>
+            | undefined;
+        const legalEntityIdEl = legalEntity?.['cbc:CompanyID'];
+
+        return {
+            identification: identEl
+                ? {
+                      id: this.__text(idEl)!,
+                      schemeID: this.__attr(idEl, 'schemeID'),
+                  }
+                : undefined,
+            name: this.__str(partyNameEl?.['cbc:Name'])!,
+            legalEntity: legalEntity
+                ? {
+                      companyId: this.__text(legalEntityIdEl)
+                          ? {
+                                id: this.__text(legalEntityIdEl)!,
+                                schemeID: this.__attr(
+                                    legalEntityIdEl,
+                                    'schemeID'
+                                ),
+                            }
+                          : undefined,
+                  }
+                : undefined,
+        };
+    }
+
+    private __parseTaxRepresentativeParty(
+        party: Record<string, unknown> | undefined
+    ): Invoice['taxRepresentativeParty'] {
+        if (!party) return undefined;
+
+        const partyNameEl = party['cac:PartyName'] as
+            | Record<string, unknown>
+            | undefined;
+        const postal =
+            (party['cac:PostalAddress'] as Record<string, unknown>) ?? {};
+        const country = postal['cac:Country'] as
+            | Record<string, unknown>
+            | undefined;
+        const taxSchemeEl = party['cac:PartyTaxScheme'] as
+            | Record<string, unknown>
+            | undefined;
+        const taxSchemeCodeEl = taxSchemeEl?.['cac:TaxScheme'] as
+            | Record<string, unknown>
+            | undefined;
+
+        return {
+            name: this.__str(partyNameEl?.['cbc:Name'])!,
+            address: {
+                streetName: this.__str(postal['cbc:StreetName']),
+                additionalStreetName: this.__str(
+                    postal['cbc:AdditionalStreetName']
+                ),
+                cityName: this.__str(postal['cbc:CityName']),
+                postalZone: this.__str(postal['cbc:PostalZone']),
+                countrySubentity: this.__str(postal['cbc:CountrySubentity']),
+                addressLine: this.__parseAddressLine(postal),
+                country: this.__str(
+                    country?.['cbc:IdentificationCode']
+                ) as z.infer<typeof partySchema>['address']['country'],
+            },
+            taxScheme: {
+                companyId: this.__str(taxSchemeEl?.['cbc:CompanyID'])!,
+                schemeID: this.__str(taxSchemeCodeEl?.['cbc:ID']),
+            },
+        };
+    }
+
+    private __parseAddressLine(
+        address: Record<string, unknown>
+    ): string | undefined {
+        // Prefer the current cac:AddressLine/cbc:Line structure.
+        const addressLine = address['cac:AddressLine'];
+        if (addressLine && typeof addressLine === 'object') {
+            return this.__str(
+                (addressLine as Record<string, unknown>)['cbc:Line']
+            );
+        }
+
+        const legacyAddressLine = this.__str(address['cbc:AddressLine']);
+        if (legacyAddressLine && !this.__hasWarnedLegacyAddressLine) {
+            this.__hasWarnedLegacyAddressLine = true;
+            console.warn(
+                '[peppol-toolkit] Legacy address format "cbc:AddressLine" is deprecated and will be removed in a future release. Use "cac:AddressLine/cbc:Line" instead.'
+            );
+        }
+        return legacyAddressLine;
     }
 
     private __parseInvoicePeriod(
@@ -371,6 +505,8 @@ export class DocumentParser {
                                 countrySubentity: this.__str(
                                     locationAddress['cbc:CountrySubentity']
                                 ),
+                                addressLine:
+                                    this.__parseAddressLine(locationAddress),
                                 country: this.__str(
                                     locationCountry?.['cbc:IdentificationCode']
                                 ) as z.infer<
@@ -444,6 +580,15 @@ export class DocumentParser {
             const fib = fa?.['cac:FinancialInstitutionBranch'] as
                 | Record<string, unknown>
                 | undefined;
+            const ca = pm['cac:CardAccount'] as
+                | Record<string, unknown>
+                | undefined;
+            const pmand = pm['cac:PaymentMandate'] as
+                | Record<string, unknown>
+                | undefined;
+            const pfa = pmand?.['cac:PayerFinancialAccount'] as
+                | Record<string, unknown>
+                | undefined;
             return {
                 code: this.__str(
                     pm['cbc:PaymentMeansCode']
@@ -462,6 +607,21 @@ export class DocumentParser {
                           financialInstitutionBranch: this.__str(
                               fib?.['cbc:ID']
                           ),
+                      }
+                    : undefined,
+                cardAccount: ca
+                    ? {
+                          primaryAccountNumberId: this.__str(
+                              ca['cbc:PrimaryAccountNumberID']
+                          )!,
+                          networkId: this.__str(ca['cbc:NetworkID'])!,
+                          holderName: this.__str(ca['cbc:HolderName']),
+                      }
+                    : undefined,
+                paymentMandate: pmand
+                    ? {
+                          id: this.__str(pmand['cbc:ID']),
+                          payerFinancialAccountId: this.__str(pfa?.['cbc:ID']),
                       }
                     : undefined,
             };
@@ -606,7 +766,7 @@ export class DocumentParser {
 
         return {
             id: this.__str(l['cbc:ID'])!,
-            note: this.__str(l['cbc:Note']),
+            note: this.__parseNotes(l['cbc:Note']),
             invoicedQuantity: Number(this.__text(qtyEl)),
             unitCode: this.__attr(
                 qtyEl,
@@ -640,11 +800,24 @@ export class DocumentParser {
                   )
                 : undefined,
             documentReference: l['cac:DocumentReference']
-                ? this.__str(
-                      (l['cac:DocumentReference'] as Record<string, unknown>)[
-                          'cbc:ID'
-                      ]
-                  )
+                ? {
+                      id: this.__str(
+                          (
+                              l['cac:DocumentReference'] as Record<
+                                  string,
+                                  unknown
+                              >
+                          )['cbc:ID']
+                      )!,
+                      documentTypeCode: this.__str(
+                          (
+                              l['cac:DocumentReference'] as Record<
+                                  string,
+                                  unknown
+                              >
+                          )['cbc:DocumentTypeCode']
+                      ),
+                  }
                 : undefined,
             allowanceCharge:
                 lineACs && lineACs.length > 0
@@ -774,6 +947,17 @@ export class DocumentParser {
             return String((value as Record<string, unknown>)['#text']);
         }
         return String(value);
+    }
+
+    private __parseNotes(
+        notes: unknown
+    ): { content: string; languageID?: string }[] | undefined {
+        if (!notes) return undefined;
+        const notesArray = Array.isArray(notes) ? notes : [notes];
+        return notesArray.map((note) => ({
+            content: this.__str(note)!,
+            languageID: this.__attr(note, 'languageID'),
+        }));
     }
 
     /**
