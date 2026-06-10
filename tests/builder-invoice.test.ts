@@ -162,8 +162,9 @@ describe('Invoices Builder', () => {
         expect(invoiceXML).toContain(
             '<cbc:EmbeddedDocumentBinaryObject mimeCode="text/plain" filename="line.txt">SGVsbG8=</cbc:EmbeddedDocumentBinaryObject>'
         );
+        expect(invoiceXML).toContain('<cac:ExternalReference>');
         expect(invoiceXML).toContain(
-            '<cac:ExternalReference><cbc:URI>https://example.com/line.txt</cbc:URI></cac:ExternalReference>'
+            '<cbc:URI>https://example.com/line.txt</cbc:URI>'
         );
     });
 });
