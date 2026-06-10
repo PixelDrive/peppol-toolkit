@@ -143,6 +143,39 @@ describe('Invoice Parser', () => {
         expect(parsed.invoiceLines[0].taxCategory.percent).toBe(21);
     });
 
+    it('should preserve line document reference attachments', () => {
+        const xml = toolkit.invoiceToPeppolUBL({
+            ...basicInvoice,
+            invoiceLines: [
+                {
+                    ...basicInvoice.invoiceLines[0],
+                    documentReference: {
+                        id: 'LINE-DOC-1',
+                        documentTypeCode: '916',
+                        attachment: {
+                            embeddedDocumentBinaryObject: 'SGVsbG8=',
+                            mimeCode: 'text/plain',
+                            filename: 'line.txt',
+                            externalReference: 'https://example.com/line.txt',
+                        },
+                    },
+                },
+            ],
+        });
+        const parsed = toolkit.peppolUBLToInvoice(xml);
+
+        expect(parsed.invoiceLines[0].documentReference).toEqual({
+            id: 'LINE-DOC-1',
+            documentTypeCode: '916',
+            attachment: {
+                embeddedDocumentBinaryObject: 'SGVsbG8=',
+                mimeCode: 'text/plain',
+                filename: 'line.txt',
+                externalReference: 'https://example.com/line.txt',
+            },
+        });
+    });
+
     it('should produce identical XML on a round-trip (build → parse → build)', () => {
         const xml1 = toolkit.invoiceToPeppolUBL(basicInvoice);
         const parsed = toolkit.peppolUBLToInvoice(xml1);

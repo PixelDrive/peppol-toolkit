@@ -132,4 +132,38 @@ describe('Invoices Builder', () => {
             /<cac:TaxRepresentativeParty>\s*<cac:Party>/
         );
     });
+
+    it('should build attachments inside line document references', () => {
+        const invoiceXML = toolkit.invoiceToPeppolUBL({
+            ...basicInvoice,
+            invoiceLines: [
+                {
+                    ...basicInvoice.invoiceLines[0],
+                    documentReference: {
+                        id: 'LINE-DOC-1',
+                        documentTypeCode: '916',
+                        attachment: {
+                            embeddedDocumentBinaryObject: 'SGVsbG8=',
+                            mimeCode: 'text/plain',
+                            filename: 'line.txt',
+                            externalReference: 'https://example.com/line.txt',
+                        },
+                    },
+                },
+            ],
+        });
+
+        expect(invoiceXML).toContain('<cac:DocumentReference>');
+        expect(invoiceXML).toContain('<cbc:ID>LINE-DOC-1</cbc:ID>');
+        expect(invoiceXML).toContain(
+            '<cbc:DocumentTypeCode>916</cbc:DocumentTypeCode>'
+        );
+        expect(invoiceXML).toContain('<cac:Attachment>');
+        expect(invoiceXML).toContain(
+            '<cbc:EmbeddedDocumentBinaryObject mimeCode="text/plain" filename="line.txt">SGVsbG8=</cbc:EmbeddedDocumentBinaryObject>'
+        );
+        expect(invoiceXML).toContain(
+            '<cac:ExternalReference><cbc:URI>https://example.com/line.txt</cbc:URI></cac:ExternalReference>'
+        );
+    });
 });

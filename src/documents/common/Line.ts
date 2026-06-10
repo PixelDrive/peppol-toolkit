@@ -30,6 +30,14 @@ export const lineSchema = z.object({
         .object({
             id: z.string().min(1),
             documentTypeCode: z.string().optional(),
+            attachment: z
+                .object({
+                    embeddedDocumentBinaryObject: z.string().optional(),
+                    mimeCode: z.string().optional(),
+                    filename: z.string().optional(),
+                    externalReference: z.string().optional(),
+                })
+                .optional(),
         })
         .optional(),
     allowanceCharge: z.array(lineAllowanceChargeSchema).optional(),

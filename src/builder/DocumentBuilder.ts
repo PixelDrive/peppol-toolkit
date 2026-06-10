@@ -1053,6 +1053,51 @@ export class DocumentBuilder {
                           'cbc:ID': line.documentReference.id,
                           'cbc:DocumentTypeCode':
                               line.documentReference.documentTypeCode ?? '130',
+                          ...(line.documentReference.attachment
+                              ? {
+                                    'cac:Attachment': {
+                                        ...(line.documentReference.attachment
+                                            .embeddedDocumentBinaryObject
+                                            ? {
+                                                  'cbc:EmbeddedDocumentBinaryObject':
+                                                      {
+                                                          '#text':
+                                                              line
+                                                                  .documentReference
+                                                                  .attachment
+                                                                  .embeddedDocumentBinaryObject,
+                                                          ...XMLAttributes({
+                                                              mimeCode:
+                                                                  line
+                                                                      .documentReference
+                                                                      .attachment
+                                                                      .mimeCode ??
+                                                                  '',
+                                                              filename:
+                                                                  line
+                                                                      .documentReference
+                                                                      .attachment
+                                                                      .filename ??
+                                                                  '',
+                                                          }),
+                                                      },
+                                              }
+                                            : {}),
+                                        ...(line.documentReference.attachment
+                                            .externalReference
+                                            ? {
+                                                  'cac:ExternalReference': {
+                                                      'cbc:URI':
+                                                          line
+                                                              .documentReference
+                                                              .attachment
+                                                              .externalReference,
+                                                  },
+                                              }
+                                            : {}),
+                                    },
+                                }
+                              : {}),
                       },
                   }
                 : {}),

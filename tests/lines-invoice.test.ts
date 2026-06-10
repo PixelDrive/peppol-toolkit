@@ -57,6 +57,34 @@ describe('Invoice Lines', () => {
         expect(result1.success).toBe(true);
     });
 
+    it('should support attachments in line document references', () => {
+        const invoiceLines = {
+            id: '1',
+            invoicedQuantity: 1,
+            lineExtensionAmount: 100.0,
+            price: 100,
+            name: 'Petit poney',
+            currency: 'EUR',
+            unitCode: 'DAY',
+            taxCategory: {
+                percent: 21,
+                categoryCode: 'S',
+            },
+            documentReference: {
+                id: 'LINE-DOC-1',
+                attachment: {
+                    embeddedDocumentBinaryObject: 'SGVsbG8=',
+                    mimeCode: 'text/plain',
+                    filename: 'line.txt',
+                    externalReference: 'https://example.com/line.txt',
+                },
+            },
+        };
+
+        const result = lineSchema.safeParse(invoiceLines);
+        expect(result.success).toBe(true);
+    });
+
     it('should return failure if the invoiceQuantity is negative', () => {
         const invoiceLines = {
             id: '1',

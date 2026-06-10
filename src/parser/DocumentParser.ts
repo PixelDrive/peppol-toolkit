@@ -763,6 +763,16 @@ export class DocumentParser {
 
         // Parse line allowance charges
         const lineACs = l['cac:AllowanceCharge'] as unknown[] | undefined;
+        const documentReference = l['cac:DocumentReference'] as
+            | Record<string, unknown>
+            | undefined;
+        const attachment = documentReference?.['cac:Attachment'] as
+            | Record<string, unknown>
+            | undefined;
+        const binaryObj = attachment?.['cbc:EmbeddedDocumentBinaryObject'];
+        const extRef = attachment?.['cac:ExternalReference'] as
+            | Record<string, unknown>
+            | undefined;
 
         return {
             id: this.__str(l['cbc:ID'])!,
@@ -799,24 +809,23 @@ export class DocumentParser {
                       ]
                   )
                 : undefined,
-            documentReference: l['cac:DocumentReference']
+            documentReference: documentReference
                 ? {
-                      id: this.__str(
-                          (
-                              l['cac:DocumentReference'] as Record<
-                                  string,
-                                  unknown
-                              >
-                          )['cbc:ID']
-                      )!,
+                      id: this.__str(documentReference['cbc:ID'])!,
                       documentTypeCode: this.__str(
-                          (
-                              l['cac:DocumentReference'] as Record<
-                                  string,
-                                  unknown
-                              >
-                          )['cbc:DocumentTypeCode']
+                          documentReference['cbc:DocumentTypeCode']
                       ),
+                      attachment: attachment
+                          ? {
+                                embeddedDocumentBinaryObject:
+                                    this.__text(binaryObj),
+                                mimeCode: this.__attr(binaryObj, 'mimeCode'),
+                                filename: this.__attr(binaryObj, 'filename'),
+                                externalReference: extRef
+                                    ? this.__str(extRef['cbc:URI'])
+                                    : undefined,
+                            }
+                          : undefined,
                   }
                 : undefined,
             allowanceCharge:
