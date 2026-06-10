@@ -14,6 +14,22 @@ export class DocumentParser {
     private __parser = new XMLParser(parserOptions);
     private __hasWarnedLegacyAddressLine = false;
 
+    private __parseAttachment(attachment: Record<string, unknown> | undefined) {
+        if (!attachment) return undefined;
+        const binaryObj = attachment['cbc:EmbeddedDocumentBinaryObject'];
+        const extRef = attachment['cac:ExternalReference'] as
+            | Record<string, unknown>
+            | undefined;
+        return {
+            embeddedDocumentBinaryObject: this.__text(binaryObj),
+            mimeCode: this.__attr(binaryObj, 'mimeCode'),
+            filename: this.__attr(binaryObj, 'filename'),
+            externalReference: extRef
+                ? this.__str(extRef['cbc:URI'])
+                : undefined,
+        };
+    }
+
     /***
      * Parses a Peppol UBL Invoice XML string into an Invoice object
      * @param xml The UBL Invoice XML string
@@ -436,25 +452,12 @@ export class DocumentParser {
             const attachment = r['cac:Attachment'] as
                 | Record<string, unknown>
                 | undefined;
-            const binaryObj = attachment?.['cbc:EmbeddedDocumentBinaryObject'];
-            const extRef = attachment?.['cac:ExternalReference'] as
-                | Record<string, unknown>
-                | undefined;
             return {
                 id: this.__text(idEl)!,
                 schemeID: this.__attr(idEl, 'schemeID'),
                 documentTypeCode: this.__str(r['cbc:DocumentTypeCode']),
                 documentDescription: this.__str(r['cbc:DocumentDescription']),
-                attachment: attachment
-                    ? {
-                          embeddedDocumentBinaryObject: this.__text(binaryObj),
-                          mimeCode: this.__attr(binaryObj, 'mimeCode'),
-                          filename: this.__attr(binaryObj, 'filename'),
-                          externalReference: extRef
-                              ? this.__str(extRef['cbc:URI'])
-                              : undefined,
-                      }
-                    : undefined,
+                attachment: this.__parseAttachment(attachment),
             };
         });
     }
@@ -769,10 +772,6 @@ export class DocumentParser {
         const attachment = documentReference?.['cac:Attachment'] as
             | Record<string, unknown>
             | undefined;
-        const binaryObj = attachment?.['cbc:EmbeddedDocumentBinaryObject'];
-        const extRef = attachment?.['cac:ExternalReference'] as
-            | Record<string, unknown>
-            | undefined;
 
         return {
             id: this.__str(l['cbc:ID'])!,
@@ -815,17 +814,7 @@ export class DocumentParser {
                       documentTypeCode: this.__str(
                           documentReference['cbc:DocumentTypeCode']
                       ),
-                      attachment: attachment
-                          ? {
-                                embeddedDocumentBinaryObject:
-                                    this.__text(binaryObj),
-                                mimeCode: this.__attr(binaryObj, 'mimeCode'),
-                                filename: this.__attr(binaryObj, 'filename'),
-                                externalReference: extRef
-                                    ? this.__str(extRef['cbc:URI'])
-                                    : undefined,
-                            }
-                          : undefined,
+                      attachment: this.__parseAttachment(attachment),
                   }
                 : undefined,
             allowanceCharge:

@@ -21,6 +21,34 @@ export class DocumentBuilder {
     };
     private __builder = new XMLBuilder(builderOptions);
 
+    private __buildAttachment(attachment: {
+        embeddedDocumentBinaryObject?: string;
+        mimeCode?: string;
+        filename?: string;
+        externalReference?: string;
+    }) {
+        return {
+            ...(attachment.embeddedDocumentBinaryObject
+                ? {
+                      'cbc:EmbeddedDocumentBinaryObject': {
+                          '#text': attachment.embeddedDocumentBinaryObject,
+                          ...XMLAttributes({
+                              mimeCode: attachment.mimeCode ?? '',
+                              filename: attachment.filename ?? '',
+                          }),
+                      },
+                  }
+                : {}),
+            ...(attachment.externalReference
+                ? {
+                      'cac:ExternalReference': {
+                          'cbc:URI': attachment.externalReference,
+                      },
+                  }
+                : {}),
+        };
+    }
+
     /***
      * Generates a Peppol invoice from the given invoice data
      * @param invoice The invoice data
@@ -953,31 +981,7 @@ export class DocumentBuilder {
                 : {}),
             ...(ref.attachment
                 ? {
-                      'cac:Attachment': {
-                          ...(ref.attachment.embeddedDocumentBinaryObject
-                              ? {
-                                    'cbc:EmbeddedDocumentBinaryObject': {
-                                        '#text':
-                                            ref.attachment
-                                                .embeddedDocumentBinaryObject,
-                                        ...XMLAttributes({
-                                            mimeCode:
-                                                ref.attachment.mimeCode ?? '',
-                                            filename:
-                                                ref.attachment.filename ?? '',
-                                        }),
-                                    },
-                                }
-                              : {}),
-                          ...(ref.attachment.externalReference
-                              ? {
-                                    'cac:ExternalReference': {
-                                        'cbc:URI':
-                                            ref.attachment.externalReference,
-                                    },
-                                }
-                              : {}),
-                      },
+                      'cac:Attachment': this.__buildAttachment(ref.attachment),
                   }
                 : {}),
         };
@@ -1055,47 +1059,9 @@ export class DocumentBuilder {
                               line.documentReference.documentTypeCode ?? '130',
                           ...(line.documentReference.attachment
                               ? {
-                                    'cac:Attachment': {
-                                        ...(line.documentReference.attachment
-                                            .embeddedDocumentBinaryObject
-                                            ? {
-                                                  'cbc:EmbeddedDocumentBinaryObject':
-                                                      {
-                                                          '#text':
-                                                              line
-                                                                  .documentReference
-                                                                  .attachment
-                                                                  .embeddedDocumentBinaryObject,
-                                                          ...XMLAttributes({
-                                                              mimeCode:
-                                                                  line
-                                                                      .documentReference
-                                                                      .attachment
-                                                                      .mimeCode ??
-                                                                  '',
-                                                              filename:
-                                                                  line
-                                                                      .documentReference
-                                                                      .attachment
-                                                                      .filename ??
-                                                                  '',
-                                                          }),
-                                                      },
-                                              }
-                                            : {}),
-                                        ...(line.documentReference.attachment
-                                            .externalReference
-                                            ? {
-                                                  'cac:ExternalReference': {
-                                                      'cbc:URI':
-                                                          line
-                                                              .documentReference
-                                                              .attachment
-                                                              .externalReference,
-                                                  },
-                                              }
-                                            : {}),
-                                    },
+                                    'cac:Attachment': this.__buildAttachment(
+                                        line.documentReference.attachment
+                                    ),
                                 }
                               : {}),
                       },
