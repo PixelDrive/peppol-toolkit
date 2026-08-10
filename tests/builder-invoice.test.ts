@@ -53,6 +53,22 @@ describe('Invoices Builder', () => {
         );
     });
 
+    it('should generate the same XML for issue dates supplied as strings or Date objects', () => {
+        const invoiceWithStringDate = toolkit.invoiceToPeppolUBL({
+            ...basicInvoice,
+            issueDate: '2026-05-15',
+        });
+        const invoiceWithDateObject = toolkit.invoiceToPeppolUBL({
+            ...basicInvoice,
+            issueDate: new Date(2026, 4, 15),
+        });
+
+        expect(invoiceWithDateObject).toContain(
+            '<cbc:IssueDate>2026-05-15</cbc:IssueDate>'
+        );
+        expect(invoiceWithDateObject).toBe(invoiceWithStringDate);
+    });
+
     it('should return default profileId and customizationId', () => {
         const invoiceXML1 = toolkit.invoiceToPeppolUBL({
             ...basicInvoice,
