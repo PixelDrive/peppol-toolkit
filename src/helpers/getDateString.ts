@@ -8,5 +8,8 @@ export default function getDateString(date: Date | string) {
     }
 
     // Don't use toISOString() as it may return a different day depending on the timezone
-    return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+
+    return `${date.getFullYear()}-${month}-${day}`;
 }
