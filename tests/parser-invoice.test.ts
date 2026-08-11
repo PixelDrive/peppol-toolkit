@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { PeppolToolkit } from '../src';
 import { basicInvoice } from '../src/data/basic-invoice';
+import { comprehensiveInvoice } from './fixtures/comprehensive-invoice';
+
+const publishedPeppolInvoice = readFileSync(
+    new URL('./fixtures/peppol-vat-exempt-invoice.xml', import.meta.url),
+    'utf8'
+);
 
 describe('Invoice Parser', () => {
     let toolkit: PeppolToolkit;
@@ -66,9 +73,7 @@ describe('Invoice Parser', () => {
     it('should preserve seller information', () => {
         const xml = toolkit.invoiceToPeppolUBL(basicInvoice);
         const parsed = toolkit.peppolUBLToInvoice(xml);
-        expect(parsed.seller.endPoint.id).toBe(
-            basicInvoice.seller.endPoint.id
-        );
+        expect(parsed.seller.endPoint.id).toBe(basicInvoice.seller.endPoint.id);
         expect(parsed.seller.endPoint.scheme).toBe(
             basicInvoice.seller.endPoint.scheme
         );
@@ -171,5 +176,111 @@ describe('Invoice Parser', () => {
         const xml = toolkit.invoiceToPeppolUBL(invoice);
         const parsed = toolkit.peppolUBLToInvoice(xml);
         expect(parsed.dueDate).toBeUndefined();
+    });
+
+    it('should parse the published Peppol BIS Billing 3.0 VAT-exempt example', () => {
+        const parsed = toolkit.peppolUBLToInvoice(publishedPeppolInvoice);
+
+        expect(parsed).toMatchObject({
+            ID: 'Vat-Z',
+            issueDate: '2018-08-30',
+            invoiceTypeCode: 380,
+            documentCurrencyCode: 'GBP',
+            buyerReference: 'test reference',
+            seller: {
+                endPoint: { scheme: '0088', id: '7300010000001' },
+                address: { country: 'GB' },
+                legalEntity: {
+                    registrationName: 'The Sellercompany Incorporated',
+                },
+            },
+            buyer: {
+                endPoint: { scheme: '0184', id: 'DK12345678' },
+                address: { countrySubentity: 'RegionB', country: 'DK' },
+                legalEntity: { registrationName: 'The Buyercompany' },
+            },
+            paymentTermsNote: 'Payment within 30 days',
+            taxTotal: [
+                {
+                    taxAmount: 0,
+                    taxAmountCurrency: 'GBP',
+                    subTotals: [
+                        {
+                            taxableAmount: 1200,
+                            taxAmount: 0,
+                            taxCategory: {
+                                categoryCode: 'E',
+                                percent: 0,
+                                exemptionReasonCode: 'VATEX-EU-F',
+                            },
+                        },
+                    ],
+                },
+            ],
+            invoiceLines: [
+                {
+                    id: '1',
+                    invoicedQuantity: 10,
+                    unitCode: 'EA',
+                    orderLineReference: '1',
+                    standardItemIdentification: {
+                        id: '192387129837129873',
+                        schemeID: '0160',
+                    },
+                    taxCategory: { categoryCode: 'E', percent: 0 },
+                },
+            ],
+        });
+        expect(parsed.dueDate).toBeUndefined();
+    });
+
+    it('should preserve the published Peppol example through parse and generation', () => {
+        const parsed = toolkit.peppolUBLToInvoice(publishedPeppolInvoice);
+        const generated = toolkit.invoiceToPeppolUBL(parsed);
+
+        expect(toolkit.peppolUBLToInvoice(generated)).toEqual(parsed);
+    });
+
+    it('should preserve all supported optional groups in a comprehensive round-trip', () => {
+        const generated = toolkit.invoiceToPeppolUBL(comprehensiveInvoice);
+        const parsed = toolkit.peppolUBLToInvoice(generated);
+
+        expect(parsed).toMatchObject({
+            note: comprehensiveInvoice.note,
+            taxPointDate: comprehensiveInvoice.taxPointDate,
+            taxCurrencyCode: comprehensiveInvoice.taxCurrencyCode,
+            accountingCost: comprehensiveInvoice.accountingCost,
+            invoicePeriod: comprehensiveInvoice.invoicePeriod,
+            orderReference: comprehensiveInvoice.orderReference,
+            billingReference: comprehensiveInvoice.billingReference,
+            despatchDocumentReference:
+                comprehensiveInvoice.despatchDocumentReference,
+            receiptDocumentReference:
+                comprehensiveInvoice.receiptDocumentReference,
+            originatorDocumentReference:
+                comprehensiveInvoice.originatorDocumentReference,
+            contractDocumentReference:
+                comprehensiveInvoice.contractDocumentReference,
+            additionalDocumentReference:
+                comprehensiveInvoice.additionalDocumentReference,
+            projectReference: comprehensiveInvoice.projectReference,
+            payeeParty: comprehensiveInvoice.payeeParty,
+            taxRepresentativeParty: comprehensiveInvoice.taxRepresentativeParty,
+            delivery: comprehensiveInvoice.delivery,
+            paymentMeans: comprehensiveInvoice.paymentMeans,
+            allowanceCharge: comprehensiveInvoice.allowanceCharge,
+        });
+        expect(parsed.taxTotal).toHaveLength(2);
+        expect(parsed.taxTotal[1]).toEqual({
+            taxAmount: 23,
+            taxAmountCurrency: 'USD',
+            subTotals: [],
+        });
+        expect(parsed.invoiceLines[0]).toMatchObject(
+            comprehensiveInvoice.invoiceLines[0]
+        );
+
+        const regenerated = toolkit.invoiceToPeppolUBL(parsed);
+        expect(toolkit.peppolUBLToInvoice(regenerated)).toEqual(parsed);
     });
 });

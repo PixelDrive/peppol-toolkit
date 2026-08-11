@@ -69,9 +69,7 @@ export class DocumentParser {
             buyer: this.__parseParty(
                 inv['cac:AccountingCustomerParty']?.['cac:Party']
             ),
-            payeeParty: this.__parsePayeeParty(
-                inv['cac:PayeeParty']
-            ),
+            payeeParty: this.__parsePayeeParty(inv['cac:PayeeParty']),
             taxRepresentativeParty: this.__parseTaxRepresentativeParty(
                 inv['cac:TaxRepresentativeParty']
             ),
@@ -146,9 +144,7 @@ export class DocumentParser {
             buyer: this.__parseParty(
                 cn['cac:AccountingCustomerParty']?.['cac:Party']
             ),
-            payeeParty: this.__parsePayeeParty(
-                cn['cac:PayeeParty']
-            ),
+            payeeParty: this.__parsePayeeParty(cn['cac:PayeeParty']),
             taxRepresentativeParty: this.__parseTaxRepresentativeParty(
                 cn['cac:TaxRepresentativeParty']
             ),
@@ -274,9 +270,13 @@ export class DocumentParser {
     ): Invoice['payeeParty'] {
         if (!party) return undefined;
 
-        const identEl = party['cac:PartyIdentification'] as
+        const identifications = party['cac:PartyIdentification'] as
             | Record<string, unknown>
+            | Record<string, unknown>[]
             | undefined;
+        const identEl = Array.isArray(identifications)
+            ? identifications[0]
+            : identifications;
         const idEl = identEl?.['cbc:ID'];
         const partyNameEl = party['cac:PartyName'] as
             | Record<string, unknown>
@@ -743,9 +743,13 @@ export class DocumentParser {
         const priceSection = (l['cac:Price'] ?? {}) as Record<string, unknown>;
         const priceEl = priceSection['cbc:PriceAmount'];
         const baseQtyEl = priceSection['cbc:BaseQuantity'];
-        const priceAC = priceSection['cac:AllowanceCharge'] as
+        const priceAllowances = priceSection['cac:AllowanceCharge'] as
             | Record<string, unknown>
+            | Record<string, unknown>[]
             | undefined;
+        const priceAC = Array.isArray(priceAllowances)
+            ? priceAllowances[0]
+            : priceAllowances;
         const taxCat = (item['cac:ClassifiedTaxCategory'] ?? {}) as Record<
             string,
             unknown
