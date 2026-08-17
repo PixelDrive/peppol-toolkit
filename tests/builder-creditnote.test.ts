@@ -132,4 +132,20 @@ describe('Creditnote Builder', () => {
             /<cac:TaxRepresentativeParty>\s*<cac:Party>/
         );
     });
+
+    it('should preserve line price precision in PriceAmount', () => {
+        const creditNoteXML = toolkit.creditNoteToPeppolUBL({
+            ...basicCreditNote,
+            creditNoteLines: [
+                {
+                    ...basicCreditNote.creditNoteLines[0],
+                    price: 10.129,
+                },
+            ],
+        });
+
+        expect(creditNoteXML).toContain(
+            '<cbc:PriceAmount currencyID="EUR">10.129</cbc:PriceAmount>'
+        );
+    });
 });

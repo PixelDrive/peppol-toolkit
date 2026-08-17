@@ -148,4 +148,20 @@ describe('Invoices Builder', () => {
             /<cac:TaxRepresentativeParty>\s*<cac:Party>/
         );
     });
+
+    it('should preserve line price precision in PriceAmount', () => {
+        const invoiceXML = toolkit.invoiceToPeppolUBL({
+            ...basicInvoice,
+            invoiceLines: [
+                {
+                    ...basicInvoice.invoiceLines[0],
+                    price: 10.129,
+                },
+            ],
+        });
+
+        expect(invoiceXML).toContain(
+            '<cbc:PriceAmount currencyID="EUR">10.129</cbc:PriceAmount>'
+        );
+    });
 });
