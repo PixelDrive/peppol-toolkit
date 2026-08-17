@@ -1143,7 +1143,7 @@ export class DocumentBuilder {
             },
             'cac:Price': {
                 'cbc:PriceAmount': {
-                    '#text': line.price.toFixed(2),
+                    '#text': String(line.price),
                     ...XMLAttributes({
                         currencyID: line.currency,
                     }),
