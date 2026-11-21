@@ -1,4 +1,5 @@
 import { XMLBuilder } from 'fast-xml-parser';
+import Decimal from 'decimal.js';
 import { builderOptions } from './builderOptions';
 import { CurrencyCode, Invoice, partySchema, CreditNote } from '../documents';
 import XMLAttributes from '../helpers/XMLAttributes';
@@ -6,7 +7,6 @@ import getDateString from '../helpers/getDateString';
 import { z } from 'zod';
 import { isNullish } from '../helpers/isNullish';
 import { formatAmount } from '../helpers/formatAmount';
-import Decimal from 'decimal.js';
 
 const DEFAULT_CUSTOMIZATION_ID =
     'urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0';
@@ -1080,7 +1080,7 @@ export class DocumentBuilder {
                   }
                 : {}),
             [`cbc:${quantityTag}`]: {
-                '#text': line.invoicedQuantity.toFixed(2),
+                '#text': new Decimal(line.invoicedQuantity).toFixed(),
                 ...XMLAttributes({
                     unitCode: line.unitCode,
                 }),
@@ -1224,7 +1224,7 @@ export class DocumentBuilder {
             },
             'cac:Price': {
                 'cbc:PriceAmount': {
-                    '#text': String(line.price),
+                    '#text': new Decimal(line.price).toFixed(),
                     ...XMLAttributes({
                         currencyID: line.currency,
                     }),
@@ -1232,7 +1232,7 @@ export class DocumentBuilder {
                 ...(line.baseQuantity !== undefined
                     ? {
                           'cbc:BaseQuantity': {
-                              '#text': line.baseQuantity.toFixed(2),
+                              '#text': new Decimal(line.baseQuantity).toFixed(),
                               ...XMLAttributes({
                                   unitCode: line.unitCode,
                               }),
