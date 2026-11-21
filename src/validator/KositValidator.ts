@@ -10,6 +10,8 @@ export interface KositValidatorOptions {
 
 export interface KositValidationMessage {
     id: string;
+    /** Rule identifier, e.g. `BR-CO-15` or `cvc-complex-type.2.4.a` */
+    code: string;
     text: string;
     location: string;
 }
@@ -142,8 +144,14 @@ export class KositValidator {
         for (const msg of messageArray as Record<string, unknown>[]) {
             const entry: KositValidationMessage = {
                 id: String(msg['$id'] ?? msg['id'] ?? ''),
+                code: String(msg['$code'] ?? msg['code'] ?? ''),
                 text: String(msg['#text'] ?? msg['text'] ?? ''),
-                location: String(msg['$location'] ?? msg['location'] ?? ''),
+                location: String(
+                    msg['$location'] ??
+                        msg['$xpathLocation'] ??
+                        msg['location'] ??
+                        ''
+                ),
             };
 
             const level = String(

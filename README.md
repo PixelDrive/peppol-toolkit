@@ -569,8 +569,24 @@ Last updated: 2026-05-13
 - `npm run build` - Build the library
 - `npm run dev` - Build in watch mode for development
 - `npm run test` - Run tests
+- `npm run test:e2e` - Run the KoSIT end-to-end tests (see below)
+- `npm run kosit:start` - Download and start a local KoSIT validator (Java 17+)
 - `npm run lint` - Lint the codebase
 - `npm run format` - Format code with Prettier
+
+### KoSIT end-to-end tests
+
+The `e2e/kosit` suite generates complete invoices and credit notes and submits them to a real [KoSIT validator](https://github.com/itplr-kosit/validator) loaded with the [Peppol BIS Billing 3 configuration](https://github.com/itplr-kosit/validator-configuration-bis).
+
+- `e2e/kosit/cases/valid.ts` – documents that must be accepted
+- `e2e/kosit/cases/invalid.ts` – documents that must be rejected, each with the rule(s) expected in the report (e.g. `BR-CO-15`)
+
+```bash
+npm run kosit:start   # terminal 1 – downloads into .kosit/ on first run, listens on :8081
+npm run test:e2e      # terminal 2
+```
+
+Set `KOSIT_ENDPOINT` to target another instance. Generated XML and KoSIT reports are written to `e2e/output/` for inspection. The suite runs in CI through `.github/workflows/kosit.yml`.
 
 ## Requirements
 

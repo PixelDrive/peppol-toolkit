@@ -45,6 +45,20 @@ const REPORT_WITH_WARNINGS = `<?xml version="1.0" encoding="UTF-8"?>
   </rep:assessment>
 </rep:report>`;
 
+// Shape returned by the KoSIT daemon (rule code and XPath in dedicated attributes)
+const KOSIT_DAEMON_REPORT = `<?xml version="1.0" encoding="UTF-8"?>
+<rep:report xmlns:rep="http://www.xoev.de/de/validator/framework/1/createreportinput">
+  <rep:scenarioMatched>
+    <rep:validationStepResult>
+      <rep:recommendation>reject</rep:recommendation>
+      <rep:message id="val-sch.1.1" level="error" xpathLocation="/*:Invoice[1]/*:LegalMonetaryTotal[1]" code="BR-CO-15">[BR-CO-15]-Invoice total amount with VAT (BT-112) = Invoice total amount without VAT (BT-109) + Invoice total VAT amount (BT-110).</rep:message>
+    </rep:validationStepResult>
+  </rep:scenarioMatched>
+  <rep:assessment>
+    <rep:reject/>
+  </rep:assessment>
+</rep:report>`;
+
 function mockFetch(body: string, status = 200, statusText = 'OK') {
     return vi.fn().mockResolvedValue({
         ok: status >= 200 && status < 300,
@@ -122,6 +136,22 @@ describe('KositValidator', () => {
         expect(result.warnings).toHaveLength(1);
         expect(result.warnings[0].id).toBe('UBL-SR-09');
         expect(result.errors).toHaveLength(0);
+    });
+
+    it('should read code and xpathLocation attributes of real KoSIT reports', async () => {
+        vi.stubGlobal('fetch', mockFetch(KOSIT_DAEMON_REPORT));
+
+        const validator = new KositValidator();
+        const result = await validator.validate('<Invoice/>');
+
+        expect(result.errors).toEqual([
+            {
+                id: 'val-sch.1.1',
+                code: 'BR-CO-15',
+                text: '[BR-CO-15]-Invoice total amount with VAT (BT-112) = Invoice total amount without VAT (BT-109) + Invoice total VAT amount (BT-110).',
+                location: '/*:Invoice[1]/*:LegalMonetaryTotal[1]',
+            },
+        ]);
     });
 
     it('should throw on non-OK HTTP response', async () => {

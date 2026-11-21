@@ -11,3 +11,5 @@ yarn-error.log*
 .vscode/*
 dist/
 test.xml
+.kosit/
+e2e/output/
