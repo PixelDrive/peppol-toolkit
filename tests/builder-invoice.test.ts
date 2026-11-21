@@ -164,4 +164,48 @@ describe('Invoices Builder', () => {
             '<cbc:PriceAmount currencyID="EUR">10.129</cbc:PriceAmount>'
         );
     });
+
+    it('should preserve line quantity precision in InvoicedQuantity and BaseQuantity', () => {
+        const invoiceXML = toolkit.invoiceToPeppolUBL({
+            ...basicInvoice,
+            invoiceLines: [
+                {
+                    ...basicInvoice.invoiceLines[0],
+                    invoicedQuantity: 1.125,
+                    baseQuantity: 0.125,
+                },
+            ],
+        });
+
+        expect(invoiceXML).toContain(
+            '<cbc:InvoicedQuantity unitCode="H67">1.125</cbc:InvoicedQuantity>'
+        );
+        expect(invoiceXML).toContain(
+            '<cbc:BaseQuantity unitCode="H67">0.125</cbc:BaseQuantity>'
+        );
+    });
+
+    it('should not use exponent notation for very small or very large quantities and prices', () => {
+        const invoiceXML = toolkit.invoiceToPeppolUBL({
+            ...basicInvoice,
+            invoiceLines: [
+                {
+                    ...basicInvoice.invoiceLines[0],
+                    invoicedQuantity: 1e21,
+                    baseQuantity: 0.0000001,
+                    price: 0.0000001,
+                },
+            ],
+        });
+
+        expect(invoiceXML).toContain(
+            '<cbc:InvoicedQuantity unitCode="H67">1000000000000000000000</cbc:InvoicedQuantity>'
+        );
+        expect(invoiceXML).toContain(
+            '<cbc:BaseQuantity unitCode="H67">0.0000001</cbc:BaseQuantity>'
+        );
+        expect(invoiceXML).toContain(
+            '<cbc:PriceAmount currencyID="EUR">0.0000001</cbc:PriceAmount>'
+        );
+    });
 });
