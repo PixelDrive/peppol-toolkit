@@ -743,7 +743,9 @@ export class DocumentBuilder {
                     },
                     'cac:TaxCategory': {
                         'cbc:ID': st.taxCategory.categoryCode,
-                        'cbc:Percent': st.taxCategory.percent?.toFixed(2),
+                        'cbc:Percent': this.__formatPercent(
+                            st.taxCategory.percent
+                        ),
                         'cbc:TaxExemptionReasonCode':
                             st.taxCategory.exemptionReasonCode,
                         'cbc:TaxExemptionReason':
@@ -783,6 +785,18 @@ export class DocumentBuilder {
                     `subTotals[].taxAmount (${this.__centsToAmount(sum)})`
             );
         }
+    }
+
+    /**
+     * Formats a VAT rate (cbc:Percent). Peppol BIS 3.0 §7.2.3 puts no restriction on the number of
+     * decimals of percentages, so the rate is serialized at full precision in fixed-point notation
+     * (21 -> '21', 5.125 -> '5.125'), never rounded (BR-CO-17).
+     * @param percent The rate, or undefined when the category has none
+     */
+    private __formatPercent(percent: number | undefined): string | undefined {
+        return percent === undefined
+            ? undefined
+            : new Decimal(percent).toFixed();
     }
 
     /**
@@ -973,7 +987,9 @@ export class DocumentBuilder {
                 'cbc:ID': ac.taxCategory.categoryCode,
                 ...(ac.taxCategory.percent !== undefined
                     ? {
-                          'cbc:Percent': ac.taxCategory.percent.toFixed(2),
+                          'cbc:Percent': this.__formatPercent(
+                              ac.taxCategory.percent
+                          ),
                       }
                     : {}),
                 'cac:TaxScheme': {
@@ -1226,7 +1242,9 @@ export class DocumentBuilder {
                     : {}),
                 'cac:ClassifiedTaxCategory': {
                     'cbc:ID': line.taxCategory.categoryCode,
-                    'cbc:Percent': line.taxCategory.percent?.toFixed(2),
+                    'cbc:Percent': this.__formatPercent(
+                        line.taxCategory.percent
+                    ),
                     'cac:TaxScheme': {
                         'cbc:ID': 'VAT',
                     },

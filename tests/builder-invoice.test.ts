@@ -429,6 +429,72 @@ describe('Invoices Builder', () => {
         });
     });
 
+    describe('percentages', () => {
+        it('should write integer VAT rates without decimals', () => {
+            const invoiceXML = toolkit.invoiceToPeppolUBL(basicInvoice);
+            expect(invoiceXML).toContain('<cbc:Percent>21</cbc:Percent>');
+            expect(invoiceXML).not.toContain(
+                '<cbc:Percent>21.00</cbc:Percent>'
+            );
+        });
+
+        it('should write VAT rates with more than two decimals unchanged', () => {
+            const invoiceXML = toolkit.invoiceToPeppolUBL({
+                ...basicInvoice,
+                allowanceCharge: [
+                    {
+                        chargeIndicator: false,
+                        amount: 1,
+                        taxCategory: { categoryCode: 'S', percent: 5.125 },
+                    },
+                ],
+                taxTotal: [
+                    {
+                        taxAmountCurrency: 'EUR',
+                        taxAmount: 5.07,
+                        subTotals: [
+                            {
+                                taxableAmount: 99,
+                                taxAmount: 5.07,
+                                taxCategory: {
+                                    categoryCode: 'S',
+                                    percent: 5.125,
+                                },
+                            },
+                        ],
+                    },
+                ],
+                invoiceLines: [
+                    {
+                        ...basicInvoice.invoiceLines[0],
+                        taxCategory: { categoryCode: 'S', percent: 5.125 },
+                    },
+                ],
+            });
+
+            // TaxSubtotal, document AllowanceCharge and line ClassifiedTaxCategory
+            expect(
+                invoiceXML.match(/<cbc:Percent>5\.125<\/cbc:Percent>/g)
+            ).toHaveLength(3);
+            expect(invoiceXML).not.toContain('<cbc:Percent>5.13</cbc:Percent>');
+        });
+
+        it('should omit cbc:Percent when the category has no rate', () => {
+            const invoiceXML = toolkit.invoiceToPeppolUBL({
+                ...basicInvoice,
+                invoiceLines: [
+                    {
+                        ...basicInvoice.invoiceLines[0],
+                        taxCategory: { categoryCode: 'O' },
+                    },
+                ],
+            });
+            expect(invoiceXML).toMatch(
+                /<cac:ClassifiedTaxCategory>\s*<cbc:ID>O<\/cbc:ID>\s*<cac:TaxScheme>/
+            );
+        });
+    });
+
     describe('BR-CO-14', () => {
         it('should compare amounts exactly regardless of the global Decimal precision', () => {
             const previousPrecision = Decimal.precision;

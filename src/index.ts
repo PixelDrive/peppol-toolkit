@@ -63,5 +63,6 @@ export * from './documents';
 export * from './builder';
 export * from './parser';
 export * from './validator';
+export type { UBLLineItem, VATBreakdownEntry } from './helpers/computeTotals';
 export { basicInvoice as exampleInvoice } from './data/basic-invoice';
 export { basicCreditNote as exampleCreditNote } from './data/basic-creditNote';

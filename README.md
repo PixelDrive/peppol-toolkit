@@ -25,7 +25,8 @@ Version `0.9.0` validates monetary amounts when building UBL documents (see [Amo
 
 - `invoiceToPeppolUBL` and `creditNoteToPeppolUBL` now **throw** when a monetary amount has more than two decimals (e.g. `taxAmount: 52.605`). Previously such values were silently rounded with `toFixed(2)`, which is not half-up and could produce documents failing BR-CO-14. The unit price fields (`price` → `cbc:PriceAmount`, `priceAllowanceCharge.amount` / `.baseAmount`) are not affected and keep their full precision. Quantities are not affected either.
 - The builder now **throws** when a `taxTotal[].taxAmount` does not equal the sum of its `subTotals[].taxAmount` (BR-CO-14).
-- `computeTotals` additionally returns `taxAmountPerRate: Map<string, Decimal>` (additive). Use it together with `taxableAmountPerRate` to build the tax sub totals.
+- `cbc:Percent` (VAT rates on tax sub totals, document-level allowances/charges and lines) is now serialized at full precision instead of being rounded to two decimals: `21` instead of `21.00` (valid: Peppol BIS §7.2.3 puts no restriction on the number of decimals of percentages), and `5.125` is written unchanged instead of `5.13`.
+- `computeTotals` additionally returns `vatBreakdown` (one entry per VAT category code + rate, see [Compute Invoice Totals](#compute-invoice-totals)) and `taxAmountPerRate: Map<string, Decimal>`, and line items accept an optional `taxCategoryCode` (default `'S'`). All additive. The keys of `taxableAmountPerRate` / `taxAmountPerRate` are now the canonical rate (`'21'` for `21`, `'21'` and `'21.0'`).
 
 Parsing UBL documents is not affected by these checks. If you were relying on implicit rounding, round your amounts to two decimals half-up before building, e.g. with `new Decimal(amount).toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toNumber()`, or use the amounts returned by `computeTotals`.
 
@@ -331,7 +332,7 @@ import { PeppolToolkit } from '@pixeldrive/peppol-toolkit';
 const items = [
     { price: 100, quantity: 10, taxPercent: 21 }, // 1 000.00 + 210.00 VAT
     { price: 49.99, quantity: 3, taxPercent: 21 }, //   149.97 +  31.49 VAT
-    { price: 200, quantity: 2, taxPercent: 0 }, //   400.00 + 0.00 VAT (zero-rated)
+    { price: 200, quantity: 2, taxPercent: 0, taxCategoryCode: 'Z' }, //   400.00 + 0.00 VAT (zero-rated)
 ];
 
 const totals = PeppolToolkit.computeTotals(items);
@@ -340,19 +341,21 @@ console.log(totals.baseAmount.toNumber()); // 1549.97
 console.log(totals.taxAmount.toNumber()); // 241.49
 console.log(totals.totalAmount.toNumber()); // 1791.46
 
-// Taxable amounts and VAT amounts grouped by rate (both Map<string, Decimal>, keyed by the
-// canonical rate as a string: 21, '21' and '21.0' all end up under the key '21')
-for (const [rate, taxableAmount] of totals.taxableAmountPerRate) {
-    const taxAmount = totals.taxAmountPerRate.get(rate)!;
-    console.log(`${rate}% → taxable: ${taxableAmount}, VAT: ${taxAmount}`);
+// VAT breakdown: one entry per distinct combination of VAT category code and rate (Peppol BIS §8.3)
+for (const entry of totals.vatBreakdown) {
+    console.log(
+        `${entry.categoryCode} ${entry.percent}% → taxable: ${entry.taxableAmount}, VAT: ${entry.taxAmount}`
+    );
 }
-// 21% → taxable: 1149.97, VAT: 241.49
-// 0% → taxable: 400, VAT: 0
+// S 21% → taxable: 1149.97, VAT: 241.49
+// Z 0% → taxable: 400, VAT: 0
 ```
 
-`taxAmountPerRate` contains the VAT of each rate group, rounded half-up to two decimals, and `taxAmount` is exactly the sum of those values. Build one `TaxSubtotal` per rate from these maps so that the tax total always equals the sum of its sub totals (BR-CO-14). Never recompute `taxable × rate / 100` yourself: an unrounded value such as `52.605` is rejected by the builder (see [Amount precision](#amount-precision)).
+Each line may carry a `taxCategoryCode` (UNCL5305: `S`, `Z`, `E`, `AE`, `K`, `G`, `O`, ...), defaulting to `S`. Lines are grouped by category code and canonical rate (`21`, `'21'` and `'21.0'` are the same rate; `E` and `Z` lines at 0% are two separate groups). The VAT of each group is `taxableAmount × percent / 100` rounded half-up to two decimals (BR-CO-17), and `taxAmount` is exactly the sum of the group amounts (BR-CO-14). Never recompute `taxable × rate / 100` yourself: an unrounded value such as `52.605` is rejected by the builder (see [Amount precision](#amount-precision)).
 
-The recipe below assumes **one VAT category per rate** (standard-rated `S` lines and zero-rated `Z` lines at 0%) and **no document-level allowances or charges**. In the general case, the VAT breakdown must be grouped by VAT category _and_ rate (an exempt `E` line and a zero-rated `Z` line are both at 0% but need separate sub totals), and document-level allowances/charges must be included in the taxable base of their category.
+`taxableAmountPerRate` and `taxAmountPerRate` (`Map<string, Decimal>`, keyed by the canonical rate as a string) are derived from the breakdown by summing the groups that share a rate; they therefore merge categories that share a rate (e.g. `E` and `Z` at 0%) and are not suitable for building the tax sub totals when several categories are used.
+
+Build the `taxTotal` of the document from `vatBreakdown`:
 
 ```typescript
 import { Invoice } from '@pixeldrive/peppol-toolkit';
@@ -361,19 +364,22 @@ const taxTotal: Invoice['taxTotal'] = [
     {
         taxAmountCurrency: 'EUR',
         taxAmount: totals.taxAmount.toNumber(),
-        subTotals: [...totals.taxableAmountPerRate].map(
-            ([rate, taxableAmount]) => ({
-                taxableAmount: taxableAmount.toNumber(),
-                taxAmount: totals.taxAmountPerRate.get(rate)!.toNumber(),
-                taxCategory: {
-                    categoryCode: Number(rate) === 0 ? 'Z' : 'S',
-                    percent: Number(rate),
-                },
-            })
-        ),
+        subTotals: totals.vatBreakdown.map((entry) => ({
+            taxableAmount: entry.taxableAmount.toNumber(),
+            taxAmount: entry.taxAmount.toNumber(),
+            taxCategory: {
+                categoryCode: entry.categoryCode,
+                percent: entry.percent,
+            },
+        })),
     },
 ];
 ```
+
+Two things are not covered by `computeTotals` and remain the caller's responsibility:
+
+- **Document-level allowances and charges** (BG-20/BG-21) must be added to or subtracted from the taxable base of their VAT category before the VAT is computed (Peppol BIS §10.4). `computeTotals` only knows the lines.
+- Categories other than `S` need an **exemption reason** on the sub total: set `taxCategory.exemptionReason` or `taxCategory.exemptionReasonCode` for `E`, `AE`, `K`, `G` and `O` sub totals (BR-E-10, BR-AE-10, BR-IC-10, BR-G-10, BR-O-10).
 
 ### Amount precision
 
@@ -465,10 +471,10 @@ The main class that provides invoice and credit note conversion functionality.
 
 #### Static Helpers
 
-| Helper                                                      | Description                                                                                                                                   |
-| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PeppolToolkit.computeTotals(items: UBLLineItem[]): Totals` | Calculates line totals, tax amounts (total and per rate: `taxableAmountPerRate`, `taxAmountPerRate`) and grand total following EN 16931 rules |
-| `PeppolToolkit.getEASFromTaxId(taxId: string): string`      | Returns the EAS scheme code for a country-prefixed VAT number                                                                                 |
+| Helper                                                      | Description                                                                                                                                                      |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PeppolToolkit.computeTotals(items: UBLLineItem[]): Totals` | Calculates line totals, the VAT breakdown per category code and rate (`vatBreakdown`), tax amounts (total and per rate) and grand total following EN 16931 rules |
+| `PeppolToolkit.getEASFromTaxId(taxId: string): string`      | Returns the EAS scheme code for a country-prefixed VAT number                                                                                                    |
 
 ### `createToolkit()`
 

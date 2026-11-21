@@ -307,6 +307,60 @@ describe('Creditnote Builder', () => {
         );
     });
 
+    describe('percentages', () => {
+        it('should write integer VAT rates without decimals', () => {
+            const creditNoteXML =
+                toolkit.creditNoteToPeppolUBL(basicCreditNote);
+            expect(creditNoteXML).toContain('<cbc:Percent>21</cbc:Percent>');
+            expect(creditNoteXML).not.toContain(
+                '<cbc:Percent>21.00</cbc:Percent>'
+            );
+        });
+
+        it('should write VAT rates with more than two decimals unchanged', () => {
+            const creditNoteXML = toolkit.creditNoteToPeppolUBL({
+                ...basicCreditNote,
+                allowanceCharge: [
+                    {
+                        chargeIndicator: false,
+                        amount: 1,
+                        taxCategory: { categoryCode: 'S', percent: 5.125 },
+                    },
+                ],
+                taxTotal: [
+                    {
+                        taxAmountCurrency: 'EUR',
+                        taxAmount: 5.07,
+                        subTotals: [
+                            {
+                                taxableAmount: 99,
+                                taxAmount: 5.07,
+                                taxCategory: {
+                                    categoryCode: 'S',
+                                    percent: 5.125,
+                                },
+                            },
+                        ],
+                    },
+                ],
+                creditNoteLines: [
+                    {
+                        ...basicCreditNote.creditNoteLines[0],
+                        taxCategory: { categoryCode: 'S', percent: 5.125 },
+                    },
+                ],
+            });
+
+            // TaxSubtotal, document AllowanceCharge and line ClassifiedTaxCategory
+            expect(
+                creditNoteXML.match(/<cbc:Percent>5\.125<\/cbc:Percent>/g)
+            ).toHaveLength(3);
+            expect(creditNoteXML).not.toContain(
+                '<cbc:Percent>5.13</cbc:Percent>'
+            );
+        });
+    });
+
     describe('BR-CO-14', () => {
         it('should throw when the tax total does not equal the sum of its sub totals', () => {
             expect(() =>
