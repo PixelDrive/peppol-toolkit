@@ -52,14 +52,18 @@ export const invalidCases: KositCase[] = [
         name: 'invoice - VAT total differs from sum of subtotals',
         kind: 'invoice',
         expectedErrors: ['BR-CO-14'],
-        document: invoice({
-            taxTotal: [{ ...base.taxTotal[0], taxAmount: 25 }],
-            legalMonetaryTotal: {
-                ...base.legalMonetaryTotal,
-                taxInclusiveAmount: 125,
-                payableAmount: 125,
-            },
-        }),
+        document: invoice(),
+        // Change only the document VAT total and its dependent monetary totals.
+        mutateXml: (xml) =>
+            xml
+                .replace(
+                    '<cbc:TaxAmount currencyID="EUR">21.00</cbc:TaxAmount>',
+                    '<cbc:TaxAmount currencyID="EUR">25.00</cbc:TaxAmount>'
+                )
+                .replace(
+                    /(<cbc:(?:TaxInclusiveAmount|PayableAmount) currencyID="EUR">)121\.00/g,
+                    (_, openingTag: string) => `${openingTag}125.00`
+                ),
     },
     {
         name: 'invoice - line net amount is not quantity x price',
@@ -89,6 +93,19 @@ export const invalidCases: KositCase[] = [
                 taxInclusiveAmount: 114.95,
                 payableAmount: 114.95,
             },
+        }),
+    },
+
+    {
+        name: 'invoice - net unit price differs from gross price minus discount',
+        kind: 'invoice',
+        expectedErrors: ['PEPPOL-EN16931-R046'],
+        document: invoice({
+            invoiceLines: [
+                line('1', 1, 100, 'S', 21, {
+                    priceAllowanceCharge: { amount: 5, baseAmount: 106 },
+                }),
+            ],
         }),
     },
 

@@ -39,21 +39,22 @@ export const validCases: KositCase[] = [
         }),
     },
     {
-        name: 'invoice - fractional quantities and 4-decimal prices',
+        name: 'invoice - 3-decimal quantity and 4-decimal unit price',
         kind: 'invoice',
         document: invoice({
             invoiceLines: [
-                line('1', 2.5, 12.34, 'S', 21),
-                line('2', 3, 0.1234, 'S', 21),
+                // Rounding either value to two decimals must exceed R120's tolerance.
+                line('1', 2.125, 12.34, 'S', 21),
+                line('2', 1000, 0.1234, 'S', 21),
             ],
             taxTotal: [
                 {
-                    taxAmount: 6.56,
+                    taxAmount: 31.42,
                     taxAmountCurrency: 'EUR',
                     subTotals: [
                         {
-                            taxableAmount: 31.22,
-                            taxAmount: 6.56,
+                            taxableAmount: 149.62,
+                            taxAmount: 31.42,
                             taxCategory: { categoryCode: 'S', percent: 21 },
                         },
                     ],
@@ -61,10 +62,10 @@ export const validCases: KositCase[] = [
             ],
             legalMonetaryTotal: {
                 currency: 'EUR',
-                lineExtensionAmount: 31.22,
-                taxExclusiveAmount: 31.22,
-                taxInclusiveAmount: 37.78,
-                payableAmount: 37.78,
+                lineExtensionAmount: 149.62,
+                taxExclusiveAmount: 149.62,
+                taxInclusiveAmount: 181.04,
+                payableAmount: 181.04,
             },
         }),
     },
@@ -166,6 +167,20 @@ export const validCases: KositCase[] = [
                 taxInclusiveAmount: 121,
                 prepaidAmount: 21,
                 payableAmount: 100,
+            },
+        }),
+    },
+    {
+        name: 'invoice - fully prepaid with zero payable amount',
+        kind: 'invoice',
+        document: invoice({
+            legalMonetaryTotal: {
+                currency: 'EUR',
+                lineExtensionAmount: 100,
+                taxExclusiveAmount: 100,
+                taxInclusiveAmount: 121,
+                prepaidAmount: 121,
+                payableAmount: 0,
             },
         }),
     },
@@ -340,6 +355,19 @@ export const validCases: KositCase[] = [
         name: 'credit note - single line, standard rate 21%',
         kind: 'creditNote',
         document: creditNote(),
+    },
+    {
+        name: 'credit note - very small quantity and fractional price base quantity',
+        kind: 'creditNote',
+        document: creditNote({
+            creditNoteLines: [
+                // 0.0000001 × (125000000 / 0.125) = 100.
+                line('1', 0.0000001, 125000000, 'S', 21, {
+                    baseQuantity: 0.125,
+                    lineExtensionAmount: 100,
+                }),
+            ],
+        }),
     },
     {
         name: 'credit note - several lines with 21% and 6% VAT rates',
