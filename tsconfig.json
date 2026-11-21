@@ -12,5 +12,5 @@
         "resolveJsonModule": true,
         "isolatedModules": true
     },
-    "include": ["src", "tests", "eslint.config.mjs"]
+    "include": ["src", "tests", "e2e", "eslint.config.mjs"]
 }
