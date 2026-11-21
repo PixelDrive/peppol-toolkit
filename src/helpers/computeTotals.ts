@@ -33,7 +33,8 @@ export const computeTotals = <T extends UBLLineItem>(items: T[]) => {
     const taxAmountPerRate = new Map<string, Decimal>();
     items.forEach((item, i) => {
         const lineAmt = lines[i] ?? new Decimal(0);
-        const rate = item.taxPercent.toString();
+        // Canonical rate key so that 21, '21' and '21.0' end up in the same group
+        const rate = new Decimal(item.taxPercent).toString();
         const existing = baseAmountPerRate.get(rate) ?? new Decimal(0);
         baseAmountPerRate.set(rate, existing.add(lineAmt));
     });

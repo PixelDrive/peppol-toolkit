@@ -771,16 +771,36 @@ export class DocumentBuilder {
         subTotalTaxAmounts: string[]
     ) {
         if (subTotalTaxAmounts.length === 0) return;
+        // The amounts are already formatted with exactly two decimals, so they are summed as
+        // integer cents (BigInt): exact, and independent of the caller's global Decimal.set precision.
         const sum = subTotalTaxAmounts.reduce(
-            (acc, amount) => acc.add(amount),
-            new Decimal(0)
+            (acc, amount) => acc + this.__toCents(amount),
+            0n
         );
-        if (!sum.equals(taxAmount)) {
+        if (sum !== this.__toCents(taxAmount)) {
             throw new RangeError(
                 `BR-CO-14 violation in "${path}": taxAmount (${taxAmount}) must equal the sum of ` +
-                    `subTotals[].taxAmount (${sum.toFixed(2)})`
+                    `subTotals[].taxAmount (${this.__centsToAmount(sum)})`
             );
         }
+    }
+
+    /**
+     * Converts an amount formatted with exactly two decimals (e.g. '-12.34') to integer cents
+     */
+    private __toCents(amount: string): bigint {
+        return BigInt(amount.replace('.', ''));
+    }
+
+    /**
+     * Converts integer cents back to an amount string with two decimals (e.g. -1234n -> '-12.34')
+     */
+    private __centsToAmount(cents: bigint): string {
+        const sign = cents < 0n ? '-' : '';
+        const digits = (cents < 0n ? -cents : cents)
+            .toString()
+            .padStart(3, '0');
+        return `${sign}${digits.slice(0, -2)}.${digits.slice(-2)}`;
     }
 
     private __buildMonetaryTotal(total: Invoice['legalMonetaryTotal']) {
@@ -1243,11 +1263,12 @@ export class DocumentBuilder {
                     ? {
                           'cac:AllowanceCharge': {
                               'cbc:ChargeIndicator': false,
+                              // Unit price discount: like cbc:PriceAmount, kept at full
+                              // precision (fixed-point) and not limited to two decimals.
                               'cbc:Amount': {
-                                  '#text': formatAmount(
-                                      `${path}.priceAllowanceCharge.amount`,
+                                  '#text': new Decimal(
                                       line.priceAllowanceCharge.amount
-                                  ),
+                                  ).toFixed(),
                                   ...XMLAttributes({
                                       currencyID:
                                           line.priceAllowanceCharge.currency ??
@@ -1257,12 +1278,12 @@ export class DocumentBuilder {
                               ...(line.priceAllowanceCharge.baseAmount !==
                               undefined
                                   ? {
+                                        // Gross unit price: full precision as well
                                         'cbc:BaseAmount': {
-                                            '#text': formatAmount(
-                                                `${path}.priceAllowanceCharge.baseAmount`,
+                                            '#text': new Decimal(
                                                 line.priceAllowanceCharge
                                                     .baseAmount
-                                            ),
+                                            ).toFixed(),
                                             ...XMLAttributes({
                                                 currencyID:
                                                     line.priceAllowanceCharge

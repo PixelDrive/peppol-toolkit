@@ -23,7 +23,7 @@ npm install @pixeldrive/peppol-toolkit
 
 Version `0.9.0` validates monetary amounts when building UBL documents (see [Amount precision](#amount-precision)).
 
-- `invoiceToPeppolUBL` and `creditNoteToPeppolUBL` now **throw** when a monetary amount has more than two decimals (e.g. `taxAmount: 52.605`). Previously such values were silently rounded with `toFixed(2)`, which is not half-up and could produce documents failing BR-CO-14. The line price (`price` → `cbc:PriceAmount`) is not affected and keeps its full precision. Quantities are not affected either.
+- `invoiceToPeppolUBL` and `creditNoteToPeppolUBL` now **throw** when a monetary amount has more than two decimals (e.g. `taxAmount: 52.605`). Previously such values were silently rounded with `toFixed(2)`, which is not half-up and could produce documents failing BR-CO-14. The unit price fields (`price` → `cbc:PriceAmount`, `priceAllowanceCharge.amount` / `.baseAmount`) are not affected and keep their full precision. Quantities are not affected either.
 - The builder now **throws** when a `taxTotal[].taxAmount` does not equal the sum of its `subTotals[].taxAmount` (BR-CO-14).
 - `computeTotals` additionally returns `taxAmountPerRate: Map<string, Decimal>` (additive). Use it together with `taxableAmountPerRate` to build the tax sub totals.
 
@@ -331,7 +331,7 @@ import { PeppolToolkit } from '@pixeldrive/peppol-toolkit';
 const items = [
     { price: 100, quantity: 10, taxPercent: 21 }, // 1 000.00 + 210.00 VAT
     { price: 49.99, quantity: 3, taxPercent: 21 }, //   149.97 +  31.49 VAT
-    { price: 200, quantity: 2, taxPercent: 0 }, //   400.00 + 0.00 VAT (exempt)
+    { price: 200, quantity: 2, taxPercent: 0 }, //   400.00 + 0.00 VAT (zero-rated)
 ];
 
 const totals = PeppolToolkit.computeTotals(items);
@@ -340,7 +340,8 @@ console.log(totals.baseAmount.toNumber()); // 1549.97
 console.log(totals.taxAmount.toNumber()); // 241.49
 console.log(totals.totalAmount.toNumber()); // 1791.46
 
-// Taxable amounts and VAT amounts grouped by rate (both Map<string, Decimal>, keyed by the rate as a string)
+// Taxable amounts and VAT amounts grouped by rate (both Map<string, Decimal>, keyed by the
+// canonical rate as a string: 21, '21' and '21.0' all end up under the key '21')
 for (const [rate, taxableAmount] of totals.taxableAmountPerRate) {
     const taxAmount = totals.taxAmountPerRate.get(rate)!;
     console.log(`${rate}% → taxable: ${taxableAmount}, VAT: ${taxAmount}`);
@@ -351,8 +352,12 @@ for (const [rate, taxableAmount] of totals.taxableAmountPerRate) {
 
 `taxAmountPerRate` contains the VAT of each rate group, rounded half-up to two decimals, and `taxAmount` is exactly the sum of those values. Build one `TaxSubtotal` per rate from these maps so that the tax total always equals the sum of its sub totals (BR-CO-14). Never recompute `taxable × rate / 100` yourself: an unrounded value such as `52.605` is rejected by the builder (see [Amount precision](#amount-precision)).
 
+The recipe below assumes **one VAT category per rate** (standard-rated `S` lines and zero-rated `Z` lines at 0%) and **no document-level allowances or charges**. In the general case, the VAT breakdown must be grouped by VAT category _and_ rate (an exempt `E` line and a zero-rated `Z` line are both at 0% but need separate sub totals), and document-level allowances/charges must be included in the taxable base of their category.
+
 ```typescript
-const taxTotal = [
+import { Invoice } from '@pixeldrive/peppol-toolkit';
+
+const taxTotal: Invoice['taxTotal'] = [
     {
         taxAmountCurrency: 'EUR',
         taxAmount: totals.taxAmount.toNumber(),
@@ -379,7 +384,7 @@ toolkit.invoiceToPeppolUBL({ ...invoice, taxTotal: [{ ..., subTotals: [{ taxAmou
 // RangeError: Invalid amount for "taxTotal[0].subTotals[0].taxAmount": 52.605 has more than 2 decimal places. ...
 ```
 
-The line price (`cac:Price/cbc:PriceAmount`) is intentionally excluded and keeps its full precision. The builder also checks BR-CO-14 before serializing: each `taxTotal[].taxAmount` must equal the sum of its `subTotals[].taxAmount`, otherwise a descriptive error is thrown. Parsing received documents is never affected by these checks.
+The unit price fields are intentionally excluded and keep their full precision (serialized in fixed-point notation): the line price (`cac:Price/cbc:PriceAmount`) and the unit price discount and gross price (`priceAllowanceCharge.amount` / `.baseAmount` → `cac:Price/cac:AllowanceCharge/cbc:Amount` and `cbc:BaseAmount`). Line-level and document-level allowances/charges remain limited to two decimals. The builder also checks BR-CO-14 before serializing: each `taxTotal[].taxAmount` must equal the sum of its `subTotals[].taxAmount`, otherwise a descriptive error is thrown. Parsing received documents is never affected by these checks.
 
 ### Look up an EAS Endpoint Scheme from a VAT Number
 

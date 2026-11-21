@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import Decimal from 'decimal.js';
 import { PeppolToolkit } from '../src';
 import { basicInvoice } from '../src/data/basic-invoice';
 
@@ -360,12 +361,44 @@ describe('Invoices Builder', () => {
                     invoiceLines: [
                         {
                             ...basicInvoice.invoiceLines[0],
-                            priceAllowanceCharge: { amount: 0.005 },
+                            allowanceCharge: [
+                                {
+                                    chargeIndicator: false,
+                                    amount: 0.005,
+                                },
+                            ],
                         },
                     ],
                 })
             ).toThrow(
-                'Invalid amount for "invoiceLines[0].priceAllowanceCharge.amount"'
+                'Invalid amount for "invoiceLines[0].allowanceCharge[0].amount"'
+            );
+        });
+
+        it('should preserve full precision for the unit price discount and gross price', () => {
+            // Net price 1.00 = gross price 1.125 - discount 0.125 (exact price equation)
+            const invoiceXML = toolkit.invoiceToPeppolUBL({
+                ...basicInvoice,
+                invoiceLines: [
+                    {
+                        ...basicInvoice.invoiceLines[0],
+                        price: 1.0,
+                        priceAllowanceCharge: {
+                            amount: 0.125,
+                            baseAmount: 1.125,
+                        },
+                    },
+                ],
+            });
+
+            expect(invoiceXML).toContain(
+                '<cbc:PriceAmount currencyID="EUR">1</cbc:PriceAmount>'
+            );
+            expect(invoiceXML).toContain(
+                '<cbc:Amount currencyID="EUR">0.125</cbc:Amount>'
+            );
+            expect(invoiceXML).toContain(
+                '<cbc:BaseAmount currencyID="EUR">1.125</cbc:BaseAmount>'
             );
         });
 
@@ -397,6 +430,38 @@ describe('Invoices Builder', () => {
     });
 
     describe('BR-CO-14', () => {
+        it('should compare amounts exactly regardless of the global Decimal precision', () => {
+            const previousPrecision = Decimal.precision;
+            Decimal.set({ precision: 6 });
+            try {
+                // With precision 6, a Decimal addition would round 75000.01 to 75000.0
+                const invoiceXML = toolkit.invoiceToPeppolUBL({
+                    ...basicInvoice,
+                    taxTotal: [
+                        {
+                            taxAmount: 75000.01,
+                            taxAmountCurrency: 'EUR',
+                            subTotals: [
+                                {
+                                    taxableAmount: 357142.9,
+                                    taxAmount: 75000.01,
+                                    taxCategory: {
+                                        categoryCode: 'S',
+                                        percent: 21,
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                });
+                expect(invoiceXML).toContain(
+                    '<cbc:TaxAmount currencyID="EUR">75000.01</cbc:TaxAmount>'
+                );
+            } finally {
+                Decimal.set({ precision: previousPrecision });
+            }
+        });
+
         it('should throw when the tax total does not equal the sum of its sub totals', () => {
             expect(() =>
                 toolkit.invoiceToPeppolUBL({

@@ -175,10 +175,8 @@ describe('Invoice Parser', () => {
         // Amount precision is only enforced when building documents, never when parsing them
         const xml = toolkit
             .invoiceToPeppolUBL(basicInvoice)
-            .replaceAll(
-                '<cbc:TaxAmount currencyID="EUR">21.00</cbc:TaxAmount>',
-                '<cbc:TaxAmount currencyID="EUR">21.005</cbc:TaxAmount>'
-            );
+            .split('<cbc:TaxAmount currencyID="EUR">21.00</cbc:TaxAmount>')
+            .join('<cbc:TaxAmount currencyID="EUR">21.005</cbc:TaxAmount>');
         expect(xml).toContain('21.005');
         const parsed = toolkit.peppolUBLToInvoice(xml);
         expect(parsed.taxTotal[0].taxAmount).toBe(21.005);

@@ -280,6 +280,33 @@ describe('Creditnote Builder', () => {
         });
     });
 
+    it('should preserve full precision for the unit price discount and gross price', () => {
+        // Net price 1.00 = gross price 1.125 - discount 0.125 (exact price equation)
+        const creditNoteXML = toolkit.creditNoteToPeppolUBL({
+            ...basicCreditNote,
+            creditNoteLines: [
+                {
+                    ...basicCreditNote.creditNoteLines[0],
+                    price: 1.0,
+                    priceAllowanceCharge: {
+                        amount: 0.125,
+                        baseAmount: 1.125,
+                    },
+                },
+            ],
+        });
+
+        expect(creditNoteXML).toContain(
+            '<cbc:PriceAmount currencyID="EUR">1</cbc:PriceAmount>'
+        );
+        expect(creditNoteXML).toContain(
+            '<cbc:Amount currencyID="EUR">0.125</cbc:Amount>'
+        );
+        expect(creditNoteXML).toContain(
+            '<cbc:BaseAmount currencyID="EUR">1.125</cbc:BaseAmount>'
+        );
+    });
+
     describe('BR-CO-14', () => {
         it('should throw when the tax total does not equal the sum of its sub totals', () => {
             expect(() =>

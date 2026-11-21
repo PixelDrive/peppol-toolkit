@@ -13,8 +13,8 @@ export const MAX_AMOUNT_DECIMALS = 2;
  * half-up), an amount with more than two decimals is rejected with a descriptive error
  * naming the offending field.
  *
- * This is intentionally NOT used for the line price (`cac:Price/cbc:PriceAmount`) which may
- * carry more precision, nor for quantities.
+ * This is intentionally NOT used for the unit price fields (`cac:Price/cbc:PriceAmount` and the
+ * unit price allowance/charge amount and base amount) which may carry more precision, nor for quantities.
  * @param field The path of the field in the input document (used in the error message)
  * @param amount The amount to format
  * @returns The amount formatted with exactly two decimals

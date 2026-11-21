@@ -131,6 +131,21 @@ describe('computePeppolTotals', () => {
             expect(taxAmountPerRate.get('21')?.toString()).toBe('0.47');
         });
 
+        it('groups equivalent rates given as number or string into a single group', () => {
+            // 21 and '21.0' are the same rate: one group of 200.04 -> 42.0084 -> 42.01
+            // (two separate groups would give 21.00 + 21.00 = 42.00)
+            const { taxAmount, taxableAmountPerRate, taxAmountPerRate } =
+                computePeppolTotals([
+                    { price: '100.02', quantity: 1, taxPercent: 21 },
+                    { price: '100.02', quantity: 1, taxPercent: '21.0' },
+                ]);
+            expect([...taxableAmountPerRate.keys()]).toEqual(['21']);
+            expect([...taxAmountPerRate.keys()]).toEqual(['21']);
+            expect(taxableAmountPerRate.get('21')?.toString()).toBe('200.04');
+            expect(taxAmountPerRate.get('21')?.toString()).toBe('42.01');
+            expect(taxAmount.toString()).toBe('42.01');
+        });
+
         it('returns empty maps for empty items array', () => {
             const { taxableAmountPerRate, taxAmountPerRate } =
                 computePeppolTotals([]);
