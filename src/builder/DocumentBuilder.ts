@@ -1006,7 +1006,7 @@ export class DocumentBuilder {
                   }
                 : {}),
             [`cbc:${quantityTag}`]: {
-                '#text': line.invoicedQuantity.toFixed(2),
+                '#text': String(line.invoicedQuantity),
                 ...XMLAttributes({
                     unitCode: line.unitCode,
                 }),
@@ -1151,7 +1151,7 @@ export class DocumentBuilder {
                 ...(line.baseQuantity !== undefined
                     ? {
                           'cbc:BaseQuantity': {
-                              '#text': line.baseQuantity.toFixed(2),
+                              '#text': String(line.baseQuantity),
                               ...XMLAttributes({
                                   unitCode: line.unitCode,
                               }),

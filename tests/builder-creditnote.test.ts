@@ -148,4 +148,24 @@ describe('Creditnote Builder', () => {
             '<cbc:PriceAmount currencyID="EUR">10.129</cbc:PriceAmount>'
         );
     });
+
+    it('should preserve line quantity precision in CreditedQuantity and BaseQuantity', () => {
+        const creditNoteXML = toolkit.creditNoteToPeppolUBL({
+            ...basicCreditNote,
+            creditNoteLines: [
+                {
+                    ...basicCreditNote.creditNoteLines[0],
+                    invoicedQuantity: 1.125,
+                    baseQuantity: 0.125,
+                },
+            ],
+        });
+
+        expect(creditNoteXML).toContain(
+            '<cbc:CreditedQuantity unitCode="H67">1.125</cbc:CreditedQuantity>'
+        );
+        expect(creditNoteXML).toContain(
+            '<cbc:BaseQuantity unitCode="H67">0.125</cbc:BaseQuantity>'
+        );
+    });
 });
