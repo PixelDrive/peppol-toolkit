@@ -1,4 +1,5 @@
 import { XMLBuilder } from 'fast-xml-parser';
+import Decimal from 'decimal.js';
 import { builderOptions } from './builderOptions';
 import { CurrencyCode, Invoice, partySchema, CreditNote } from '../documents';
 import XMLAttributes from '../helpers/XMLAttributes';
@@ -1006,7 +1007,7 @@ export class DocumentBuilder {
                   }
                 : {}),
             [`cbc:${quantityTag}`]: {
-                '#text': String(line.invoicedQuantity),
+                '#text': new Decimal(line.invoicedQuantity).toFixed(),
                 ...XMLAttributes({
                     unitCode: line.unitCode,
                 }),
@@ -1151,7 +1152,7 @@ export class DocumentBuilder {
                 ...(line.baseQuantity !== undefined
                     ? {
                           'cbc:BaseQuantity': {
-                              '#text': String(line.baseQuantity),
+                              '#text': new Decimal(line.baseQuantity).toFixed(),
                               ...XMLAttributes({
                                   unitCode: line.unitCode,
                               }),

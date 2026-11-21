@@ -184,4 +184,24 @@ describe('Invoices Builder', () => {
             '<cbc:BaseQuantity unitCode="H67">0.125</cbc:BaseQuantity>'
         );
     });
+
+    it('should not use exponent notation for very small or very large quantities', () => {
+        const invoiceXML = toolkit.invoiceToPeppolUBL({
+            ...basicInvoice,
+            invoiceLines: [
+                {
+                    ...basicInvoice.invoiceLines[0],
+                    invoicedQuantity: 1e21,
+                    baseQuantity: 0.0000001,
+                },
+            ],
+        });
+
+        expect(invoiceXML).toContain(
+            '<cbc:InvoicedQuantity unitCode="H67">1000000000000000000000</cbc:InvoicedQuantity>'
+        );
+        expect(invoiceXML).toContain(
+            '<cbc:BaseQuantity unitCode="H67">0.0000001</cbc:BaseQuantity>'
+        );
+    });
 });
