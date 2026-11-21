@@ -185,7 +185,7 @@ describe('Invoices Builder', () => {
         );
     });
 
-    it('should not use exponent notation for very small or very large quantities', () => {
+    it('should not use exponent notation for very small or very large quantities and prices', () => {
         const invoiceXML = toolkit.invoiceToPeppolUBL({
             ...basicInvoice,
             invoiceLines: [
@@ -193,6 +193,7 @@ describe('Invoices Builder', () => {
                     ...basicInvoice.invoiceLines[0],
                     invoicedQuantity: 1e21,
                     baseQuantity: 0.0000001,
+                    price: 0.0000001,
                 },
             ],
         });
@@ -202,6 +203,9 @@ describe('Invoices Builder', () => {
         );
         expect(invoiceXML).toContain(
             '<cbc:BaseQuantity unitCode="H67">0.0000001</cbc:BaseQuantity>'
+        );
+        expect(invoiceXML).toContain(
+            '<cbc:PriceAmount currencyID="EUR">0.0000001</cbc:PriceAmount>'
         );
     });
 });

@@ -169,7 +169,7 @@ describe('Creditnote Builder', () => {
         );
     });
 
-    it('should not use exponent notation for very small or very large quantities', () => {
+    it('should not use exponent notation for very small or very large quantities and prices', () => {
         const creditNoteXML = toolkit.creditNoteToPeppolUBL({
             ...basicCreditNote,
             creditNoteLines: [
@@ -177,6 +177,7 @@ describe('Creditnote Builder', () => {
                     ...basicCreditNote.creditNoteLines[0],
                     invoicedQuantity: 1e21,
                     baseQuantity: 0.0000001,
+                    price: 0.0000001,
                 },
             ],
         });
@@ -186,6 +187,9 @@ describe('Creditnote Builder', () => {
         );
         expect(creditNoteXML).toContain(
             '<cbc:BaseQuantity unitCode="H67">0.0000001</cbc:BaseQuantity>'
+        );
+        expect(creditNoteXML).toContain(
+            '<cbc:PriceAmount currencyID="EUR">0.0000001</cbc:PriceAmount>'
         );
     });
 });
