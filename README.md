@@ -35,14 +35,14 @@ Version `0.8.0` tightens the public data model to better match PEPPOL BIS Billin
 
 ### Migration checklist
 
-| Before | Now | Notes |
-|---|---|---|
-| `party.taxSchemeCompanyID: string` | `party.taxSchemes: [{ companyId, schemeID? }]` | Supports 0..2 tax schemes instead of a single flat field |
-| `party.legalEntity.companyId: string` | `party.legalEntity.companyId: { id, schemeID? }` | Matches the XML structure and allows `schemeID` |
-| `invoice.note: string` | `invoice.note: { content, languageID? }[]` | Same change for `creditNote.note` and line `note` |
-| `billingReference: { ... }` | `billingReference: [{ ... }]` | Applies to invoices and credit notes |
-| `line.documentReference: string` | `line.documentReference: { id, documentTypeCode? }` | `documentTypeCode` defaults to `'130'` when omitted |
-| `identification[].scheme` using an EAS code | `identification[].scheme` must use an ICD code | `endPoint.scheme` still uses EAS |
+| Before                                      | Now                                                 | Notes                                                    |
+| ------------------------------------------- | --------------------------------------------------- | -------------------------------------------------------- |
+| `party.taxSchemeCompanyID: string`          | `party.taxSchemes: [{ companyId, schemeID? }]`      | Supports 0..2 tax schemes instead of a single flat field |
+| `party.legalEntity.companyId: string`       | `party.legalEntity.companyId: { id, schemeID? }`    | Matches the XML structure and allows `schemeID`          |
+| `invoice.note: string`                      | `invoice.note: { content, languageID? }[]`          | Same change for `creditNote.note` and line `note`        |
+| `billingReference: { ... }`                 | `billingReference: [{ ... }]`                       | Applies to invoices and credit notes                     |
+| `line.documentReference: string`            | `line.documentReference: { id, documentTypeCode? }` | `documentTypeCode` defaults to `'130'` when omitted      |
+| `identification[].scheme` using an EAS code | `identification[].scheme` must use an ICD code      | `endPoint.scheme` still uses EAS                         |
 
 ### Other notable changes
 
@@ -312,8 +312,8 @@ const toolkit = new PeppolToolkit();
 // Parse an invoice XML string back into a structured Invoice object
 const invoiceXml = '<?xml version="1.0"?>...'; // your UBL XML string
 const invoice: Invoice = toolkit.peppolUBLToInvoice(invoiceXml);
-console.log(invoice.ID);             // 'INV-2024-001'
-console.log(invoice.invoiceLines);   // array of line items
+console.log(invoice.ID); // 'INV-2024-001'
+console.log(invoice.invoiceLines); // array of line items
 
 // Parse a credit note XML string back into a CreditNote object
 const creditNoteXml = '<?xml version="1.0"?>...'; // your UBL credit note XML
@@ -329,16 +329,16 @@ Use the static `computeTotals` helper to calculate line totals, tax amounts, and
 import { PeppolToolkit } from '@pixeldrive/peppol-toolkit';
 
 const items = [
-    { price: 100,  quantity: 10, taxPercent: 21 },  // 1 000.00 + 210.00 VAT
-    { price: 49.99, quantity: 3, taxPercent: 21 },  //   149.97 +  31.49 VAT
-    { price: 200,  quantity: 2,  taxPercent: 0  },  //   400.00 + 0.00 VAT (exempt)
+    { price: 100, quantity: 10, taxPercent: 21 }, // 1 000.00 + 210.00 VAT
+    { price: 49.99, quantity: 3, taxPercent: 21 }, //   149.97 +  31.49 VAT
+    { price: 200, quantity: 2, taxPercent: 0 }, //   400.00 + 0.00 VAT (exempt)
 ];
 
 const totals = PeppolToolkit.computeTotals(items);
 
-console.log(totals.baseAmount.toNumber());          // 1549.97
-console.log(totals.taxAmount.toNumber());           // 241.49
-console.log(totals.totalAmount.toNumber());         // 1791.46
+console.log(totals.baseAmount.toNumber()); // 1549.97
+console.log(totals.taxAmount.toNumber()); // 241.49
+console.log(totals.totalAmount.toNumber()); // 1791.46
 
 // Taxable amounts and VAT amounts grouped by rate (both Map<string, Decimal>, keyed by the rate as a string)
 for (const [rate, taxableAmount] of totals.taxableAmountPerRate) {
@@ -356,14 +356,16 @@ const taxTotal = [
     {
         taxAmountCurrency: 'EUR',
         taxAmount: totals.taxAmount.toNumber(),
-        subTotals: [...totals.taxableAmountPerRate].map(([rate, taxableAmount]) => ({
-            taxableAmount: taxableAmount.toNumber(),
-            taxAmount: totals.taxAmountPerRate.get(rate)!.toNumber(),
-            taxCategory: {
-                categoryCode: Number(rate) === 0 ? 'Z' : 'S',
-                percent: Number(rate),
-            },
-        })),
+        subTotals: [...totals.taxableAmountPerRate].map(
+            ([rate, taxableAmount]) => ({
+                taxableAmount: taxableAmount.toNumber(),
+                taxAmount: totals.taxAmountPerRate.get(rate)!.toNumber(),
+                taxCategory: {
+                    categoryCode: Number(rate) === 0 ? 'Z' : 'S',
+                    percent: Number(rate),
+                },
+            })
+        ),
     },
 ];
 ```
@@ -429,9 +431,9 @@ const result = await toolkit.validateWithKosit(xml, {
     endpoint: 'http://localhost:8081/',
 });
 
-console.log(result.valid);     // true | false
-console.log(result.errors);    // validation errors
-console.log(result.warnings);  // validation warnings
+console.log(result.valid); // true | false
+console.log(result.errors); // validation errors
+console.log(result.warnings); // validation warnings
 ```
 
 Notes:
@@ -448,20 +450,20 @@ The main class that provides invoice and credit note conversion functionality.
 
 #### Instance Methods
 
-| Method | Description |
-|--------|-------------|
-| `invoiceToPeppolUBL(invoice: Invoice): string` | Converts an `Invoice` object to a PEPPOL-compliant UBL XML string |
-| `creditNoteToPeppolUBL(creditNote: CreditNote): string` | Converts a `CreditNote` object to a PEPPOL-compliant UBL XML string |
-| `peppolUBLToInvoice(xml: string): Invoice` | Parses a PEPPOL UBL XML string into an `Invoice` object |
-| `peppolUBLToCreditNote(xml: string): CreditNote` | Parses a PEPPOL UBL XML string into a `CreditNote` object |
+| Method                                                                                            | Description                                                                  |
+| ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `invoiceToPeppolUBL(invoice: Invoice): string`                                                    | Converts an `Invoice` object to a PEPPOL-compliant UBL XML string            |
+| `creditNoteToPeppolUBL(creditNote: CreditNote): string`                                           | Converts a `CreditNote` object to a PEPPOL-compliant UBL XML string          |
+| `peppolUBLToInvoice(xml: string): Invoice`                                                        | Parses a PEPPOL UBL XML string into an `Invoice` object                      |
+| `peppolUBLToCreditNote(xml: string): CreditNote`                                                  | Parses a PEPPOL UBL XML string into a `CreditNote` object                    |
 | `validateWithKosit(xml: string, options?: KositValidatorOptions): Promise<KositValidationResult>` | Sends XML to a KoSIT validator service and returns parsed validation outcome |
 
 #### Static Helpers
 
-| Helper | Description |
-|--------|-------------|
+| Helper                                                      | Description                                                                                                                                   |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | `PeppolToolkit.computeTotals(items: UBLLineItem[]): Totals` | Calculates line totals, tax amounts (total and per rate: `taxableAmountPerRate`, `taxAmountPerRate`) and grand total following EN 16931 rules |
-| `PeppolToolkit.getEASFromTaxId(taxId: string): string` | Returns the EAS scheme code for a country-prefixed VAT number |
+| `PeppolToolkit.getEASFromTaxId(taxId: string): string`      | Returns the EAS scheme code for a country-prefixed VAT number                                                                                 |
 
 ### `createToolkit()`
 

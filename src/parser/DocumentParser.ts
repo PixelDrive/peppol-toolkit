@@ -69,9 +69,7 @@ export class DocumentParser {
             buyer: this.__parseParty(
                 inv['cac:AccountingCustomerParty']?.['cac:Party']
             ),
-            payeeParty: this.__parsePayeeParty(
-                inv['cac:PayeeParty']
-            ),
+            payeeParty: this.__parsePayeeParty(inv['cac:PayeeParty']),
             taxRepresentativeParty: this.__parseTaxRepresentativeParty(
                 inv['cac:TaxRepresentativeParty']
             ),
@@ -146,9 +144,7 @@ export class DocumentParser {
             buyer: this.__parseParty(
                 cn['cac:AccountingCustomerParty']?.['cac:Party']
             ),
-            payeeParty: this.__parsePayeeParty(
-                cn['cac:PayeeParty']
-            ),
+            payeeParty: this.__parsePayeeParty(cn['cac:PayeeParty']),
             taxRepresentativeParty: this.__parseTaxRepresentativeParty(
                 cn['cac:TaxRepresentativeParty']
             ),
