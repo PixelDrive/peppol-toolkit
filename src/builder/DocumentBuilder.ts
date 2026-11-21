@@ -5,6 +5,8 @@ import XMLAttributes from '../helpers/XMLAttributes';
 import getDateString from '../helpers/getDateString';
 import { z } from 'zod';
 import { isNullish } from '../helpers/isNullish';
+import { formatAmount } from '../helpers/formatAmount';
+import Decimal from 'decimal.js';
 
 const DEFAULT_CUSTOMIZATION_ID =
     'urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0';
@@ -213,10 +215,11 @@ export class DocumentBuilder {
                 invoice.allowanceCharge.length > 0
                     ? {
                           'cac:AllowanceCharge': invoice.allowanceCharge.map(
-                              (ac) =>
+                              (ac, i) =>
                                   this.__buildAllowanceCharge(
                                       ac,
-                                      invoice.documentCurrencyCode
+                                      invoice.documentCurrencyCode,
+                                      `allowanceCharge[${i}]`
                                   )
                           ),
                       }
@@ -225,8 +228,12 @@ export class DocumentBuilder {
                 'cac:LegalMonetaryTotal': this.__buildMonetaryTotal(
                     invoice.legalMonetaryTotal
                 ),
-                'cac:InvoiceLine': invoice.invoiceLines.map((line) =>
-                    this.__buildLineItem(line, 'InvoicedQuantity')
+                'cac:InvoiceLine': invoice.invoiceLines.map((line, i) =>
+                    this.__buildLineItem(
+                        line,
+                        'InvoicedQuantity',
+                        `invoiceLines[${i}]`
+                    )
                 ),
             },
         };
@@ -399,10 +406,11 @@ export class DocumentBuilder {
                 creditNote.allowanceCharge.length > 0
                     ? {
                           'cac:AllowanceCharge': creditNote.allowanceCharge.map(
-                              (ac) =>
+                              (ac, i) =>
                                   this.__buildAllowanceCharge(
                                       ac,
-                                      creditNote.documentCurrencyCode
+                                      creditNote.documentCurrencyCode,
+                                      `allowanceCharge[${i}]`
                                   )
                           ),
                       }
@@ -411,8 +419,13 @@ export class DocumentBuilder {
                 'cac:LegalMonetaryTotal': this.__buildMonetaryTotal(
                     creditNote.legalMonetaryTotal
                 ),
-                'cac:CreditNoteLine': creditNote.creditNoteLines.map((line) =>
-                    this.__buildLineItem(line, 'CreditedQuantity')
+                'cac:CreditNoteLine': creditNote.creditNoteLines.map(
+                    (line, i) =>
+                        this.__buildLineItem(
+                            line,
+                            'CreditedQuantity',
+                            `creditNoteLines[${i}]`
+                        )
                 ),
             },
         };
@@ -687,24 +700,42 @@ export class DocumentBuilder {
      * @return Returns an array of objects formatted as tax total components, including tax amounts, sub totals, and associated category details in compliance with specified XML attributes and structure.
      */
     private __buildTaxTotal(total: Invoice['taxTotal']) {
-        return total.map((t) => {
+        return total.map((t, i) => {
+            const path = `taxTotal[${i}]`;
+            const taxAmount = formatAmount(`${path}.taxAmount`, t.taxAmount);
+            const subTotals = t.subTotals.map((st, j) => ({
+                taxableAmount: formatAmount(
+                    `${path}.subTotals[${j}].taxableAmount`,
+                    st.taxableAmount
+                ),
+                taxAmount: formatAmount(
+                    `${path}.subTotals[${j}].taxAmount`,
+                    st.taxAmount
+                ),
+            }));
+            this.__assertTaxTotalConsistency(
+                path,
+                taxAmount,
+                subTotals.map((st) => st.taxAmount)
+            );
+
             return {
                 'cbc:TaxAmount': {
-                    '#text': t.taxAmount.toFixed(2),
+                    '#text': taxAmount,
                     ...XMLAttributes({
                         currencyID: t.taxAmountCurrency,
                     }),
                 },
-                'cac:TaxSubtotal': t.subTotals.map((st) => ({
+                'cac:TaxSubtotal': t.subTotals.map((st, j) => ({
                     'cbc:TaxableAmount': {
-                        '#text': st.taxableAmount.toFixed(2),
+                        '#text': subTotals[j].taxableAmount,
                         ...XMLAttributes({
                             currencyID:
                                 st.taxableAmountCurrency ?? t.taxAmountCurrency,
                         }),
                     },
                     'cbc:TaxAmount': {
-                        '#text': st.taxAmount.toFixed(2),
+                        '#text': subTotals[j].taxAmount,
                         ...XMLAttributes({
                             currencyID:
                                 st.taxAmountCurrency ?? t.taxAmountCurrency,
@@ -724,6 +755,32 @@ export class DocumentBuilder {
                 })),
             };
         });
+    }
+
+    /**
+     * Checks BR-CO-14: the tax total amount (BT-110) must equal the sum of the
+     * VAT category tax amounts (BT-117) of its sub totals. Tax totals without sub totals
+     * (e.g. the one expressed in the tax accounting currency) are not checked.
+     * @param path The path of the tax total in the input document (used in the error message)
+     * @param taxAmount The formatted tax total amount
+     * @param subTotalTaxAmounts The formatted tax amounts of the sub totals
+     */
+    private __assertTaxTotalConsistency(
+        path: string,
+        taxAmount: string,
+        subTotalTaxAmounts: string[]
+    ) {
+        if (subTotalTaxAmounts.length === 0) return;
+        const sum = subTotalTaxAmounts.reduce(
+            (acc, amount) => acc.add(amount),
+            new Decimal(0)
+        );
+        if (!sum.equals(taxAmount)) {
+            throw new RangeError(
+                `BR-CO-14 violation in "${path}": taxAmount (${taxAmount}) must equal the sum of ` +
+                    `subTotals[].taxAmount (${sum.toFixed(2)})`
+            );
+        }
     }
 
     private __buildMonetaryTotal(total: Invoice['legalMonetaryTotal']) {
@@ -781,9 +838,11 @@ export class DocumentBuilder {
     ) {
         if (isNullish(amount)) return {};
         if (!amount && !generateOnZero) return {};
+        // 'LineExtensionAmount' -> 'legalMonetaryTotal.lineExtensionAmount'
+        const field = `legalMonetaryTotal.${name.charAt(0).toLowerCase()}${name.slice(1)}`;
         return {
             [`cbc:${name}`]: {
-                '#text': amount.toFixed(2),
+                '#text': formatAmount(field, amount),
                 ...XMLAttributes({
                     currencyID: currency,
                 }),
@@ -858,7 +917,8 @@ export class DocumentBuilder {
 
     private __buildAllowanceCharge(
         ac: NonNullable<Invoice['allowanceCharge']>[number],
-        documentCurrency: CurrencyCode
+        documentCurrency: CurrencyCode,
+        path: string
     ) {
         const currency = ac.currency ?? documentCurrency;
         return {
@@ -875,13 +935,16 @@ export class DocumentBuilder {
                   }
                 : {}),
             'cbc:Amount': {
-                '#text': ac.amount.toFixed(2),
+                '#text': formatAmount(`${path}.amount`, ac.amount),
                 ...XMLAttributes({ currencyID: currency }),
             },
             ...(ac.baseAmount !== undefined
                 ? {
                       'cbc:BaseAmount': {
-                          '#text': ac.baseAmount.toFixed(2),
+                          '#text': formatAmount(
+                              `${path}.baseAmount`,
+                              ac.baseAmount
+                          ),
                           ...XMLAttributes({ currencyID: currency }),
                       },
                   }
@@ -904,7 +967,8 @@ export class DocumentBuilder {
         ac: NonNullable<
             Invoice['invoiceLines'][number]['allowanceCharge']
         >[number],
-        lineCurrency: CurrencyCode
+        lineCurrency: CurrencyCode,
+        path: string
     ) {
         const currency = ac.currency ?? lineCurrency;
         return {
@@ -921,13 +985,16 @@ export class DocumentBuilder {
                   }
                 : {}),
             'cbc:Amount': {
-                '#text': ac.amount.toFixed(2),
+                '#text': formatAmount(`${path}.amount`, ac.amount),
                 ...XMLAttributes({ currencyID: currency }),
             },
             ...(ac.baseAmount !== undefined
                 ? {
                       'cbc:BaseAmount': {
-                          '#text': ac.baseAmount.toFixed(2),
+                          '#text': formatAmount(
+                              `${path}.baseAmount`,
+                              ac.baseAmount
+                          ),
                           ...XMLAttributes({ currencyID: currency }),
                       },
                   }
@@ -994,9 +1061,16 @@ export class DocumentBuilder {
         );
     }
 
+    /**
+     * Builds an invoice or credit note line.
+     * @param line The line data
+     * @param quantityTag The UBL quantity element name ('InvoicedQuantity' or 'CreditedQuantity')
+     * @param path The path of the line in the input document (used in error messages)
+     */
     private __buildLineItem(
         line: Invoice['invoiceLines'][number],
-        quantityTag: string
+        quantityTag: string,
+        path: string
     ) {
         return {
             'cbc:ID': line.id,
@@ -1012,7 +1086,10 @@ export class DocumentBuilder {
                 }),
             },
             'cbc:LineExtensionAmount': {
-                '#text': line.lineExtensionAmount.toFixed(2),
+                '#text': formatAmount(
+                    `${path}.lineExtensionAmount`,
+                    line.lineExtensionAmount
+                ),
                 ...XMLAttributes({
                     currencyID: line.currency,
                 }),
@@ -1058,8 +1135,12 @@ export class DocumentBuilder {
                 : {}),
             ...(line.allowanceCharge && line.allowanceCharge.length > 0
                 ? {
-                      'cac:AllowanceCharge': line.allowanceCharge.map((ac) =>
-                          this.__buildLineAllowanceCharge(ac, line.currency)
+                      'cac:AllowanceCharge': line.allowanceCharge.map((ac, i) =>
+                          this.__buildLineAllowanceCharge(
+                              ac,
+                              line.currency,
+                              `${path}.allowanceCharge[${i}]`
+                          )
                       ),
                   }
                 : {}),
@@ -1163,10 +1244,10 @@ export class DocumentBuilder {
                           'cac:AllowanceCharge': {
                               'cbc:ChargeIndicator': false,
                               'cbc:Amount': {
-                                  '#text':
-                                      line.priceAllowanceCharge.amount.toFixed(
-                                          2
-                                      ),
+                                  '#text': formatAmount(
+                                      `${path}.priceAllowanceCharge.amount`,
+                                      line.priceAllowanceCharge.amount
+                                  ),
                                   ...XMLAttributes({
                                       currencyID:
                                           line.priceAllowanceCharge.currency ??
@@ -1177,10 +1258,11 @@ export class DocumentBuilder {
                               undefined
                                   ? {
                                         'cbc:BaseAmount': {
-                                            '#text':
-                                                line.priceAllowanceCharge.baseAmount.toFixed(
-                                                    2
-                                                ),
+                                            '#text': formatAmount(
+                                                `${path}.priceAllowanceCharge.baseAmount`,
+                                                line.priceAllowanceCharge
+                                                    .baseAmount
+                                            ),
                                             ...XMLAttributes({
                                                 currencyID:
                                                     line.priceAllowanceCharge

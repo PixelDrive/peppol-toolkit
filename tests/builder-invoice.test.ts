@@ -164,4 +164,272 @@ describe('Invoices Builder', () => {
             '<cbc:PriceAmount currencyID="EUR">10.129</cbc:PriceAmount>'
         );
     });
+
+    describe('amount precision', () => {
+        it('should accept a line price with more than two decimals', () => {
+            expect(() =>
+                toolkit.invoiceToPeppolUBL({
+                    ...basicInvoice,
+                    invoiceLines: [
+                        { ...basicInvoice.invoiceLines[0], price: 33.333 },
+                    ],
+                })
+            ).not.toThrow();
+        });
+
+        it('should reject a tax sub total amount with more than two decimals', () => {
+            // 250.50 × 21 / 100 = 52.605, recomputed by the caller without rounding
+            expect(() =>
+                toolkit.invoiceToPeppolUBL({
+                    ...basicInvoice,
+                    taxTotal: [
+                        {
+                            taxAmount: 52.61,
+                            taxAmountCurrency: 'EUR',
+                            subTotals: [
+                                {
+                                    taxableAmount: 250.5,
+                                    taxAmount: 52.605,
+                                    taxCategory: {
+                                        categoryCode: 'S',
+                                        percent: 21,
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                })
+            ).toThrow(
+                'Invalid amount for "taxTotal[0].subTotals[0].taxAmount": 52.605 has more than 2 decimal places'
+            );
+        });
+
+        it('should reject a tax total amount with more than two decimals', () => {
+            expect(() =>
+                toolkit.invoiceToPeppolUBL({
+                    ...basicInvoice,
+                    taxTotal: [
+                        { ...basicInvoice.taxTotal[0], taxAmount: 21.005 },
+                    ],
+                })
+            ).toThrow('Invalid amount for "taxTotal[0].taxAmount"');
+        });
+
+        it('should reject a taxable amount with more than two decimals', () => {
+            expect(() =>
+                toolkit.invoiceToPeppolUBL({
+                    ...basicInvoice,
+                    taxTotal: [
+                        {
+                            ...basicInvoice.taxTotal[0],
+                            subTotals: [
+                                {
+                                    ...basicInvoice.taxTotal[0].subTotals[0],
+                                    taxableAmount: 100.001,
+                                },
+                            ],
+                        },
+                    ],
+                })
+            ).toThrow(
+                'Invalid amount for "taxTotal[0].subTotals[0].taxableAmount"'
+            );
+        });
+
+        it('should reject legal monetary total amounts with more than two decimals', () => {
+            expect(() =>
+                toolkit.invoiceToPeppolUBL({
+                    ...basicInvoice,
+                    legalMonetaryTotal: {
+                        ...basicInvoice.legalMonetaryTotal,
+                        payableAmount: 121.005,
+                    },
+                })
+            ).toThrow(
+                'Invalid amount for "legalMonetaryTotal.payableAmount": 121.005'
+            );
+
+            expect(() =>
+                toolkit.invoiceToPeppolUBL({
+                    ...basicInvoice,
+                    legalMonetaryTotal: {
+                        ...basicInvoice.legalMonetaryTotal,
+                        prepaidAmount: 0.001,
+                    },
+                })
+            ).toThrow('Invalid amount for "legalMonetaryTotal.prepaidAmount"');
+        });
+
+        it('should reject a line extension amount with more than two decimals', () => {
+            expect(() =>
+                toolkit.invoiceToPeppolUBL({
+                    ...basicInvoice,
+                    invoiceLines: [
+                        {
+                            ...basicInvoice.invoiceLines[0],
+                            lineExtensionAmount: 99.999,
+                        },
+                    ],
+                })
+            ).toThrow(
+                'Invalid amount for "invoiceLines[0].lineExtensionAmount"'
+            );
+        });
+
+        it('should reject allowance/charge amounts with more than two decimals', () => {
+            expect(() =>
+                toolkit.invoiceToPeppolUBL({
+                    ...basicInvoice,
+                    allowanceCharge: [
+                        {
+                            chargeIndicator: false,
+                            amount: 5.125,
+                            taxCategory: { categoryCode: 'S', percent: 21 },
+                        },
+                    ],
+                })
+            ).toThrow('Invalid amount for "allowanceCharge[0].amount"');
+
+            expect(() =>
+                toolkit.invoiceToPeppolUBL({
+                    ...basicInvoice,
+                    invoiceLines: [
+                        {
+                            ...basicInvoice.invoiceLines[0],
+                            allowanceCharge: [
+                                {
+                                    chargeIndicator: true,
+                                    amount: 1,
+                                    baseAmount: 10.005,
+                                },
+                            ],
+                        },
+                    ],
+                })
+            ).toThrow(
+                'Invalid amount for "invoiceLines[0].allowanceCharge[0].baseAmount"'
+            );
+
+            expect(() =>
+                toolkit.invoiceToPeppolUBL({
+                    ...basicInvoice,
+                    invoiceLines: [
+                        {
+                            ...basicInvoice.invoiceLines[0],
+                            priceAllowanceCharge: { amount: 0.005 },
+                        },
+                    ],
+                })
+            ).toThrow(
+                'Invalid amount for "invoiceLines[0].priceAllowanceCharge.amount"'
+            );
+        });
+
+        it('should still serialize valid amounts with exactly two decimals', () => {
+            const invoiceXML = toolkit.invoiceToPeppolUBL({
+                ...basicInvoice,
+                taxTotal: [
+                    {
+                        taxAmount: 52.61,
+                        taxAmountCurrency: 'EUR',
+                        subTotals: [
+                            {
+                                taxableAmount: 250.5,
+                                taxAmount: 52.61,
+                                taxCategory: { categoryCode: 'S', percent: 21 },
+                            },
+                        ],
+                    },
+                ],
+            });
+
+            expect(invoiceXML).toContain(
+                '<cbc:TaxableAmount currencyID="EUR">250.50</cbc:TaxableAmount>'
+            );
+            expect(invoiceXML).toContain(
+                '<cbc:TaxAmount currencyID="EUR">52.61</cbc:TaxAmount>'
+            );
+        });
+    });
+
+    describe('BR-CO-14', () => {
+        it('should throw when the tax total does not equal the sum of its sub totals', () => {
+            expect(() =>
+                toolkit.invoiceToPeppolUBL({
+                    ...basicInvoice,
+                    taxTotal: [
+                        {
+                            taxAmount: 21.0,
+                            taxAmountCurrency: 'EUR',
+                            subTotals: [
+                                {
+                                    taxableAmount: 100,
+                                    taxAmount: 21,
+                                    taxCategory: {
+                                        categoryCode: 'S',
+                                        percent: 21,
+                                    },
+                                },
+                                {
+                                    taxableAmount: 50,
+                                    taxAmount: 3,
+                                    taxCategory: {
+                                        categoryCode: 'S',
+                                        percent: 6,
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                })
+            ).toThrow(
+                'BR-CO-14 violation in "taxTotal[0]": taxAmount (21.00) must equal the sum of subTotals[].taxAmount (24.00)'
+            );
+        });
+
+        it('should accept a tax total that equals the sum of its sub totals', () => {
+            const invoiceXML = toolkit.invoiceToPeppolUBL({
+                ...basicInvoice,
+                taxTotal: [
+                    {
+                        taxAmount: 24.0,
+                        taxAmountCurrency: 'EUR',
+                        subTotals: [
+                            {
+                                taxableAmount: 100,
+                                taxAmount: 21,
+                                taxCategory: { categoryCode: 'S', percent: 21 },
+                            },
+                            {
+                                taxableAmount: 50,
+                                taxAmount: 3,
+                                taxCategory: { categoryCode: 'S', percent: 6 },
+                            },
+                        ],
+                    },
+                ],
+            });
+
+            expect(invoiceXML).toContain(
+                '<cbc:TaxAmount currencyID="EUR">24.00</cbc:TaxAmount>'
+            );
+        });
+
+        it('should not check a tax total without sub totals (tax currency total)', () => {
+            expect(() =>
+                toolkit.invoiceToPeppolUBL({
+                    ...basicInvoice,
+                    taxCurrencyCode: 'USD',
+                    taxTotal: [
+                        ...basicInvoice.taxTotal,
+                        {
+                            taxAmount: 22.75,
+                            taxAmountCurrency: 'USD',
+                            subTotals: [],
+                        },
+                    ],
+                })
+            ).not.toThrow();
+        });
+    });
 });

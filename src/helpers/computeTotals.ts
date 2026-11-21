@@ -8,6 +8,11 @@ export type UBLLineItem = {
 
 /**
  * Compute the totals of a list of items based on their base price and invoicedQuantity following EN16931 rules
+ *
+ * The VAT is computed per rate group on the rounded taxable amount of the group and then rounded
+ * to two decimals (ROUND_HALF_UP). `taxAmount` is the sum of those rounded per-rate amounts, which are
+ * also returned in `taxAmountPerRate` so that callers can build one `TaxSubtotal` per rate from the
+ * exact same numbers (BR-CO-14).
  * @param items
  */
 export const computeTotals = <T extends UBLLineItem>(items: T[]) => {
@@ -25,6 +30,7 @@ export const computeTotals = <T extends UBLLineItem>(items: T[]) => {
     const baseAmount = lines.reduce((acc, amt) => acc.add(amt), new Decimal(0));
     const baseAmountPerRate = new Map<string, Decimal>();
     const taxableAmountPerRate = new Map<string, Decimal>();
+    const taxAmountPerRate = new Map<string, Decimal>();
     items.forEach((item, i) => {
         const lineAmt = lines[i] ?? new Decimal(0);
         const rate = item.taxPercent.toString();
@@ -39,6 +45,7 @@ export const computeTotals = <T extends UBLLineItem>(items: T[]) => {
             .div(100)
             .toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
         taxableAmountPerRate.set(rate, taxableAmount);
+        taxAmountPerRate.set(rate, groupTax);
         taxAmount = taxAmount.add(groupTax);
     }
 
@@ -46,6 +53,7 @@ export const computeTotals = <T extends UBLLineItem>(items: T[]) => {
         baseAmount,
         taxAmount,
         taxableAmountPerRate,
+        taxAmountPerRate,
         totalAmount: baseAmount.add(taxAmount),
         itemsWithLineExtensionAmount,
     };

@@ -19,6 +19,16 @@ PEPPOL (Pan-European Public Procurement On-Line) is a set of specifications that
 npm install @pixeldrive/peppol-toolkit
 ```
 
+## Breaking changes in `0.9.0`
+
+Version `0.9.0` validates monetary amounts when building UBL documents (see [Amount precision](#amount-precision)).
+
+- `invoiceToPeppolUBL` and `creditNoteToPeppolUBL` now **throw** when a monetary amount has more than two decimals (e.g. `taxAmount: 52.605`). Previously such values were silently rounded with `toFixed(2)`, which is not half-up and could produce documents failing BR-CO-14. The line price (`price` → `cbc:PriceAmount`) is not affected and keeps its full precision. Quantities are not affected either.
+- The builder now **throws** when a `taxTotal[].taxAmount` does not equal the sum of its `subTotals[].taxAmount` (BR-CO-14).
+- `computeTotals` additionally returns `taxAmountPerRate: Map<string, Decimal>` (additive). Use it together with `taxableAmountPerRate` to build the tax sub totals.
+
+Parsing UBL documents is not affected by these checks. If you were relying on implicit rounding, round your amounts to two decimals half-up before building, e.g. with `new Decimal(amount).toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toNumber()`, or use the amounts returned by `computeTotals`.
+
 ## Breaking changes in `0.8.0`
 
 Version `0.8.0` tightens the public data model to better match PEPPOL BIS Billing 3 / UBL expectations. If you are upgrading from `0.7.x` or earlier, review the following migrations.
@@ -330,11 +340,44 @@ console.log(totals.baseAmount.toNumber());          // 1549.97
 console.log(totals.taxAmount.toNumber());           // 241.49
 console.log(totals.totalAmount.toNumber());         // 1791.46
 
-// Tax amounts grouped by rate
+// Taxable amounts and VAT amounts grouped by rate (both Map<string, Decimal>, keyed by the rate as a string)
 for (const [rate, taxableAmount] of totals.taxableAmountPerRate) {
-    console.log(`${rate}% → taxable: ${taxableAmount}`);
+    const taxAmount = totals.taxAmountPerRate.get(rate)!;
+    console.log(`${rate}% → taxable: ${taxableAmount}, VAT: ${taxAmount}`);
 }
+// 21% → taxable: 1149.97, VAT: 241.49
+// 0% → taxable: 400, VAT: 0
 ```
+
+`taxAmountPerRate` contains the VAT of each rate group, rounded half-up to two decimals, and `taxAmount` is exactly the sum of those values. Build one `TaxSubtotal` per rate from these maps so that the tax total always equals the sum of its sub totals (BR-CO-14). Never recompute `taxable × rate / 100` yourself: an unrounded value such as `52.605` is rejected by the builder (see [Amount precision](#amount-precision)).
+
+```typescript
+const taxTotal = [
+    {
+        taxAmountCurrency: 'EUR',
+        taxAmount: totals.taxAmount.toNumber(),
+        subTotals: [...totals.taxableAmountPerRate].map(([rate, taxableAmount]) => ({
+            taxableAmount: taxableAmount.toNumber(),
+            taxAmount: totals.taxAmountPerRate.get(rate)!.toNumber(),
+            taxCategory: {
+                categoryCode: Number(rate) === 0 ? 'Z' : 'S',
+                percent: Number(rate),
+            },
+        })),
+    },
+];
+```
+
+### Amount precision
+
+EN 16931 requires every monetary amount (`cbc:TaxAmount`, `cbc:TaxableAmount`, `cbc:LineExtensionAmount`, the `cac:LegalMonetaryTotal` amounts, allowance/charge amounts, ...) to have at most two decimals. `invoiceToPeppolUBL` and `creditNoteToPeppolUBL` enforce this: an amount with more than two decimals throws an error naming the offending field instead of being silently rounded.
+
+```typescript
+toolkit.invoiceToPeppolUBL({ ...invoice, taxTotal: [{ ..., subTotals: [{ taxAmount: 52.605, ... }] }] });
+// RangeError: Invalid amount for "taxTotal[0].subTotals[0].taxAmount": 52.605 has more than 2 decimal places. ...
+```
+
+The line price (`cac:Price/cbc:PriceAmount`) is intentionally excluded and keeps its full precision. The builder also checks BR-CO-14 before serializing: each `taxTotal[].taxAmount` must equal the sum of its `subTotals[].taxAmount`, otherwise a descriptive error is thrown. Parsing received documents is never affected by these checks.
 
 ### Look up an EAS Endpoint Scheme from a VAT Number
 
@@ -417,7 +460,7 @@ The main class that provides invoice and credit note conversion functionality.
 
 | Helper | Description |
 |--------|-------------|
-| `PeppolToolkit.computeTotals(items: UBLLineItem[]): Totals` | Calculates line totals, tax amounts and grand total following EN 16931 rules |
+| `PeppolToolkit.computeTotals(items: UBLLineItem[]): Totals` | Calculates line totals, tax amounts (total and per rate: `taxableAmountPerRate`, `taxAmountPerRate`) and grand total following EN 16931 rules |
 | `PeppolToolkit.getEASFromTaxId(taxId: string): string` | Returns the EAS scheme code for a country-prefixed VAT number |
 
 ### `createToolkit()`

@@ -148,4 +148,126 @@ describe('Creditnote Builder', () => {
             '<cbc:PriceAmount currencyID="EUR">10.129</cbc:PriceAmount>'
         );
     });
+
+    describe('amount precision', () => {
+        it('should accept a line price with more than two decimals', () => {
+            expect(() =>
+                toolkit.creditNoteToPeppolUBL({
+                    ...basicCreditNote,
+                    creditNoteLines: [
+                        {
+                            ...basicCreditNote.creditNoteLines[0],
+                            price: 33.333,
+                        },
+                    ],
+                })
+            ).not.toThrow();
+        });
+
+        it('should reject a tax sub total amount with more than two decimals', () => {
+            expect(() =>
+                toolkit.creditNoteToPeppolUBL({
+                    ...basicCreditNote,
+                    taxTotal: [
+                        {
+                            taxAmount: 52.61,
+                            taxAmountCurrency: 'EUR',
+                            subTotals: [
+                                {
+                                    taxableAmount: 250.5,
+                                    taxAmount: 52.605,
+                                    taxCategory: {
+                                        categoryCode: 'S',
+                                        percent: 21,
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                })
+            ).toThrow(
+                'Invalid amount for "taxTotal[0].subTotals[0].taxAmount": 52.605 has more than 2 decimal places'
+            );
+        });
+
+        it('should reject legal monetary total amounts with more than two decimals', () => {
+            expect(() =>
+                toolkit.creditNoteToPeppolUBL({
+                    ...basicCreditNote,
+                    legalMonetaryTotal: {
+                        ...basicCreditNote.legalMonetaryTotal,
+                        taxInclusiveAmount: 121.001,
+                    },
+                })
+            ).toThrow(
+                'Invalid amount for "legalMonetaryTotal.taxInclusiveAmount"'
+            );
+        });
+
+        it('should reject a line extension amount with more than two decimals', () => {
+            expect(() =>
+                toolkit.creditNoteToPeppolUBL({
+                    ...basicCreditNote,
+                    creditNoteLines: [
+                        {
+                            ...basicCreditNote.creditNoteLines[0],
+                            lineExtensionAmount: 99.999,
+                        },
+                    ],
+                })
+            ).toThrow(
+                'Invalid amount for "creditNoteLines[0].lineExtensionAmount"'
+            );
+        });
+
+        it('should reject allowance/charge amounts with more than two decimals', () => {
+            expect(() =>
+                toolkit.creditNoteToPeppolUBL({
+                    ...basicCreditNote,
+                    allowanceCharge: [
+                        {
+                            chargeIndicator: true,
+                            amount: 5.125,
+                            taxCategory: { categoryCode: 'S', percent: 21 },
+                        },
+                    ],
+                })
+            ).toThrow('Invalid amount for "allowanceCharge[0].amount"');
+        });
+    });
+
+    describe('BR-CO-14', () => {
+        it('should throw when the tax total does not equal the sum of its sub totals', () => {
+            expect(() =>
+                toolkit.creditNoteToPeppolUBL({
+                    ...basicCreditNote,
+                    taxTotal: [
+                        {
+                            ...basicCreditNote.taxTotal[0],
+                            taxAmount: 21.01,
+                        },
+                    ],
+                })
+            ).toThrow(
+                'BR-CO-14 violation in "taxTotal[0]": taxAmount (21.01) must equal the sum of subTotals[].taxAmount (21.00)'
+            );
+        });
+
+        it('should not check a tax total without sub totals (tax currency total)', () => {
+            expect(() =>
+                toolkit.creditNoteToPeppolUBL({
+                    ...basicCreditNote,
+                    taxCurrencyCode: 'USD',
+                    taxTotal: [
+                        ...basicCreditNote.taxTotal,
+                        {
+                            taxAmount: 22.75,
+                            taxAmountCurrency: 'USD',
+                            subTotals: [],
+                        },
+                    ],
+                })
+            ).not.toThrow();
+        });
+    });
 });
