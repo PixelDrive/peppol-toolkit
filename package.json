@@ -41,6 +41,8 @@
         "build": "tsup src/index.ts --format esm,cjs --dts --clean",
         "dev": "tsup src/index.ts --format esm,cjs --dts --watch",
         "test": "npm run build && vitest run --config vitest.config.ts",
+        "test:e2e": "vitest run --config vitest.e2e.config.ts",
+        "kosit:start": "bash scripts/kosit.sh",
         "lint": "eslint .",
         "format": "prettier --write .",
         "format:check": "prettier --check ."
