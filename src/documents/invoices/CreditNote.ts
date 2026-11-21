@@ -9,6 +9,11 @@ export const creditNoteSchema = invoiceSchema
         creditNoteTypeCode: CreditNoteTypeCodeSchema,
         creditNoteLines: invoiceSchema.shape.invoiceLines.min(1),
     })
-    .omit({ invoiceTypeCode: true, invoiceLines: true, dueDate: true, projectReference: true });
+    .omit({
+        invoiceTypeCode: true,
+        invoiceLines: true,
+        dueDate: true,
+        projectReference: true,
+    });
 
 export type CreditNote = z.infer<typeof creditNoteSchema>;

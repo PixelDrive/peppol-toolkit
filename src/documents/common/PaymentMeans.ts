@@ -22,11 +22,17 @@ export const paymentMandateSchema = z.object({
 export const paymentMeansSchema = z.object({
     code: PaymentMeansCodeSchema,
     name: z.string().optional().describe('Payment means expressed as text'),
-    paymentDueDate: date.optional().describe('Payment due date (used in credit notes)'),
+    paymentDueDate: date
+        .optional()
+        .describe('Payment due date (used in credit notes)'),
     paymentId: z.string().optional().describe('Used for reconciliation'),
     financialAccount: financialAccountSchema
         .optional()
         .describe('Credit transfer informations such as IBAN, BIC'),
-    cardAccount: cardAccountSchema.optional().describe('Payment card information (BG-18)'),
-    paymentMandate: paymentMandateSchema.optional().describe('Direct debit mandate (BG-19)'),
+    cardAccount: cardAccountSchema
+        .optional()
+        .describe('Payment card information (BG-18)'),
+    paymentMandate: paymentMandateSchema
+        .optional()
+        .describe('Direct debit mandate (BG-19)'),
 });

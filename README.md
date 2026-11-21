@@ -19,20 +19,31 @@ PEPPOL (Pan-European Public Procurement On-Line) is a set of specifications that
 npm install @pixeldrive/peppol-toolkit
 ```
 
+## Breaking changes in `0.9.0`
+
+Version `0.9.0` validates monetary amounts when building UBL documents (see [Amount precision](#amount-precision)).
+
+- `invoiceToPeppolUBL` and `creditNoteToPeppolUBL` now **throw** when a monetary amount has more than two decimals (e.g. `taxAmount: 52.605`). Previously such values were silently rounded with `toFixed(2)`, which is not half-up and could produce documents failing BR-CO-14. The unit price fields (`price` → `cbc:PriceAmount`, `priceAllowanceCharge.amount` / `.baseAmount`) are not affected and keep their full precision. Quantities are not affected either.
+- The builder now **throws** when a `taxTotal[].taxAmount` does not equal the sum of its `subTotals[].taxAmount` (BR-CO-14).
+- `cbc:Percent` (VAT rates on tax sub totals, document-level allowances/charges and lines) is now serialized at full precision instead of being rounded to two decimals: `21` instead of `21.00` (valid: Peppol BIS §7.2.3 puts no restriction on the number of decimals of percentages), and `5.125` is written unchanged instead of `5.13`.
+- `computeTotals` additionally returns `vatBreakdown` (one entry per VAT category code + rate, see [Compute Invoice Totals](#compute-invoice-totals)) and `taxAmountPerRate: Map<string, Decimal>`, and line items accept an optional `taxCategoryCode` (default `'S'`). All additive. The keys of `taxableAmountPerRate` / `taxAmountPerRate` are now the canonical rate (`'21'` for `21`, `'21'` and `'21.0'`).
+
+Parsing UBL documents is not affected by these checks. If you were relying on implicit rounding, round your amounts to two decimals half-up before building, e.g. with `new Decimal(amount).toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toNumber()`, or use the amounts returned by `computeTotals`.
+
 ## Breaking changes in `0.8.0`
 
 Version `0.8.0` tightens the public data model to better match PEPPOL BIS Billing 3 / UBL expectations. If you are upgrading from `0.7.x` or earlier, review the following migrations.
 
 ### Migration checklist
 
-| Before | Now | Notes |
-|---|---|---|
-| `party.taxSchemeCompanyID: string` | `party.taxSchemes: [{ companyId, schemeID? }]` | Supports 0..2 tax schemes instead of a single flat field |
-| `party.legalEntity.companyId: string` | `party.legalEntity.companyId: { id, schemeID? }` | Matches the XML structure and allows `schemeID` |
-| `invoice.note: string` | `invoice.note: { content, languageID? }[]` | Same change for `creditNote.note` and line `note` |
-| `billingReference: { ... }` | `billingReference: [{ ... }]` | Applies to invoices and credit notes |
-| `line.documentReference: string` | `line.documentReference: { id, documentTypeCode? }` | `documentTypeCode` defaults to `'130'` when omitted |
-| `identification[].scheme` using an EAS code | `identification[].scheme` must use an ICD code | `endPoint.scheme` still uses EAS |
+| Before                                      | Now                                                 | Notes                                                    |
+| ------------------------------------------- | --------------------------------------------------- | -------------------------------------------------------- |
+| `party.taxSchemeCompanyID: string`          | `party.taxSchemes: [{ companyId, schemeID? }]`      | Supports 0..2 tax schemes instead of a single flat field |
+| `party.legalEntity.companyId: string`       | `party.legalEntity.companyId: { id, schemeID? }`    | Matches the XML structure and allows `schemeID`          |
+| `invoice.note: string`                      | `invoice.note: { content, languageID? }[]`          | Same change for `creditNote.note` and line `note`        |
+| `billingReference: { ... }`                 | `billingReference: [{ ... }]`                       | Applies to invoices and credit notes                     |
+| `line.documentReference: string`            | `line.documentReference: { id, documentTypeCode? }` | `documentTypeCode` defaults to `'130'` when omitted      |
+| `identification[].scheme` using an EAS code | `identification[].scheme` must use an ICD code      | `endPoint.scheme` still uses EAS                         |
 
 ### Other notable changes
 
@@ -302,8 +313,8 @@ const toolkit = new PeppolToolkit();
 // Parse an invoice XML string back into a structured Invoice object
 const invoiceXml = '<?xml version="1.0"?>...'; // your UBL XML string
 const invoice: Invoice = toolkit.peppolUBLToInvoice(invoiceXml);
-console.log(invoice.ID);             // 'INV-2024-001'
-console.log(invoice.invoiceLines);   // array of line items
+console.log(invoice.ID); // 'INV-2024-001'
+console.log(invoice.invoiceLines); // array of line items
 
 // Parse a credit note XML string back into a CreditNote object
 const creditNoteXml = '<?xml version="1.0"?>...'; // your UBL credit note XML
@@ -319,22 +330,67 @@ Use the static `computeTotals` helper to calculate line totals, tax amounts, and
 import { PeppolToolkit } from '@pixeldrive/peppol-toolkit';
 
 const items = [
-    { price: 100,  quantity: 10, taxPercent: 21 },  // 1 000.00 + 210.00 VAT
-    { price: 49.99, quantity: 3, taxPercent: 21 },  //   149.97 +  31.49 VAT
-    { price: 200,  quantity: 2,  taxPercent: 0  },  //   400.00 + 0.00 VAT (exempt)
+    { price: 100, quantity: 10, taxPercent: 21 }, // 1 000.00 + 210.00 VAT
+    { price: 49.99, quantity: 3, taxPercent: 21 }, //   149.97 +  31.49 VAT
+    { price: 200, quantity: 2, taxPercent: 0, taxCategoryCode: 'Z' }, //   400.00 + 0.00 VAT (zero-rated)
 ];
 
 const totals = PeppolToolkit.computeTotals(items);
 
-console.log(totals.baseAmount.toNumber());          // 1549.97
-console.log(totals.taxAmount.toNumber());           // 241.49
-console.log(totals.totalAmount.toNumber());         // 1791.46
+console.log(totals.baseAmount.toNumber()); // 1549.97
+console.log(totals.taxAmount.toNumber()); // 241.49
+console.log(totals.totalAmount.toNumber()); // 1791.46
 
-// Tax amounts grouped by rate
-for (const [rate, taxableAmount] of totals.taxableAmountPerRate) {
-    console.log(`${rate}% → taxable: ${taxableAmount}`);
+// VAT breakdown: one entry per distinct combination of VAT category code and rate (Peppol BIS §8.3)
+for (const entry of totals.vatBreakdown) {
+    console.log(
+        `${entry.categoryCode} ${entry.percent}% → taxable: ${entry.taxableAmount}, VAT: ${entry.taxAmount}`
+    );
 }
+// S 21% → taxable: 1149.97, VAT: 241.49
+// Z 0% → taxable: 400, VAT: 0
 ```
+
+Each line may carry a `taxCategoryCode` (UNCL5305: `S`, `Z`, `E`, `AE`, `K`, `G`, `O`, ...), defaulting to `S`. Lines are grouped by category code and canonical rate (`21`, `'21'` and `'21.0'` are the same rate; `E` and `Z` lines at 0% are two separate groups). The VAT of each group is `taxableAmount × percent / 100` rounded half-up to two decimals (BR-CO-17), and `taxAmount` is exactly the sum of the group amounts (BR-CO-14). Never recompute `taxable × rate / 100` yourself: an unrounded value such as `52.605` is rejected by the builder (see [Amount precision](#amount-precision)).
+
+`taxableAmountPerRate` and `taxAmountPerRate` (`Map<string, Decimal>`, keyed by the canonical rate as a string) are derived from the breakdown by summing the groups that share a rate; they therefore merge categories that share a rate (e.g. `E` and `Z` at 0%) and are not suitable for building the tax sub totals when several categories are used.
+
+Build the `taxTotal` of the document from `vatBreakdown`:
+
+```typescript
+import { Invoice } from '@pixeldrive/peppol-toolkit';
+
+const taxTotal: Invoice['taxTotal'] = [
+    {
+        taxAmountCurrency: 'EUR',
+        taxAmount: totals.taxAmount.toNumber(),
+        subTotals: totals.vatBreakdown.map((entry) => ({
+            taxableAmount: entry.taxableAmount.toNumber(),
+            taxAmount: entry.taxAmount.toNumber(),
+            taxCategory: {
+                categoryCode: entry.categoryCode,
+                percent: entry.percent,
+            },
+        })),
+    },
+];
+```
+
+Two things are not covered by `computeTotals` and remain the caller's responsibility:
+
+- **Document-level allowances and charges** (BG-20/BG-21) must be added to or subtracted from the taxable base of their VAT category before the VAT is computed (Peppol BIS §10.4). `computeTotals` only knows the lines.
+- Categories other than `S` need an **exemption reason** on the sub total: set `taxCategory.exemptionReason` or `taxCategory.exemptionReasonCode` for `E`, `AE`, `K`, `G` and `O` sub totals (BR-E-10, BR-AE-10, BR-IC-10, BR-G-10, BR-O-10).
+
+### Amount precision
+
+EN 16931 requires every monetary amount (`cbc:TaxAmount`, `cbc:TaxableAmount`, `cbc:LineExtensionAmount`, the `cac:LegalMonetaryTotal` amounts, allowance/charge amounts, ...) to have at most two decimals. `invoiceToPeppolUBL` and `creditNoteToPeppolUBL` enforce this: an amount with more than two decimals throws an error naming the offending field instead of being silently rounded.
+
+```typescript
+toolkit.invoiceToPeppolUBL({ ...invoice, taxTotal: [{ ..., subTotals: [{ taxAmount: 52.605, ... }] }] });
+// RangeError: Invalid amount for "taxTotal[0].subTotals[0].taxAmount": 52.605 has more than 2 decimal places. ...
+```
+
+The unit price fields are intentionally excluded and keep their full precision (serialized in fixed-point notation): the line price (`cac:Price/cbc:PriceAmount`) and the unit price discount and gross price (`priceAllowanceCharge.amount` / `.baseAmount` → `cac:Price/cac:AllowanceCharge/cbc:Amount` and `cbc:BaseAmount`). Line-level and document-level allowances/charges remain limited to two decimals. The builder also checks BR-CO-14 before serializing: each `taxTotal[].taxAmount` must equal the sum of its `subTotals[].taxAmount`, otherwise a descriptive error is thrown. Parsing received documents is never affected by these checks.
 
 ### Look up an EAS Endpoint Scheme from a VAT Number
 
@@ -386,9 +442,9 @@ const result = await toolkit.validateWithKosit(xml, {
     endpoint: 'http://localhost:8081/',
 });
 
-console.log(result.valid);     // true | false
-console.log(result.errors);    // validation errors
-console.log(result.warnings);  // validation warnings
+console.log(result.valid); // true | false
+console.log(result.errors); // validation errors
+console.log(result.warnings); // validation warnings
 ```
 
 Notes:
@@ -405,20 +461,20 @@ The main class that provides invoice and credit note conversion functionality.
 
 #### Instance Methods
 
-| Method | Description |
-|--------|-------------|
-| `invoiceToPeppolUBL(invoice: Invoice): string` | Converts an `Invoice` object to a PEPPOL-compliant UBL XML string |
-| `creditNoteToPeppolUBL(creditNote: CreditNote): string` | Converts a `CreditNote` object to a PEPPOL-compliant UBL XML string |
-| `peppolUBLToInvoice(xml: string): Invoice` | Parses a PEPPOL UBL XML string into an `Invoice` object |
-| `peppolUBLToCreditNote(xml: string): CreditNote` | Parses a PEPPOL UBL XML string into a `CreditNote` object |
+| Method                                                                                            | Description                                                                  |
+| ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `invoiceToPeppolUBL(invoice: Invoice): string`                                                    | Converts an `Invoice` object to a PEPPOL-compliant UBL XML string            |
+| `creditNoteToPeppolUBL(creditNote: CreditNote): string`                                           | Converts a `CreditNote` object to a PEPPOL-compliant UBL XML string          |
+| `peppolUBLToInvoice(xml: string): Invoice`                                                        | Parses a PEPPOL UBL XML string into an `Invoice` object                      |
+| `peppolUBLToCreditNote(xml: string): CreditNote`                                                  | Parses a PEPPOL UBL XML string into a `CreditNote` object                    |
 | `validateWithKosit(xml: string, options?: KositValidatorOptions): Promise<KositValidationResult>` | Sends XML to a KoSIT validator service and returns parsed validation outcome |
 
 #### Static Helpers
 
-| Helper | Description |
-|--------|-------------|
-| `PeppolToolkit.computeTotals(items: UBLLineItem[]): Totals` | Calculates line totals, tax amounts and grand total following EN 16931 rules |
-| `PeppolToolkit.getEASFromTaxId(taxId: string): string` | Returns the EAS scheme code for a country-prefixed VAT number |
+| Helper                                                      | Description                                                                                                                                                      |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PeppolToolkit.computeTotals(items: UBLLineItem[]): Totals` | Calculates line totals, the VAT breakdown per category code and rate (`vatBreakdown`), tax amounts (total and per rate) and grand total following EN 16931 rules |
+| `PeppolToolkit.getEASFromTaxId(taxId: string): string`      | Returns the EAS scheme code for a country-prefixed VAT number                                                                                                    |
 
 ### `createToolkit()`
 

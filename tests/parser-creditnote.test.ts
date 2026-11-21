@@ -91,7 +91,9 @@ describe('CreditNote Parser', () => {
     it('should preserve billing reference', () => {
         const xml = toolkit.creditNoteToPeppolUBL(basicCreditNote);
         const parsed = toolkit.peppolUBLToCreditNote(xml);
-        expect(parsed.billingReference?.[0].invoiceDocReference.id).toBe('INV-001');
+        expect(parsed.billingReference?.[0].invoiceDocReference.id).toBe(
+            'INV-001'
+        );
         expect(parsed.billingReference?.[0].invoiceDocReference.issueDate).toBe(
             '2017-09-15'
         );

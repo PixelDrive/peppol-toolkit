@@ -41,9 +41,7 @@ describe('CreditNote Lines', () => {
             price: 100,
             name: 'Petit poney',
             currency: 'EUR',
-            additionalItemProperties: [
-                { name: 'test', value: 'hello world' },
-            ],
+            additionalItemProperties: [{ name: 'test', value: 'hello world' }],
             unitCode: 'DAY',
             taxCategory: {
                 percent: 21,
@@ -62,9 +60,7 @@ describe('CreditNote Lines', () => {
             price: 100,
             name: 'Petit poney',
             currency: 'EUR',
-            additionalItemProperties: [
-                { name: 'test', value: 'hello world' },
-            ],
+            additionalItemProperties: [{ name: 'test', value: 'hello world' }],
             unitCode: 'DAY',
             taxCategory: {
                 percent: 21,
@@ -86,9 +82,7 @@ describe('CreditNote Lines', () => {
             price: 100,
             name: 'Petit poney',
             currency: 'INV',
-            additionalItemProperties: [
-                { name: 'test', value: 'hello world' },
-            ],
+            additionalItemProperties: [{ name: 'test', value: 'hello world' }],
             unitCode: 'DAY',
             taxCategory: {
                 percent: 21,
@@ -108,9 +102,7 @@ describe('CreditNote Lines', () => {
             price: 100,
             name: 'Petit poney',
             currency: 'EUR',
-            additionalItemProperties: [
-                { name: 'test', value: 'hello world' },
-            ],
+            additionalItemProperties: [{ name: 'test', value: 'hello world' }],
             unitCode: 'DAY1',
             taxCategory: {
                 percent: 21,
@@ -130,9 +122,7 @@ describe('CreditNote Lines', () => {
             price: 100,
             name: 'Petit poney',
             currency: 'EUR',
-            additionalItemProperties: [
-                { name: 'test', value: 'hello world' },
-            ],
+            additionalItemProperties: [{ name: 'test', value: 'hello world' }],
             unitCode: 'H67',
             taxCategory: {
                 percent: 21,

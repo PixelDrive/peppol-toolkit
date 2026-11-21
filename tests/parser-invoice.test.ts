@@ -66,9 +66,7 @@ describe('Invoice Parser', () => {
     it('should preserve seller information', () => {
         const xml = toolkit.invoiceToPeppolUBL(basicInvoice);
         const parsed = toolkit.peppolUBLToInvoice(xml);
-        expect(parsed.seller.endPoint.id).toBe(
-            basicInvoice.seller.endPoint.id
-        );
+        expect(parsed.seller.endPoint.id).toBe(basicInvoice.seller.endPoint.id);
         expect(parsed.seller.endPoint.scheme).toBe(
             basicInvoice.seller.endPoint.scheme
         );
@@ -171,5 +169,17 @@ describe('Invoice Parser', () => {
         const xml = toolkit.invoiceToPeppolUBL(invoice);
         const parsed = toolkit.peppolUBLToInvoice(xml);
         expect(parsed.dueDate).toBeUndefined();
+    });
+
+    it('should still parse received documents whose amounts have more than two decimals', () => {
+        // Amount precision is only enforced when building documents, never when parsing them
+        const xml = toolkit
+            .invoiceToPeppolUBL(basicInvoice)
+            .split('<cbc:TaxAmount currencyID="EUR">21.00</cbc:TaxAmount>')
+            .join('<cbc:TaxAmount currencyID="EUR">21.005</cbc:TaxAmount>');
+        expect(xml).toContain('21.005');
+        const parsed = toolkit.peppolUBLToInvoice(xml);
+        expect(parsed.taxTotal[0].taxAmount).toBe(21.005);
+        expect(parsed.taxTotal[0].subTotals[0].taxAmount).toBe(21.005);
     });
 });
