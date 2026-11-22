@@ -20,7 +20,11 @@ PEPPOL (Pan-European Public Procurement On-Line) is a set of specifications that
 npm install @pixeldrive/peppol-toolkit
 ```
 
+Pre-releases are published under the `canary` dist-tag and are only installed when asked for explicitly: `npm install @pixeldrive/peppol-toolkit@canary`. `npm install` and `npm update` keep resolving to the latest stable version.
+
 ## Breaking changes in `0.10.0`
+
+`0.10.0` is published as a canary (`npm install @pixeldrive/peppol-toolkit@canary`). The first stable release with these changes will be `0.10.1`.
 
 Version `0.10.0` aligns the code lists with **Peppol BIS Billing 3.0.21** (mandatory since 2026-08-17, see [Code lists](#code-lists)). Codes that the toolkit used to accept but that a BIS 3.0.21 validator rejects are no longer part of the types and schemas: documents using them do not compile anymore and fail to parse with `peppolUBLToInvoice` / `peppolUBLToCreditNote`.
 
@@ -785,6 +789,10 @@ KOSIT_EN16931_ENDPOINT=http://localhost:8082/ npm run test:e2e # terminal 2
 ```
 
 `KOSIT_CEN_VERSION` (default `1.3.17`) and `KOSIT_EN16931_PORT` (default `8082`) configure that validator.
+
+### Releasing
+
+Pushing a new `version` in `package.json` to `main` publishes it to npm (`.github/workflows/publish.yml`). The workflow publishes each version once. While `publishConfig.tag` is `canary` in `package.json`, versions are published under the `canary` dist-tag and `latest` does not move. For a stable release, bump the version and remove `publishConfig.tag` in the same commit.
 
 ## Requirements
 

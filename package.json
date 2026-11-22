@@ -21,7 +21,8 @@
         "url": "https://github.com/PixelDrive/peppol-toolkit"
     },
     "publishConfig": {
-        "access": "public"
+        "access": "public",
+        "tag": "canary"
     },
     "exports": {
         ".": {
