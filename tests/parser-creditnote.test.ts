@@ -1,7 +1,21 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { ZodError } from 'zod';
 import { PeppolToolkit } from '../src';
 import { basicCreditNote } from '../src/data/basic-creditNote';
 import { fullCreditNote } from './fixtures/full-documents';
+
+function expectZodPath(fn: () => unknown, expectedPath: (string | number)[]) {
+    let caught: unknown;
+    try {
+        fn();
+    } catch (error) {
+        caught = error;
+    }
+    expect(caught).toBeInstanceOf(ZodError);
+    expect(
+        (caught as ZodError).issues.map((issue) => issue.path)
+    ).toContainEqual(expectedPath);
+}
 
 describe('CreditNote Parser', () => {
     let toolkit: PeppolToolkit;
@@ -195,5 +209,101 @@ describe('CreditNote Parser', () => {
             fullCreditNote.creditNoteLines[0].priceAllowanceCharge
         );
         expect(toolkit.en16931UBLToCreditNote(xml)).toEqual(parsed);
+    });
+
+    describe('empty, missing, and repeated XML elements (#31)', () => {
+        it('should reject empty elements with attributes instead of parsing "[object Object]"', () => {
+            const emptyEndpoint = toolkit
+                .creditNoteToPeppolUBL(basicCreditNote)
+                .replace(
+                    '<cbc:EndpointID schemeID="9925">0732788874</cbc:EndpointID>',
+                    '<cbc:EndpointID schemeID="9925"/>'
+                );
+            expectZodPath(
+                () => toolkit.peppolUBLToCreditNote(emptyEndpoint),
+                ['seller', 'endPoint', 'id']
+            );
+        });
+
+        it('should reject missing LineExtensionAmount in LegalMonetaryTotal', () => {
+            const xml = toolkit
+                .creditNoteToPeppolUBL(basicCreditNote)
+                .replace(
+                    /<cbc:LineExtensionAmount currencyID="EUR">100\.00<\/cbc:LineExtensionAmount>\s*<cbc:TaxExclusiveAmount/,
+                    '<cbc:TaxExclusiveAmount'
+                );
+            expectZodPath(
+                () => toolkit.peppolUBLToCreditNote(xml),
+                ['legalMonetaryTotal', 'lineExtensionAmount']
+            );
+        });
+
+        it('should parse empty optional numeric elements as undefined instead of 0', () => {
+            const xml = toolkit
+                .creditNoteToPeppolUBL(basicCreditNote)
+                .replace(/<cbc:Percent>21<\/cbc:Percent>/g, '<cbc:Percent/>');
+            const parsed = toolkit.peppolUBLToCreditNote(xml);
+
+            expect(
+                parsed.taxTotal[0].subTotals[0].taxCategory.percent
+            ).toBeUndefined();
+            expect(
+                parsed.creditNoteLines[0].taxCategory.percent
+            ).toBeUndefined();
+        });
+
+        it('should defer line allowanceCharge currency validation to the document schema', () => {
+            const xml = toolkit.creditNoteToPeppolUBL({
+                ...basicCreditNote,
+                creditNoteLines: [
+                    {
+                        ...basicCreditNote.creditNoteLines[0],
+                        allowanceCharge: [
+                            { chargeIndicator: false, amount: 10 },
+                        ],
+                    },
+                ],
+            });
+
+            const withoutCurrency = xml.replace(
+                '<cbc:Amount currencyID="EUR">10.00</cbc:Amount>',
+                '<cbc:Amount>10.00</cbc:Amount>'
+            );
+            expect(
+                toolkit.peppolUBLToCreditNote(withoutCurrency)
+                    .creditNoteLines[0].allowanceCharge?.[0].currency
+            ).toBeUndefined();
+
+            const invalidCurrency = xml.replace(
+                '<cbc:Amount currencyID="EUR">10.00</cbc:Amount>',
+                '<cbc:Amount currencyID="INVALID">10.00</cbc:Amount>'
+            );
+            expectZodPath(
+                () => toolkit.peppolUBLToCreditNote(invalidCurrency),
+                ['creditNoteLines', 0, 'allowanceCharge', 0, 'currency']
+            );
+        });
+
+        it('should preserve multiple cac:AddressLine elements', () => {
+            const xml = toolkit
+                .creditNoteToPeppolUBL({
+                    ...basicCreditNote,
+                    seller: {
+                        ...basicCreditNote.seller,
+                        address: {
+                            ...basicCreditNote.seller.address,
+                            addressLine: 'Third floor',
+                        },
+                    },
+                })
+                .replace(
+                    '<cac:AddressLine>',
+                    '<cac:AddressLine><cbc:Line>Building A</cbc:Line></cac:AddressLine><cac:AddressLine>'
+                );
+
+            expect(
+                toolkit.peppolUBLToCreditNote(xml).seller.address.addressLine
+            ).toBe('Building A\nThird floor');
+        });
     });
 });
