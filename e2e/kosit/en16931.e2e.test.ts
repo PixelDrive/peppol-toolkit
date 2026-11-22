@@ -50,7 +50,7 @@ async function run(testCase: En16931KositCase) {
     writeFileSync(join(outputDir, `${slug}.xml`), xml);
     writeFileSync(join(outputDir, `${slug}.report.xml`), result.rawXml);
 
-    return result;
+    return { xml, result };
 }
 
 describe.skipIf(!endpoint)('KoSIT EN 16931 validation', () => {
@@ -70,10 +70,16 @@ describe.skipIf(!endpoint)('KoSIT EN 16931 validation', () => {
         it.each(en16931ValidCases.map((c) => [c.name, c] as const))(
             '%s',
             async (_name, testCase) => {
-                const result = await run(testCase);
+                const { xml, result } = await run(testCase);
 
                 expect(describeMessages(result.errors)).toEqual([]);
                 expect(result.valid).toBe(true);
+                expect(PeppolToolkit.detectUblProfile(xml)).toBe('en16931');
+                const parsed =
+                    testCase.kind === 'invoice'
+                        ? toolkit.en16931UBLToInvoice(xml)
+                        : toolkit.en16931UBLToCreditNote(xml);
+                expect(parsed).toMatchObject(testCase.document);
             }
         );
     });
@@ -82,7 +88,7 @@ describe.skipIf(!endpoint)('KoSIT EN 16931 validation', () => {
         it.each(en16931InvalidCases.map((c) => [c.name, c] as const))(
             '%s',
             async (_name, testCase) => {
-                const result = await run(testCase);
+                const { result } = await run(testCase);
 
                 expect(result.valid).toBe(false);
                 for (const expected of testCase.expectedErrors ?? []) {

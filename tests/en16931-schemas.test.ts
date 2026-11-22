@@ -14,6 +14,7 @@ import {
     Invoice,
     invoiceSchema,
     partySchema,
+    PeppolToolkit,
 } from '../src';
 
 const consumer = exampleEn16931Invoice.buyer;
@@ -116,5 +117,108 @@ describe('EN 16931 document schemas', () => {
         const creditNote = creditNoteSchema.safeParse(exampleEn16931CreditNote);
         expect(creditNote.success).toBe(false);
         expect(creditNote.error?.issues[0].path).toEqual(['buyer', 'endPoint']);
+    });
+
+    it('round-trips core document type codes outside the Peppol billing lists', () => {
+        const toolkit = new PeppolToolkit();
+        const invoice = {
+            ...exampleInvoice,
+            invoiceTypeCode: 385,
+        } satisfies En16931Invoice;
+        const creditNote = {
+            ...exampleCreditNote,
+            creditNoteTypeCode: 261,
+        } satisfies En16931CreditNote;
+
+        expect(
+            toolkit.en16931UBLToInvoice(toolkit.invoiceToEn16931UBL(invoice))
+                .invoiceTypeCode
+        ).toBe(385);
+        expect(
+            toolkit.en16931UBLToCreditNote(
+                toolkit.creditNoteToEn16931UBL(creditNote)
+            ).creditNoteTypeCode
+        ).toBe(261);
+        expect(invoiceSchema.safeParse(invoice).success).toBe(false);
+        expect(creditNoteSchema.safeParse(creditNote).success).toBe(false);
+    });
+
+    it.each(['0249', '0250', '0251'] as const)(
+        'round-trips the CEN ICD party identifier scheme %s',
+        (scheme) => {
+            const toolkit = new PeppolToolkit();
+            const identification = [{ id: 'REVIEW1234', scheme }];
+            const invoice = {
+                ...exampleInvoice,
+                buyer: { ...exampleInvoice.buyer, identification },
+            } satisfies En16931Invoice;
+            const parsed = toolkit.en16931UBLToInvoice(
+                toolkit.invoiceToEn16931UBL(invoice)
+            );
+
+            expect(parsed.buyer.identification).toEqual(identification);
+            expect(invoiceSchema.safeParse(invoice).success).toBe(false);
+        }
+    );
+
+    it('allows a seller creditor identifier and rejects SEPA as a buyer identifier', () => {
+        const identification = [{ id: 'BE12ZZZ0000000001', scheme: 'SEPA' }];
+        expect(
+            en16931InvoiceSchema.safeParse({
+                ...exampleEn16931Invoice,
+                seller: { ...company, identification },
+            }).success
+        ).toBe(true);
+        expect(
+            en16931InvoiceSchema.safeParse({
+                ...exampleEn16931Invoice,
+                buyer: { ...consumer, identification },
+            }).success
+        ).toBe(false);
+    });
+
+    it('round-trips negative line amounts, quantities and VAT totals', () => {
+        const toolkit = new PeppolToolkit();
+        const example = exampleEn16931Invoice;
+        const [tax] = example.taxTotal;
+        const invoice = {
+            ...example,
+            invoiceLines: [
+                {
+                    ...example.invoiceLines[0],
+                    invoicedQuantity: -1,
+                    lineExtensionAmount: -100,
+                },
+            ],
+            taxTotal: [
+                {
+                    ...tax,
+                    taxAmount: -21,
+                    subTotals: [
+                        {
+                            ...tax.subTotals[0],
+                            taxableAmount: -100,
+                            taxAmount: -21,
+                        },
+                    ],
+                },
+            ],
+            legalMonetaryTotal: {
+                ...example.legalMonetaryTotal,
+                lineExtensionAmount: -100,
+                taxExclusiveAmount: -100,
+                taxInclusiveAmount: -121,
+                payableAmount: -121,
+            },
+        } satisfies En16931Invoice;
+
+        const parsed = toolkit.en16931UBLToInvoice(
+            toolkit.invoiceToEn16931UBL(invoice)
+        );
+        expect(parsed.invoiceLines[0]).toMatchObject(invoice.invoiceLines[0]);
+        expect(parsed.taxTotal[0]).toMatchObject(invoice.taxTotal[0]);
+        expect(parsed.legalMonetaryTotal).toMatchObject(
+            invoice.legalMonetaryTotal
+        );
     });
 });

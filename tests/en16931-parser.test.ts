@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+    detectUblProfile,
     exampleCreditNote,
     exampleEn16931CreditNote,
     exampleEn16931Invoice,
@@ -14,6 +15,17 @@ import {
     sellerWithoutEndpoint,
     slovakBuyer,
 } from './fixtures/en16931-documents';
+
+function useAlternatePrefixes(xml: string, root: 'Invoice' | 'CreditNote') {
+    return xml
+        .replace(`<${root} `, `<ubl:${root} `)
+        .replace(`</${root}>`, `</ubl:${root}>`)
+        .replace(' xmlns="', ' xmlns:ubl="')
+        .replace(/cbc:/g, 'basic:')
+        .replace('xmlns:cbc=', 'xmlns:basic=')
+        .replace(/cac:/g, 'aggregate:')
+        .replace('xmlns:cac=', 'xmlns:aggregate=');
+}
 
 describe('EN 16931 parser', () => {
     let toolkit: PeppolToolkit;
@@ -76,6 +88,51 @@ describe('EN 16931 parser', () => {
             scheme: '0208',
             id: '0732788874',
         });
+    });
+
+    it('reads an invoice with alternate UBL namespace prefixes', () => {
+        const xml = toolkit.invoiceToEn16931UBL(exampleEn16931Invoice);
+        const prefixedXml = useAlternatePrefixes(xml, 'Invoice');
+        expect(detectUblProfile(prefixedXml)).toBe('en16931');
+        expect(toolkit.en16931UBLToInvoice(prefixedXml)).toEqual(
+            toolkit.en16931UBLToInvoice(xml)
+        );
+    });
+
+    it('reads a credit note with alternate UBL namespace prefixes', () => {
+        const xml = toolkit.creditNoteToEn16931UBL(exampleEn16931CreditNote);
+        const prefixedXml = useAlternatePrefixes(xml, 'CreditNote');
+        expect(detectUblProfile(prefixedXml)).toBe('en16931');
+        expect(toolkit.en16931UBLToCreditNote(prefixedXml)).toEqual(
+            toolkit.en16931UBLToCreditNote(xml)
+        );
+    });
+
+    it('reads a payee party with an identifier', () => {
+        const payeeParty = {
+            name: 'Payee',
+            identification: { id: '1234', schemeID: '0088' },
+        };
+        const xml = toolkit.invoiceToEn16931UBL({
+            ...exampleEn16931Invoice,
+            payeeParty,
+        });
+        expect(toolkit.en16931UBLToInvoice(xml).payeeParty).toEqual(payeeParty);
+    });
+
+    it('preserves note whitespace around XML comments and in CDATA', () => {
+        const xml = toolkit
+            .invoiceToEn16931UBL({
+                ...exampleEn16931Invoice,
+                note: [{ content: 'Example' }],
+            })
+            .replace(
+                '>Example</cbc:Note>',
+                '>Part A <!-- comment --> remains<![CDATA[ & more]]></cbc:Note>'
+            );
+        expect(toolkit.en16931UBLToInvoice(xml).note).toEqual([
+            { content: 'Part A  remains & more' },
+        ]);
     });
 
     it('accepts Peppol BIS documents', () => {

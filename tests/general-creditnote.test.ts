@@ -21,7 +21,7 @@ describe('CreditNoteTypeCodes', () => {
     });
 
     it('should return errors if not in supported list', () => {
-        const sampleCreditNote: CreditNote = {
+        const sampleCreditNote = {
             ...basicCreditNote,
             creditNoteTypeCode: 380,
         };

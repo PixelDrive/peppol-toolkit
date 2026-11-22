@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
     detectUblProfile,
+    EN16931_CUSTOMIZATION_ID,
     exampleCreditNote,
     exampleEn16931CreditNote,
     exampleEn16931Invoice,
     exampleInvoice,
+    PEPPOL_BIS3_CUSTOMIZATION_ID,
     PeppolToolkit,
 } from '../src';
 
@@ -57,6 +59,18 @@ describe('detectUblProfile', () => {
         expect(detectUblProfile(xml)).toBe('en16931');
     });
 
+    it('recognizes CustomizationID declared in the default namespace locally', () => {
+        const xml = invoiceWithCustomizationID(EN16931_CUSTOMIZATION_ID)
+            .replace(
+                '<cbc:CustomizationID>',
+                '<CustomizationID xmlns="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">'
+            )
+            .replace('</cbc:CustomizationID>', '</CustomizationID>');
+        expect(detectUblProfile(xml)).toBe('en16931');
+    });
+
+    const peppolXml = invoiceWithCustomizationID(PEPPOL_BIS3_CUSTOMIZATION_ID);
+
     it.each([
         [
             'another CIUS (XRechnung)',
@@ -87,6 +101,34 @@ describe('detectUblProfile', () => {
         ],
         ['text that is not XML', 'not xml'],
         ['malformed XML', '<<<'],
+        ['a missing closing root tag', peppolXml.replace('</Invoice>', '')],
+        ['two XML roots', `${peppolXml}<Invoice/>`],
+        [
+            'Invoice in a different namespace',
+            peppolXml.replace(
+                'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2',
+                'urn:example:invoice'
+            ),
+        ],
+        [
+            'CustomizationID in a locally rebound namespace',
+            peppolXml.replace(
+                '<cbc:CustomizationID>',
+                '<cbc:CustomizationID xmlns:cbc="urn:example:customization">'
+            ),
+        ],
+        [
+            'a nested CustomizationID',
+            peppolXml
+                .replace(
+                    '<cbc:CustomizationID>',
+                    '<Other><cbc:CustomizationID>'
+                )
+                .replace(
+                    '</cbc:CustomizationID>',
+                    '</cbc:CustomizationID></Other>'
+                ),
+        ],
     ])('returns unknown for %s', (_name, xml) => {
         expect(detectUblProfile(xml)).toBe('unknown');
     });

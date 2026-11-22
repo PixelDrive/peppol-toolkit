@@ -1,6 +1,10 @@
 import { z } from 'zod';
 import { EASCodeSchema } from './EASCodes';
-import { en16931PartySchema } from '../en16931/Parties';
+import { ICDCodeSchema } from './ICDCodes';
+import {
+    en16931PartySchema,
+    partyIdentificationSchema,
+} from '../en16931/Parties';
 
 /**
  * Seller or buyer of a Peppol BIS document: an EN 16931 party whose electronic address is
@@ -12,4 +16,8 @@ export const partySchema = en16931PartySchema.extend({
         scheme: EASCodeSchema,
         id: z.string().min(1),
     }),
+    identification: partyIdentificationSchema
+        .extend({ scheme: ICDCodeSchema.optional() })
+        .array()
+        .optional(),
 });

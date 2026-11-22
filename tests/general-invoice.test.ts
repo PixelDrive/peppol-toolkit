@@ -13,7 +13,7 @@ describe('InvoiceTypeCodes', () => {
     });
 
     it('should return errors if not in supported list', () => {
-        const sampleInvoice: Invoice = {
+        const sampleInvoice = {
             ...basicInvoice,
             invoiceTypeCode: 381,
         };

@@ -1,6 +1,6 @@
 import z from 'zod';
 import { en16931InvoiceSchema } from './Invoice';
-import { CreditNoteTypeCodeSchema } from '../invoices/CreditNoteTypeCodes';
+import { En16931CreditNoteTypeCodeSchema } from './DocumentTypeCodes';
 
 /**
  * Credit note following the EN 16931 core model, without the Peppol CIUS: the seller and the
@@ -13,8 +13,8 @@ export const en16931CreditNoteSchema = en16931InvoiceSchema
     .extend({
         customizationID: z.string().optional(),
         profileID: z.string().optional(),
-        creditNoteTypeCode: CreditNoteTypeCodeSchema,
-        creditNoteLines: en16931InvoiceSchema.shape.invoiceLines.min(1),
+        creditNoteTypeCode: En16931CreditNoteTypeCodeSchema,
+        creditNoteLines: en16931InvoiceSchema.shape.invoiceLines,
     })
     .omit({
         invoiceTypeCode: true,

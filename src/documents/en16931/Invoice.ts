@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { InvoiceTypeCodeSchema } from '../invoices/InvoiceTypeCodes';
 import { CurrencyCodeSchema } from '../common/CurrencyCodes';
 import { date } from '../common/Date';
 import { deliverySchema } from '../common/Delivery';
@@ -7,18 +6,34 @@ import { invoicePeriodSchema } from '../common/InvoicePeriodSchema';
 import { legalMonetaryTotalSchema } from '../common/LegalMonetaryTotal';
 import { lineSchema } from '../common/Line';
 import { paymentMeansSchema } from '../common/PaymentMeans';
-import { taxTotalSchema } from '../common/TaxTotal';
+import { taxSubtotalSchema, taxTotalSchema } from '../common/TaxTotal';
 import { allowanceChargeSchema } from '../common/AllowanceCharge';
 import { additionalDocumentReferenceSchema } from '../common/AdditionalDocumentReference';
 import { payeePartySchema } from '../common/PayeeParty';
 import { taxRepresentativePartySchema } from '../common/TaxRepresentativeParty';
-import { en16931PartySchema } from './Parties';
+import { En16931InvoiceTypeCodeSchema } from './DocumentTypeCodes';
+import { en16931BuyerPartySchema, en16931PartySchema } from './Parties';
 
 const billingReferenceSchema = z.object({
     invoiceDocReference: z.object({
         id: z.string(),
         issueDate: date.optional(),
     }),
+});
+
+const en16931LineSchema = lineSchema.extend({
+    invoicedQuantity: z.number(),
+    lineExtensionAmount: z.number(),
+});
+
+const en16931TaxTotalSchema = taxTotalSchema.extend({
+    taxAmount: z.number(),
+    subTotals: z.array(
+        taxSubtotalSchema.extend({
+            taxableAmount: z.number(),
+            taxAmount: z.number(),
+        })
+    ),
 });
 
 /**
@@ -33,7 +48,7 @@ export const en16931InvoiceSchema = z.object({
     ID: z.string().min(1),
     issueDate: date,
     dueDate: date.optional(),
-    invoiceTypeCode: InvoiceTypeCodeSchema,
+    invoiceTypeCode: En16931InvoiceTypeCodeSchema,
     note: z
         .array(
             z.object({
@@ -66,7 +81,7 @@ export const en16931InvoiceSchema = z.object({
     projectReference: z.string().optional(),
 
     seller: en16931PartySchema,
-    buyer: en16931PartySchema,
+    buyer: en16931BuyerPartySchema,
     payeeParty: payeePartySchema.optional(),
     taxRepresentativeParty: taxRepresentativePartySchema.optional(),
 
@@ -77,9 +92,9 @@ export const en16931InvoiceSchema = z.object({
         .optional()
         .describe('Payment terms that apply (including penalties)'),
     allowanceCharge: z.array(allowanceChargeSchema).optional(),
-    taxTotal: z.array(taxTotalSchema).min(1).max(2),
+    taxTotal: z.array(en16931TaxTotalSchema).min(1).max(2),
     legalMonetaryTotal: legalMonetaryTotalSchema,
-    invoiceLines: z.array(lineSchema).min(1),
+    invoiceLines: z.array(en16931LineSchema).min(1),
 });
 
 export type En16931Invoice = z.infer<typeof en16931InvoiceSchema>;

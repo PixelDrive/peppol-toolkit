@@ -89,6 +89,82 @@ export const en16931ValidCases: En16931KositCase[] = [
         kind: 'invoice',
         document: invoice({ seller: belgianSeller, buyer: belgianBuyer }),
     },
+    {
+        name: 'invoice - CEN invoice type 385',
+        kind: 'invoice',
+        document: invoice({ invoiceTypeCode: 385 }),
+    },
+    {
+        name: 'credit note - CEN credit note type 261',
+        kind: 'creditNote',
+        document: creditNote({ creditNoteTypeCode: 261 }),
+    },
+    {
+        name: 'invoice - CEN seller identification scheme 0249',
+        kind: 'invoice',
+        document: invoice({
+            seller: {
+                ...seller,
+                identification: [{ scheme: '0249', id: '1234567' }],
+            },
+        }),
+    },
+    {
+        name: 'invoice - negative quantity and tax amounts',
+        kind: 'invoice',
+        document: invoice({
+            invoiceLines: [
+                {
+                    ...exampleEn16931Invoice.invoiceLines[0],
+                    invoicedQuantity: -1,
+                    lineExtensionAmount: -100,
+                },
+            ],
+            taxTotal: [
+                {
+                    ...exampleEn16931Invoice.taxTotal[0],
+                    taxAmount: -21,
+                    subTotals: [
+                        {
+                            ...exampleEn16931Invoice.taxTotal[0].subTotals[0],
+                            taxableAmount: -100,
+                            taxAmount: -21,
+                        },
+                    ],
+                },
+            ],
+            legalMonetaryTotal: {
+                ...exampleEn16931Invoice.legalMonetaryTotal,
+                lineExtensionAmount: -100,
+                taxExclusiveAmount: -100,
+                taxInclusiveAmount: -121,
+                payableAmount: -121,
+            },
+        }),
+    },
+    {
+        name: 'invoice - with a payee identifier',
+        kind: 'invoice',
+        document: invoice({
+            payeeParty: {
+                name: 'Payee',
+                identification: { id: '1234', schemeID: '0088' },
+            },
+        }),
+    },
+    {
+        name: 'invoice - prefixed UBL root',
+        kind: 'invoice',
+        document: invoice(),
+        mutateXml: (xml) =>
+            xml
+                .replace('<Invoice ', '<ubl:Invoice ')
+                .replace(
+                    ' xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"',
+                    ' xmlns:ubl="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"'
+                )
+                .replace('</Invoice>', '</ubl:Invoice>'),
+    },
 ];
 
 export const en16931InvalidCases: En16931KositCase[] = [

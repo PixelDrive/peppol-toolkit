@@ -5,6 +5,19 @@ import { addressSchema } from '../common/AdressSchema';
 import { contactSchema } from '../common/Contact';
 import { partyTaxSchemeSchema } from '../common/PartyTaxScheme';
 
+// BR-CL-10 in the CEN validation artefacts 1.3.17 also accepts these ICD schemes.
+const en16931ICDCodeSchema = z.enum([
+    ...ICDCodeSchema.options,
+    '0249',
+    '0250',
+    '0251',
+]);
+
+export const partyIdentificationSchema = z.object({
+    scheme: en16931ICDCodeSchema.optional(),
+    id: z.string().min(1),
+});
+
 /**
  * Seller (BG-4) or buyer (BG-7) of an EN 16931 document.
  *
@@ -19,13 +32,7 @@ export const en16931PartySchema = z.object({
             id: z.string().min(1),
         })
         .optional(),
-    identification: z
-        .object({
-            scheme: ICDCodeSchema.optional(),
-            id: z.string().min(1),
-        })
-        .array()
-        .optional(),
+    identification: partyIdentificationSchema.array().optional(),
     name: z.string().min(1).optional(),
     address: addressSchema,
     taxSchemes: z.array(partyTaxSchemeSchema).min(0).max(2).optional(),
@@ -40,4 +47,19 @@ export const en16931PartySchema = z.object({
             .optional(),
     }),
     contact: contactSchema.optional(),
+});
+
+// BR-CL-10 permits SEPA only for the seller or payee creditor identifier (BT-90).
+export const en16931BuyerPartySchema = en16931PartySchema.extend({
+    identification: partyIdentificationSchema
+        .extend({
+            scheme: en16931ICDCodeSchema
+                .refine(
+                    (scheme): boolean => scheme !== 'SEPA',
+                    'SEPA is reserved for the seller or payee creditor identifier'
+                )
+                .optional(),
+        })
+        .array()
+        .optional(),
 });

@@ -20,13 +20,13 @@ PEPPOL (Pan-European Public Procurement On-Line) is a set of specifications that
 npm install @pixeldrive/peppol-toolkit
 ```
 
-Pre-releases are published under the `canary` dist-tag and are only installed when asked for explicitly: `npm install @pixeldrive/peppol-toolkit@canary`. `npm install` and `npm update` keep resolving to the latest stable version.
+Install prereleases with `npm install @pixeldrive/peppol-toolkit@canary`. The prerelease suffix keeps canary builds out of ordinary stable version ranges.
 
-## Breaking changes in `0.10.0`
+## Breaking changes in the `0.10` series
 
-`0.10.0` is published as a canary (`npm install @pixeldrive/peppol-toolkit@canary`). The first stable release with these changes will be `0.10.1`.
+`0.10.0-canary.0` is the preview release. The first stable release with these changes is planned for `0.10.1`.
 
-Version `0.10.0` aligns the code lists with **Peppol BIS Billing 3.0.21** (mandatory since 2026-08-17, see [Code lists](#code-lists)). Codes that the toolkit used to accept but that a BIS 3.0.21 validator rejects are no longer part of the types and schemas: documents using them do not compile anymore and fail to parse with `peppolUBLToInvoice` / `peppolUBLToCreditNote`.
+The `0.10` series aligns the code lists with **Peppol BIS Billing 3.0.21** (mandatory since 2026-08-17, see [Code lists](#code-lists)). Codes that the toolkit used to accept but that a BIS 3.0.21 validator rejects are no longer part of the types and schemas: documents using them do not compile anymore and fail to parse with `peppolUBLToInvoice` / `peppolUBLToCreditNote`.
 
 - **EAS** (`EASCodes`, `EASCodeSchema`, used by `endPoint.scheme`): the 14 codes removed by BIS 3.0.21 are no longer accepted: `0037`, `0147`, `0154`, `0170`, `0177`, `0193`, `0194`, `0202`, `0203`, `0205`, `0212`, `0213`, `0215` and `0217` (they were rejected by `PEPPOL-EN16931-CL008`). `0242`, `0244`, `0245`, `0246` and `0248` are added, and 11 descriptions follow the new list (e.g. `0088` is now `Global Location Number`). The removed codes are still part of the CEF EAS code list: such parties can still be invoiced with an [EN 16931 document](#generate-an-en-16931-ubl-document-outside-peppol).
 - `getEASFromTaxId` returns `undefined` for Finnish VAT numbers instead of the removed `0213`.
@@ -34,7 +34,7 @@ Version `0.10.0` aligns the code lists with **Peppol BIS Billing 3.0.21** (manda
 - **Currencies** (`CurrencyCodes`, `CurrencyCodeSchema`): `ANG` and `BGN` are removed, `XCG` and `CNH` are added.
 - **Credit note type codes** (`CreditNoteTypeCodes`, `CreditNoteTypeCodeSchema`): `261` (self-billed credit note) is removed. BIS Billing only allows `81`, `83`, `381`, `396` and `532` (`PEPPOL-EN16931-P0101`).
 
-Also new in `0.10.0`, without breaking change:
+Other changes in the `0.10` series:
 
 - EN 16931 documents for invoices that do not travel over Peppol, e.g. B2C invoices (see [Generate an EN 16931 UBL document](#generate-an-en-16931-ubl-document-outside-peppol)).
 - `PEPPOL_BIS3_BILLING_WITH_RESPONSE_PROFILE_ID` (`urn:peppol:bis:billing_with_response`), the profile 02 added by BIS 3.0.21, to set as `profileID`. `PEPPOL_BIS3_CUSTOMIZATION_ID` and `PEPPOL_BIS3_PROFILE_ID` are exported as well.
@@ -423,9 +423,9 @@ Compared to `invoiceToPeppolUBL` and `creditNoteToPeppolUBL`, `invoiceToEn16931U
 
 The EN 16931 types are the base of the Peppol ones: every `Invoice` / `CreditNote` is also an `En16931Invoice` / `En16931CreditNote`. The Peppol schemas, builders and parsers keep their strictness: `invoiceToPeppolUBL` throws when the seller or the buyer has no electronic address.
 
-Read EN 16931 documents with `en16931UBLToInvoice` and `en16931UBLToCreditNote`. They accept any document following the EN 16931 model, Peppol BIS documents included, whereas `peppolUBLToInvoice` and `peppolUBLToCreditNote` reject documents that are not valid Peppol documents (e.g. without buyer electronic address).
+Use `en16931UBLToInvoice` and `en16931UBLToCreditNote` to read EN 16931 and Peppol BIS UBL documents. The EN 16931 parsers support signed quantities, net line amounts and VAT amounts. The Peppol parsers require seller and buyer electronic addresses from the Peppol EAS code list.
 
-To know which kind of document you hold, for example to pick the parser and the validator of a stored document or to refuse to send a non-Peppol document over the network, use `detectUblProfile`. It reads the `cbc:CustomizationID`:
+Use `detectUblProfile` to select the parser and validator for a stored document. It reads the UBL `cbc:CustomizationID` from a well-formed invoice or credit note. Use KoSIT to check the business rules for the detected profile.
 
 ```typescript
 PeppolToolkit.detectUblProfile(xml); // 'peppol-bis3' | 'en16931' | 'unknown'
@@ -616,7 +616,7 @@ Also exported for direct use:
 
 ## Code lists
 
-The code lists follow **Peppol BIS Billing 3.0.21**. The EN 16931 schemas use the same lists, except for the electronic address schemes.
+The Peppol code lists follow **Peppol BIS Billing 3.0.21**. The EN 16931 schemas follow the CEN 1.3.17 rules for electronic address schemes (BR-CL-25), party identification schemes (BR-CL-10) and document type codes (BR-CL-01). The EN 16931 document type schemas are exported as `En16931InvoiceTypeCodeSchema` and `En16931CreditNoteTypeCodeSchema`.
 
 | Code list                                   | Export                 | Follows                                                                                                  |
 | ------------------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------- |
@@ -792,7 +792,7 @@ KOSIT_EN16931_ENDPOINT=http://localhost:8082/ npm run test:e2e # terminal 2
 
 ### Releasing
 
-Pushing a new `version` in `package.json` to `main` publishes it to npm (`.github/workflows/publish.yml`). The workflow publishes each version once. While `publishConfig.tag` is `canary` in `package.json`, versions are published under the `canary` dist-tag and `latest` does not move. For a stable release, bump the version and remove `publishConfig.tag` in the same commit.
+Pushing a new `version` in `package.json` to `main` publishes it to npm (`.github/workflows/publish.yml`). The workflow publishes each version once. For a canary, use a prerelease version such as `0.10.0-canary.0` and set `publishConfig.tag` to `canary`. For a stable release, set a stable version and remove `publishConfig.tag` in the same commit to publish under `latest`.
 
 ## Requirements
 

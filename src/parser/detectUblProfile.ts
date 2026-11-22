@@ -1,8 +1,8 @@
-import { XMLParser } from 'fast-xml-parser';
 import {
     EN16931_CUSTOMIZATION_ID,
     PEPPOL_BIS3_CUSTOMIZATION_ID,
 } from '../documents';
+import { CBC_NAMESPACE, readUblDocument } from './readUblDocument';
 
 /**
  * Specification followed by a UBL invoice or credit note, according to its
@@ -12,13 +12,6 @@ import {
  * - `unknown`: anything else (another CIUS, missing CustomizationID, not a UBL Invoice or CreditNote)
  */
 export type UblProfile = 'peppol-bis3' | 'en16931' | 'unknown';
-
-const parser = new XMLParser({
-    // Also recognize documents using a prefix for the root element (e.g. <ubl:Invoice>)
-    removeNSPrefix: true,
-    ignoreAttributes: true,
-    parseTagValue: false,
-});
 
 /**
  * Detects the specification a UBL document follows, to pick the parser and the validator of a
@@ -31,17 +24,32 @@ const parser = new XMLParser({
  * @returns The detected profile
  */
 export function detectUblProfile(xml: string): UblProfile {
-    let parsed: Record<string, unknown>;
+    let parsed: ReturnType<typeof readUblDocument>;
     try {
-        parsed = parser.parse(xml);
+        parsed = readUblDocument(xml);
     } catch {
         return 'unknown';
     }
-    const root = (parsed['Invoice'] ?? parsed['CreditNote']) as
-        | Record<string, unknown>
-        | undefined;
-    const customizationID = root?.['CustomizationID'];
-    if (typeof customizationID !== 'string') return 'unknown';
+    if (!parsed) return 'unknown';
+
+    const { root } = parsed;
+    const identifiers = root.getElementsByTagNameNS(
+        CBC_NAMESPACE,
+        'CustomizationID'
+    );
+    let customizationID: string | undefined;
+    for (let index = 0; index < identifiers.length; index++) {
+        const identifier = identifiers.item(index);
+        if (!identifier || identifier.parentNode !== root) continue;
+        if (
+            customizationID !== undefined ||
+            identifier.getElementsByTagName('*').length > 0
+        ) {
+            return 'unknown';
+        }
+        customizationID = identifier.textContent?.trim() ?? '';
+    }
+    if (!customizationID) return 'unknown';
 
     if (
         customizationID === PEPPOL_BIS3_CUSTOMIZATION_ID ||
