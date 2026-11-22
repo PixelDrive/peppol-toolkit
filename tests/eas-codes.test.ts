@@ -73,7 +73,7 @@ describe('EAS Codes', () => {
             expect(getEASDescription('0060')).toBe(
                 'Data Universal Numbering System (D-U-N-S Number)'
             );
-            expect(getEASDescription('0088')).toBe('EAN Location Code');
+            expect(getEASDescription('0088')).toBe('Global Location Number');
             expect(getEASDescription('0199')).toBe(
                 'Legal Entity Identifier (LEI)'
             );
@@ -122,7 +122,36 @@ describe('EAS Codes', () => {
     describe('EASCodes object', () => {
         it('should contain expected number of codes', () => {
             const codeCount = Object.keys(EASCodes).length;
-            expect(codeCount).toBeGreaterThan(90); // Should have many codes
+            expect(codeCount).toBe(83); // Peppol BIS Billing 3.0.21
+        });
+
+        it('should not contain the codes removed in Peppol BIS 3.0.21', () => {
+            const removedCodes = [
+                '0037',
+                '0147',
+                '0154',
+                '0170',
+                '0177',
+                '0193',
+                '0194',
+                '0202',
+                '0203',
+                '0205',
+                '0212',
+                '0213',
+                '0215',
+                '0217',
+            ];
+            removedCodes.forEach((code) => {
+                expect(isValidEASCode(code), code).toBe(false);
+                expect(EASCodeSchema.safeParse(code).success, code).toBe(false);
+            });
+        });
+
+        it('should contain the codes of Peppol BIS 3.0.21 missing before', () => {
+            ['0242', '0244', '0245', '0246', '0248'].forEach((code) => {
+                expect(isValidEASCode(code), code).toBe(true);
+            });
         });
 
         it('should have consistent code format', () => {
@@ -171,8 +200,8 @@ describe('EAS Codes', () => {
             expect(getEASFromTaxId('IT12345678901')).toBe('0211');
         });
 
-        it('should return correct EAS code for Finnish VAT number', () => {
-            expect(getEASFromTaxId('FI12345678')).toBe('0213');
+        it('should return undefined for Finnish VAT numbers (0213 was removed in BIS 3.0.21)', () => {
+            expect(getEASFromTaxId('FI12345678')).toBeUndefined();
         });
 
         it('should return correct EAS code for Spanish VAT number', () => {

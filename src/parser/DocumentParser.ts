@@ -1,177 +1,193 @@
-import { XMLParser } from 'fast-xml-parser';
-import { parserOptions } from './parserOptions';
 import {
+    getUblChild,
+    getUblChildren,
+    readUblDocument,
+    readUblFields,
+} from './readUblDocument';
+import {
+    CefEASCode,
     CreditNote,
     creditNoteSchema,
     CurrencyCodeSchema,
+    En16931CreditNote,
+    en16931CreditNoteSchema,
+    En16931Invoice,
+    en16931InvoiceSchema,
+    en16931PartySchema,
     Invoice,
     invoiceSchema,
-    partySchema,
 } from '../documents';
+import { partyIdentificationSchema } from '../documents/en16931/Parties';
 import { z } from 'zod';
 
 export class DocumentParser {
-    private __parser = new XMLParser(parserOptions);
     private __hasWarnedLegacyAddressLine = false;
 
     /***
      * Parses a Peppol UBL Invoice XML string into an Invoice object
      * @param xml The UBL Invoice XML string
      * @returns The parsed Invoice object
+     * @throws ZodError when the document is not a valid Peppol invoice, e.g. when a party has no electronic address
      */
     public parseInvoice(xml: string): Invoice {
-        const parsed = this.__parser.parse(xml);
-        const inv = parsed['Invoice'];
-        if (!inv) throw new Error('Not a valid UBL Invoice document');
+        return invoiceSchema.parse(this.__readInvoice(xml));
+    }
 
-        const raw = {
-            customizationID: this.__str(inv['cbc:CustomizationID']),
-            profileID: this.__str(inv['cbc:ProfileID']),
-            ID: this.__str(inv['cbc:ID'])!,
-            issueDate: this.__str(inv['cbc:IssueDate'])!,
-            dueDate: this.__str(inv['cbc:DueDate']),
-            invoiceTypeCode: Number(inv['cbc:InvoiceTypeCode']),
-            note: this.__parseNotes(inv['cbc:Note']),
-            taxPointDate: this.__str(inv['cbc:TaxPointDate']),
-            documentCurrencyCode: this.__str(inv['cbc:DocumentCurrencyCode'])!,
-            taxCurrencyCode: this.__str(inv['cbc:TaxCurrencyCode']),
-            accountingCost: this.__str(inv['cbc:AccountingCost']),
-            buyerReference: this.__str(inv['cbc:BuyerReference']),
-            invoicePeriod: this.__parseInvoicePeriod(inv['cac:InvoicePeriod']),
-            orderReference: this.__parseOrderReference(
-                inv['cac:OrderReference']
-            ),
-            billingReference: this.__parseBillingReferences(
-                inv['cac:BillingReference']
-            ),
-            despatchDocumentReference: this.__parseSimpleDocRef(
-                inv['cac:DespatchDocumentReference']
-            ),
-            receiptDocumentReference: this.__parseSimpleDocRef(
-                inv['cac:ReceiptDocumentReference']
-            ),
-            originatorDocumentReference: this.__parseSimpleDocRef(
-                inv['cac:OriginatorDocumentReference']
-            ),
-            contractDocumentReference: this.__parseSimpleDocRef(
-                inv['cac:ContractDocumentReference']
-            ),
-            additionalDocumentReference:
-                this.__parseAdditionalDocumentReferences(
-                    inv['cac:AdditionalDocumentReference']
-                ),
-            projectReference: this.__parseSimpleDocRef(
-                inv['cac:ProjectReference']
-            ),
-            seller: this.__parseParty(
-                inv['cac:AccountingSupplierParty']?.['cac:Party']
-            ),
-            buyer: this.__parseParty(
-                inv['cac:AccountingCustomerParty']?.['cac:Party']
-            ),
-            payeeParty: this.__parsePayeeParty(inv['cac:PayeeParty']),
-            taxRepresentativeParty: this.__parseTaxRepresentativeParty(
-                inv['cac:TaxRepresentativeParty']
-            ),
-            delivery: this.__parseDelivery(inv['cac:Delivery']),
-            paymentMeans: this.__parsePaymentMeans(inv['cac:PaymentMeans']),
-            paymentTermsNote: inv['cac:PaymentTerms']
-                ? this.__str(inv['cac:PaymentTerms']['cbc:Note'])
-                : undefined,
-            allowanceCharge: this.__parseAllowanceCharges(
-                inv['cac:AllowanceCharge']
-            ),
-            taxTotal: this.__parseTaxTotal(inv['cac:TaxTotal'] ?? []),
-            legalMonetaryTotal: this.__parseMonetaryTotal(
-                inv['cac:LegalMonetaryTotal']
-            ),
-            invoiceLines: (inv['cac:InvoiceLine'] ?? []).map((line: unknown) =>
-                this.__parseLineItem(line, 'InvoicedQuantity')
-            ),
-        };
-
-        return invoiceSchema.parse(raw);
+    /***
+     * Parses an EN 16931 UBL Invoice XML string into an En16931Invoice object. Accepts any invoice
+     * following the EN 16931 model, Peppol BIS invoices included; the seller and the buyer may have
+     * no electronic address.
+     * @param xml The UBL Invoice XML string
+     * @returns The parsed En16931Invoice object
+     */
+    public parseEn16931Invoice(xml: string): En16931Invoice {
+        return en16931InvoiceSchema.parse(this.__readInvoice(xml));
     }
 
     /***
      * Parses a Peppol UBL CreditNote XML string into a CreditNote object
      * @param xml The UBL CreditNote XML string
      * @returns The parsed CreditNote object
+     * @throws ZodError when the document is not a valid Peppol credit note, e.g. when a party has no electronic address
      */
     public parseCreditNote(xml: string): CreditNote {
-        const parsed = this.__parser.parse(xml);
-        const cn = parsed['CreditNote'];
-        if (!cn) throw new Error('Not a valid UBL CreditNote document');
+        return creditNoteSchema.parse(this.__readCreditNote(xml));
+    }
 
-        const raw = {
-            customizationID: this.__str(cn['cbc:CustomizationID']),
-            profileID: this.__str(cn['cbc:ProfileID']),
-            ID: this.__str(cn['cbc:ID'])!,
-            issueDate: this.__str(cn['cbc:IssueDate'])!,
+    /***
+     * Parses an EN 16931 UBL CreditNote XML string into an En16931CreditNote object. Accepts any
+     * credit note following the EN 16931 model, Peppol BIS credit notes included; the seller and the
+     * buyer may have no electronic address.
+     * @param xml The UBL CreditNote XML string
+     * @returns The parsed En16931CreditNote object
+     */
+    public parseEn16931CreditNote(xml: string): En16931CreditNote {
+        return en16931CreditNoteSchema.parse(this.__readCreditNote(xml));
+    }
+
+    /**
+     * Reads the content of a UBL Invoice, before validation against a schema
+     * @param xml The UBL Invoice XML string
+     */
+    private __readInvoice(xml: string) {
+        const document = readUblDocument(xml);
+        if (document?.kind !== 'Invoice') {
+            throw new Error('Not a valid UBL Invoice document');
+        }
+        const inv = readUblFields(document.root);
+
+        return {
+            ...this.__readCommonFields(inv),
+            dueDate: this.__str(inv['cbc:DueDate']),
+            invoiceTypeCode: Number(inv['cbc:InvoiceTypeCode']),
+            projectReference: this.__parseSimpleDocRef(
+                getUblChild(inv, 'cac:ProjectReference')
+            ),
+            invoiceLines: (getUblChildren(inv, 'cac:InvoiceLine') ?? []).map(
+                (line) => this.__parseLineItem(line, 'InvoicedQuantity')
+            ),
+        };
+    }
+
+    /**
+     * Reads the content of a UBL CreditNote, before validation against a schema
+     * @param xml The UBL CreditNote XML string
+     */
+    private __readCreditNote(xml: string) {
+        const document = readUblDocument(xml);
+        if (document?.kind !== 'CreditNote') {
+            throw new Error('Not a valid UBL CreditNote document');
+        }
+        const cn = readUblFields(document.root);
+
+        return {
+            ...this.__readCommonFields(cn),
             creditNoteTypeCode: Number(cn['cbc:CreditNoteTypeCode']),
-            note: this.__parseNotes(cn['cbc:Note']),
-            taxPointDate: this.__str(cn['cbc:TaxPointDate']),
-            documentCurrencyCode: this.__str(cn['cbc:DocumentCurrencyCode'])!,
-            taxCurrencyCode: this.__str(cn['cbc:TaxCurrencyCode']),
-            accountingCost: this.__str(cn['cbc:AccountingCost']),
-            buyerReference: this.__str(cn['cbc:BuyerReference']),
-            invoicePeriod: this.__parseInvoicePeriod(cn['cac:InvoicePeriod']),
+            creditNoteLines: (
+                getUblChildren(cn, 'cac:CreditNoteLine') ?? []
+            ).map((line) => this.__parseLineItem(line, 'CreditedQuantity')),
+        };
+    }
+
+    private __readCommonFields(fields: Record<string, unknown>) {
+        return {
+            customizationID: this.__str(fields['cbc:CustomizationID']),
+            profileID: this.__str(fields['cbc:ProfileID']),
+            ID: this.__str(fields['cbc:ID'])!,
+            issueDate: this.__str(fields['cbc:IssueDate'])!,
+            note: this.__parseNotes(fields['cbc:Note']),
+            taxPointDate: this.__str(fields['cbc:TaxPointDate']),
+            documentCurrencyCode: this.__str(
+                fields['cbc:DocumentCurrencyCode']
+            )!,
+            taxCurrencyCode: this.__str(fields['cbc:TaxCurrencyCode']),
+            accountingCost: this.__str(fields['cbc:AccountingCost']),
+            buyerReference: this.__str(fields['cbc:BuyerReference']),
+            invoicePeriod: this.__parseInvoicePeriod(
+                getUblChild(fields, 'cac:InvoicePeriod')
+            ),
             orderReference: this.__parseOrderReference(
-                cn['cac:OrderReference']
+                getUblChild(fields, 'cac:OrderReference')
             ),
             billingReference: this.__parseBillingReferences(
-                cn['cac:BillingReference']
+                getUblChildren(fields, 'cac:BillingReference')
             ),
             despatchDocumentReference: this.__parseSimpleDocRef(
-                cn['cac:DespatchDocumentReference']
+                getUblChild(fields, 'cac:DespatchDocumentReference')
             ),
             receiptDocumentReference: this.__parseSimpleDocRef(
-                cn['cac:ReceiptDocumentReference']
+                getUblChild(fields, 'cac:ReceiptDocumentReference')
             ),
             originatorDocumentReference: this.__parseSimpleDocRef(
-                cn['cac:OriginatorDocumentReference']
+                getUblChild(fields, 'cac:OriginatorDocumentReference')
             ),
             contractDocumentReference: this.__parseSimpleDocRef(
-                cn['cac:ContractDocumentReference']
+                getUblChild(fields, 'cac:ContractDocumentReference')
             ),
             additionalDocumentReference:
                 this.__parseAdditionalDocumentReferences(
-                    cn['cac:AdditionalDocumentReference']
+                    getUblChildren(fields, 'cac:AdditionalDocumentReference')
                 ),
             seller: this.__parseParty(
-                cn['cac:AccountingSupplierParty']?.['cac:Party']
+                getUblChild(
+                    getUblChild(fields, 'cac:AccountingSupplierParty'),
+                    'cac:Party'
+                )
             ),
             buyer: this.__parseParty(
-                cn['cac:AccountingCustomerParty']?.['cac:Party']
+                getUblChild(
+                    getUblChild(fields, 'cac:AccountingCustomerParty'),
+                    'cac:Party'
+                )
             ),
-            payeeParty: this.__parsePayeeParty(cn['cac:PayeeParty']),
+            payeeParty: this.__parsePayeeParty(
+                getUblChild(fields, 'cac:PayeeParty')
+            ),
             taxRepresentativeParty: this.__parseTaxRepresentativeParty(
-                cn['cac:TaxRepresentativeParty']
+                getUblChild(fields, 'cac:TaxRepresentativeParty')
             ),
-            delivery: this.__parseDelivery(cn['cac:Delivery']),
-            paymentMeans: this.__parsePaymentMeans(cn['cac:PaymentMeans']),
-            paymentTermsNote: cn['cac:PaymentTerms']
-                ? this.__str(cn['cac:PaymentTerms']['cbc:Note'])
-                : undefined,
+            delivery: this.__parseDelivery(getUblChild(fields, 'cac:Delivery')),
+            paymentMeans: this.__parsePaymentMeans(
+                getUblChildren(fields, 'cac:PaymentMeans')
+            ),
+            paymentTermsNote: this.__str(
+                getUblChild(fields, 'cac:PaymentTerms')?.['cbc:Note']
+            ),
             allowanceCharge: this.__parseAllowanceCharges(
-                cn['cac:AllowanceCharge']
+                getUblChildren(fields, 'cac:AllowanceCharge')
             ),
-            taxTotal: this.__parseTaxTotal(cn['cac:TaxTotal'] ?? []),
+            taxTotal: this.__parseTaxTotal(
+                getUblChildren(fields, 'cac:TaxTotal') ?? []
+            ),
             legalMonetaryTotal: this.__parseMonetaryTotal(
-                cn['cac:LegalMonetaryTotal']
-            ),
-            creditNoteLines: (cn['cac:CreditNoteLine'] ?? []).map(
-                (line: unknown) =>
-                    this.__parseLineItem(line, 'CreditedQuantity')
+                getUblChild(fields, 'cac:LegalMonetaryTotal') ?? {}
             ),
         };
-
-        return creditNoteSchema.parse(raw);
     }
 
     private __parseParty(
-        party: Record<string, unknown>
-    ): z.infer<typeof partySchema> {
+        party: Record<string, unknown> | undefined
+    ): z.infer<typeof en16931PartySchema> {
         if (!party) throw new Error('Missing party in UBL document');
 
         const endpointEl = party['cbc:EndpointID'];
@@ -181,10 +197,9 @@ export class DocumentParser {
             const idEl = (pi as Record<string, unknown>)['cbc:ID'];
             return {
                 id: this.__text(idEl)!,
-                scheme: this.__attr(idEl, 'schemeID'),
-            } as {
-                id: string;
-                scheme?: z.infer<typeof partySchema>['endPoint']['scheme'];
+                scheme: this.__attr(idEl, 'schemeID') as z.infer<
+                    typeof partyIdentificationSchema
+                >['scheme'],
             };
         });
 
@@ -203,12 +218,17 @@ export class DocumentParser {
             | undefined;
 
         return {
-            endPoint: {
-                scheme: this.__attr(endpointEl, 'schemeID') as z.infer<
-                    typeof partySchema
-                >['endPoint']['scheme'],
-                id: this.__text(endpointEl)!,
-            },
+            // The electronic address is optional in EN 16931; the Peppol schemas require it
+            endPoint:
+                endpointEl !== undefined
+                    ? {
+                          scheme: this.__attr(
+                              endpointEl,
+                              'schemeID'
+                          ) as CefEASCode,
+                          id: this.__text(endpointEl)!,
+                      }
+                    : undefined,
             identification:
                 identifications.length > 0 ? identifications : undefined,
             name: partyNameEl ? this.__str(partyNameEl['cbc:Name']) : undefined,
@@ -223,7 +243,7 @@ export class DocumentParser {
                 addressLine: this.__parseAddressLine(postal),
                 country: this.__str(
                     country?.['cbc:IdentificationCode']
-                ) as z.infer<typeof partySchema>['address']['country'],
+                ) as z.infer<typeof en16931PartySchema>['address']['country'],
             },
             taxSchemes: (() => {
                 const pts = party['cac:PartyTaxScheme'];
@@ -270,9 +290,10 @@ export class DocumentParser {
     ): Invoice['payeeParty'] {
         if (!party) return undefined;
 
-        const identEl = party['cac:PartyIdentification'] as
-            | Record<string, unknown>
-            | undefined;
+        const identEl = getUblChildren(
+            party,
+            'cac:PartyIdentification'
+        )?.[0] as Record<string, unknown> | undefined;
         const idEl = identEl?.['cbc:ID'];
         const partyNameEl = party['cac:PartyName'] as
             | Record<string, unknown>
@@ -339,7 +360,7 @@ export class DocumentParser {
                 addressLine: this.__parseAddressLine(postal),
                 country: this.__str(
                     country?.['cbc:IdentificationCode']
-                ) as z.infer<typeof partySchema>['address']['country'],
+                ) as z.infer<typeof en16931PartySchema>['address']['country'],
             },
             taxScheme: {
                 companyId: this.__str(taxSchemeEl?.['cbc:CompanyID'])!,
@@ -506,7 +527,7 @@ export class DocumentParser {
                                 country: this.__str(
                                     locationCountry?.['cbc:IdentificationCode']
                                 ) as z.infer<
-                                    typeof partySchema
+                                    typeof en16931PartySchema
                                 >['address']['country'],
                             }
                           : undefined,
@@ -739,9 +760,11 @@ export class DocumentParser {
         const priceSection = (l['cac:Price'] ?? {}) as Record<string, unknown>;
         const priceEl = priceSection['cbc:PriceAmount'];
         const baseQtyEl = priceSection['cbc:BaseQuantity'];
-        const priceAC = priceSection['cac:AllowanceCharge'] as
-            | Record<string, unknown>
-            | undefined;
+        // cac:AllowanceCharge is always read as an array (parserOptions); the price has at most one
+        const priceAC = getUblChildren(
+            priceSection,
+            'cac:AllowanceCharge'
+        )?.[0] as Record<string, unknown> | undefined;
         const taxCat = (item['cac:ClassifiedTaxCategory'] ?? {}) as Record<
             string,
             unknown

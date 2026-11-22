@@ -1,0 +1,1358 @@
+import { XMLBuilder } from 'fast-xml-parser';
+import Decimal from 'decimal.js';
+import { builderOptions } from './builderOptions';
+import {
+    CurrencyCode,
+    En16931CreditNote,
+    En16931Invoice,
+    en16931PartySchema,
+} from '../documents';
+import XMLAttributes from '../helpers/XMLAttributes';
+import getDateString from '../helpers/getDateString';
+import { z } from 'zod';
+import { isNullish } from '../helpers/isNullish';
+import { formatAmount } from '../helpers/formatAmount';
+
+/**
+ * Identifiers written at the top of a UBL document
+ */
+export interface UblDocumentIdentifiers {
+    /** Specification identifier (cbc:CustomizationID, BT-24) */
+    customizationID: string;
+    /** Business process type (cbc:ProfileID, BT-23), not written when undefined */
+    profileID?: string;
+}
+
+/**
+ * Serializes invoices and credit notes to UBL 2.1 XML.
+ *
+ * Internal: the public builders (see DocumentBuilder) choose the identifiers of the
+ * document and delegate the serialization to this writer.
+ */
+export class UblDocumentWriter {
+    private __xmlHeader = {
+        '?xml': {
+            ...XMLAttributes({
+                version: '1.0',
+                encoding: 'UTF-8',
+            }),
+        },
+    };
+    private __builder = new XMLBuilder(builderOptions);
+
+    /**
+     * Writes an invoice as a UBL Invoice XML document
+     * @param invoice The invoice data
+     * @param identifiers The customization and profile identifiers of the document
+     */
+    public writeInvoice(
+        invoice: En16931Invoice,
+        identifiers: UblDocumentIdentifiers
+    ): string {
+        return this.__builder.build(this.__buildInvoice(invoice, identifiers));
+    }
+
+    /**
+     * Writes a credit note as a UBL CreditNote XML document
+     * @param creditNote The credit note data
+     * @param identifiers The customization and profile identifiers of the document
+     */
+    public writeCreditNote(
+        creditNote: En16931CreditNote,
+        identifiers: UblDocumentIdentifiers
+    ): string {
+        return this.__builder.build(
+            this.__buildCreditNote(creditNote, identifiers)
+        );
+    }
+
+    /**
+     * Helper function to generate the invoice in UBL format as an object
+     * @param invoice The invoice data
+     * @param identifiers The customization and profile identifiers of the document
+     * @returns The invoice in UBL format as an object
+     */
+    private __buildInvoice(
+        invoice: En16931Invoice,
+        identifiers: UblDocumentIdentifiers
+    ) {
+        return {
+            ...this.__xmlHeader,
+            Invoice: {
+                ...XMLAttributes({
+                    'xmlns:cac':
+                        'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                    'xmlns:cbc':
+                        'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2',
+                    'xmlns:cec':
+                        'urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2',
+                    xmlns: 'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2',
+                }),
+                'cbc:UBLVersionID': '2.1',
+                'cbc:CustomizationID': identifiers.customizationID,
+                'cbc:ProfileID': identifiers.profileID,
+                'cbc:ID': invoice.ID,
+                'cbc:IssueDate': getDateString(invoice.issueDate),
+                'cbc:DueDate': invoice.dueDate
+                    ? getDateString(invoice.dueDate)
+                    : undefined,
+                'cbc:InvoiceTypeCode': invoice.invoiceTypeCode,
+                ...(invoice.note && invoice.note.length > 0
+                    ? {
+                          'cbc:Note': this.__buildNotes(invoice.note),
+                      }
+                    : {}),
+                ...(invoice.taxPointDate
+                    ? {
+                          'cbc:TaxPointDate': getDateString(
+                              invoice.taxPointDate
+                          ),
+                      }
+                    : {}),
+                'cbc:DocumentCurrencyCode': invoice.documentCurrencyCode,
+                ...(invoice.taxCurrencyCode
+                    ? {
+                          'cbc:TaxCurrencyCode': invoice.taxCurrencyCode,
+                      }
+                    : {}),
+                ...(invoice.accountingCost
+                    ? { 'cbc:AccountingCost': invoice.accountingCost }
+                    : {}),
+                'cbc:BuyerReference': invoice.buyerReference,
+                ...(invoice.invoicePeriod
+                    ? {
+                          'cac:InvoicePeriod': this.__buildInvoicePeriod(
+                              invoice.invoicePeriod
+                          ),
+                      }
+                    : {}),
+                ...(invoice.orderReference
+                    ? {
+                          'cac:OrderReference': {
+                              'cbc:ID': invoice.orderReference.id,
+                              ...(invoice.orderReference.salesOrderId
+                                  ? {
+                                        'cbc:SalesOrderID':
+                                            invoice.orderReference.salesOrderId,
+                                    }
+                                  : {}),
+                          },
+                      }
+                    : {}),
+                ...(invoice.billingReference &&
+                invoice.billingReference.length > 0
+                    ? {
+                          'cac:BillingReference': invoice.billingReference.map(
+                              (ref) => ({
+                                  'cac:InvoiceDocumentReference': {
+                                      'cbc:ID': ref.invoiceDocReference.id,
+                                      ...(ref.invoiceDocReference.issueDate
+                                          ? {
+                                                'cbc:IssueDate': getDateString(
+                                                    ref.invoiceDocReference
+                                                        .issueDate
+                                                ),
+                                            }
+                                          : {}),
+                                  },
+                              })
+                          ),
+                      }
+                    : {}),
+                ...(invoice.despatchDocumentReference
+                    ? {
+                          'cac:DespatchDocumentReference': {
+                              'cbc:ID': invoice.despatchDocumentReference,
+                          },
+                      }
+                    : {}),
+                ...(invoice.receiptDocumentReference
+                    ? {
+                          'cac:ReceiptDocumentReference': {
+                              'cbc:ID': invoice.receiptDocumentReference,
+                          },
+                      }
+                    : {}),
+                ...(invoice.originatorDocumentReference
+                    ? {
+                          'cac:OriginatorDocumentReference': {
+                              'cbc:ID': invoice.originatorDocumentReference,
+                          },
+                      }
+                    : {}),
+                ...(invoice.contractDocumentReference
+                    ? {
+                          'cac:ContractDocumentReference': {
+                              'cbc:ID': invoice.contractDocumentReference,
+                          },
+                      }
+                    : {}),
+                ...(invoice.additionalDocumentReference &&
+                invoice.additionalDocumentReference.length > 0
+                    ? {
+                          'cac:AdditionalDocumentReference':
+                              invoice.additionalDocumentReference.map(
+                                  this.__buildAdditionalDocumentReference
+                              ),
+                      }
+                    : {}),
+                ...(invoice.projectReference
+                    ? {
+                          'cac:ProjectReference': {
+                              'cbc:ID': invoice.projectReference,
+                          },
+                      }
+                    : {}),
+                'cac:AccountingSupplierParty': this.__buildParty(
+                    invoice.seller
+                ),
+                'cac:AccountingCustomerParty': this.__buildParty(invoice.buyer),
+                ...(invoice.payeeParty
+                    ? {
+                          'cac:PayeeParty': this.__buildPayeeParty(
+                              invoice.payeeParty
+                          ),
+                      }
+                    : {}),
+                ...(invoice.taxRepresentativeParty
+                    ? {
+                          'cac:TaxRepresentativeParty':
+                              this.__buildTaxRepresentativeParty(
+                                  invoice.taxRepresentativeParty
+                              ),
+                      }
+                    : {}),
+                ...(invoice.delivery
+                    ? {
+                          'cac:Delivery': this.__buildDelivery(
+                              invoice.delivery
+                          ),
+                      }
+                    : {}),
+                'cac:PaymentMeans': this.__buildPaymentMeans(
+                    invoice.paymentMeans
+                ),
+                ...(invoice.paymentTermsNote
+                    ? {
+                          'cac:PaymentTerms': {
+                              'cbc:Note': invoice.paymentTermsNote,
+                          },
+                      }
+                    : {}),
+                ...(invoice.allowanceCharge &&
+                invoice.allowanceCharge.length > 0
+                    ? {
+                          'cac:AllowanceCharge': invoice.allowanceCharge.map(
+                              (ac, i) =>
+                                  this.__buildAllowanceCharge(
+                                      ac,
+                                      invoice.documentCurrencyCode,
+                                      `allowanceCharge[${i}]`
+                                  )
+                          ),
+                      }
+                    : {}),
+                'cac:TaxTotal': this.__buildTaxTotal(invoice.taxTotal),
+                'cac:LegalMonetaryTotal': this.__buildMonetaryTotal(
+                    invoice.legalMonetaryTotal
+                ),
+                'cac:InvoiceLine': invoice.invoiceLines.map((line, i) =>
+                    this.__buildLineItem(
+                        line,
+                        'InvoicedQuantity',
+                        `invoiceLines[${i}]`
+                    )
+                ),
+            },
+        };
+    }
+
+    /**
+     * Helper function to generate the creditNote in UBL format as an object
+     * @param creditNote The credit-note data
+     * @param identifiers The customization and profile identifiers of the document
+     * @returns The creditNote in UBL format as an object
+     */
+    private __buildCreditNote(
+        creditNote: En16931CreditNote,
+        identifiers: UblDocumentIdentifiers
+    ) {
+        return {
+            ...this.__xmlHeader,
+            CreditNote: {
+                ...XMLAttributes({
+                    'xmlns:cac':
+                        'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
+                    'xmlns:cbc':
+                        'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2',
+                    'xmlns:cec':
+                        'urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2',
+                    xmlns: 'urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2',
+                }),
+                'cbc:UBLVersionID': '2.1',
+                'cbc:CustomizationID': identifiers.customizationID,
+                'cbc:ProfileID': identifiers.profileID,
+                'cbc:ID': creditNote.ID || 'AUTOGENERATE',
+                'cbc:IssueDate': getDateString(creditNote.issueDate),
+                ...(creditNote.taxPointDate
+                    ? {
+                          'cbc:TaxPointDate': getDateString(
+                              creditNote.taxPointDate
+                          ),
+                      }
+                    : {}),
+                'cbc:CreditNoteTypeCode': creditNote.creditNoteTypeCode ?? 381,
+                ...(creditNote.note && creditNote.note.length > 0
+                    ? {
+                          'cbc:Note': this.__buildNotes(creditNote.note),
+                      }
+                    : {}),
+                'cbc:DocumentCurrencyCode':
+                    creditNote.documentCurrencyCode || 'EUR',
+                ...(creditNote.taxCurrencyCode
+                    ? {
+                          'cbc:TaxCurrencyCode': creditNote.taxCurrencyCode,
+                      }
+                    : {}),
+                ...(creditNote.accountingCost
+                    ? { 'cbc:AccountingCost': creditNote.accountingCost }
+                    : {}),
+                'cbc:BuyerReference': creditNote.buyerReference,
+                ...(creditNote.invoicePeriod
+                    ? {
+                          'cac:InvoicePeriod': this.__buildInvoicePeriod(
+                              creditNote.invoicePeriod
+                          ),
+                      }
+                    : {}),
+                ...(creditNote.orderReference
+                    ? {
+                          'cac:OrderReference': {
+                              'cbc:ID': creditNote.orderReference.id,
+                              ...(creditNote.orderReference.salesOrderId
+                                  ? {
+                                        'cbc:SalesOrderID':
+                                            creditNote.orderReference
+                                                .salesOrderId,
+                                    }
+                                  : {}),
+                          },
+                      }
+                    : {}),
+                ...(creditNote.billingReference &&
+                creditNote.billingReference.length > 0
+                    ? {
+                          'cac:BillingReference':
+                              creditNote.billingReference.map((ref) => ({
+                                  'cac:InvoiceDocumentReference': {
+                                      'cbc:ID': ref.invoiceDocReference.id,
+                                      ...(ref.invoiceDocReference.issueDate
+                                          ? {
+                                                'cbc:IssueDate': getDateString(
+                                                    ref.invoiceDocReference
+                                                        .issueDate
+                                                ),
+                                            }
+                                          : {}),
+                                  },
+                              })),
+                      }
+                    : {}),
+                ...(creditNote.despatchDocumentReference
+                    ? {
+                          'cac:DespatchDocumentReference': {
+                              'cbc:ID': creditNote.despatchDocumentReference,
+                          },
+                      }
+                    : {}),
+                ...(creditNote.receiptDocumentReference
+                    ? {
+                          'cac:ReceiptDocumentReference': {
+                              'cbc:ID': creditNote.receiptDocumentReference,
+                          },
+                      }
+                    : {}),
+                ...(creditNote.contractDocumentReference
+                    ? {
+                          'cac:ContractDocumentReference': {
+                              'cbc:ID': creditNote.contractDocumentReference,
+                          },
+                      }
+                    : {}),
+                ...(creditNote.additionalDocumentReference &&
+                creditNote.additionalDocumentReference.length > 0
+                    ? {
+                          'cac:AdditionalDocumentReference':
+                              creditNote.additionalDocumentReference.map(
+                                  this.__buildAdditionalDocumentReference
+                              ),
+                      }
+                    : {}),
+                ...(creditNote.originatorDocumentReference
+                    ? {
+                          'cac:OriginatorDocumentReference': {
+                              'cbc:ID': creditNote.originatorDocumentReference,
+                          },
+                      }
+                    : {}),
+                'cac:AccountingSupplierParty': this.__buildParty(
+                    creditNote.seller
+                ),
+                'cac:AccountingCustomerParty': this.__buildParty(
+                    creditNote.buyer
+                ),
+                ...(creditNote.payeeParty
+                    ? {
+                          'cac:PayeeParty': this.__buildPayeeParty(
+                              creditNote.payeeParty
+                          ),
+                      }
+                    : {}),
+                ...(creditNote.taxRepresentativeParty
+                    ? {
+                          'cac:TaxRepresentativeParty':
+                              this.__buildTaxRepresentativeParty(
+                                  creditNote.taxRepresentativeParty
+                              ),
+                      }
+                    : {}),
+                ...(creditNote.delivery
+                    ? {
+                          'cac:Delivery': this.__buildDelivery(
+                              creditNote.delivery
+                          ),
+                      }
+                    : {}),
+                'cac:PaymentMeans': this.__buildPaymentMeans(
+                    creditNote.paymentMeans
+                ),
+                ...(creditNote.paymentTermsNote
+                    ? {
+                          'cac:PaymentTerms': {
+                              'cbc:Note': creditNote.paymentTermsNote,
+                          },
+                      }
+                    : {}),
+                ...(creditNote.allowanceCharge &&
+                creditNote.allowanceCharge.length > 0
+                    ? {
+                          'cac:AllowanceCharge': creditNote.allowanceCharge.map(
+                              (ac, i) =>
+                                  this.__buildAllowanceCharge(
+                                      ac,
+                                      creditNote.documentCurrencyCode,
+                                      `allowanceCharge[${i}]`
+                                  )
+                          ),
+                      }
+                    : {}),
+                'cac:TaxTotal': this.__buildTaxTotal(creditNote.taxTotal),
+                'cac:LegalMonetaryTotal': this.__buildMonetaryTotal(
+                    creditNote.legalMonetaryTotal
+                ),
+                'cac:CreditNoteLine': creditNote.creditNoteLines.map(
+                    (line, i) =>
+                        this.__buildLineItem(
+                            line,
+                            'CreditedQuantity',
+                            `creditNoteLines[${i}]`
+                        )
+                ),
+            },
+        };
+    }
+
+    /**
+     * Helper function to build a PayeeParty object (BG-10)
+     * @param payee The payee data
+     * @returns The PayeeParty XML object
+     */
+    private __buildPayeeParty(
+        payee: NonNullable<En16931Invoice['payeeParty']>
+    ): Record<string, unknown> {
+        return {
+            ...(payee.identification
+                ? {
+                      'cac:PartyIdentification': {
+                          'cbc:ID': {
+                              '#text': payee.identification.id,
+                              ...(payee.identification.schemeID
+                                  ? XMLAttributes({
+                                        schemeID: payee.identification.schemeID,
+                                    })
+                                  : {}),
+                          },
+                      },
+                  }
+                : {}),
+            'cac:PartyName': {
+                'cbc:Name': payee.name,
+            },
+            ...(payee.legalEntity
+                ? {
+                      'cac:PartyLegalEntity': {
+                          ...(payee.legalEntity.companyId
+                              ? {
+                                    'cbc:CompanyID': {
+                                        '#text': payee.legalEntity.companyId.id,
+                                        ...(payee.legalEntity.companyId.schemeID
+                                            ? XMLAttributes({
+                                                  schemeID:
+                                                      payee.legalEntity
+                                                          .companyId.schemeID,
+                                              })
+                                            : {}),
+                                    },
+                                }
+                              : {}),
+                      },
+                  }
+                : {}),
+        };
+    }
+
+    /**
+     * Helper function to build a TaxRepresentativeParty object (BG-11)
+     * @param taxRep The tax representative data
+     * @returns The TaxRepresentativeParty XML object
+     */
+    private __buildTaxRepresentativeParty(
+        taxRep: NonNullable<En16931Invoice['taxRepresentativeParty']>
+    ): Record<string, unknown> {
+        return {
+            'cac:PartyName': {
+                'cbc:Name': taxRep.name,
+            },
+            'cac:PostalAddress': this.__buildAddress(taxRep.address),
+            'cac:PartyTaxScheme': this.__buildPartyTaxScheme(taxRep.taxScheme),
+        };
+    }
+
+    private __buildAddress(
+        address: z.infer<typeof en16931PartySchema>['address']
+    ) {
+        return {
+            'cbc:StreetName': address.streetName,
+            'cbc:AdditionalStreetName': address.additionalStreetName,
+            'cbc:CityName': address.cityName,
+            'cbc:PostalZone': address.postalZone,
+            'cbc:CountrySubentity': address.countrySubentity,
+            ...(address.addressLine
+                ? {
+                      'cac:AddressLine': {
+                          'cbc:Line': address.addressLine,
+                      },
+                  }
+                : {}),
+            'cac:Country': {
+                'cbc:IdentificationCode': address.country,
+            },
+        };
+    }
+
+    /**
+     * Helper function to build a PartyTaxScheme object
+     * @param ts The tax scheme data
+     * @returns The PartyTaxScheme XML object
+     */
+    private __buildPartyTaxScheme(
+        ts: NonNullable<En16931Invoice['taxRepresentativeParty']>['taxScheme']
+    ) {
+        return {
+            'cbc:CompanyID': ts.companyId,
+            ...(ts.schemeID
+                ? {
+                      'cac:TaxScheme': {
+                          'cbc:ID': ts.schemeID,
+                      },
+                  }
+                : {
+                      'cac:TaxScheme': {
+                          'cbc:ID': 'VAT',
+                      },
+                  }),
+        };
+    }
+
+    /**
+     * Helper function to build a party object
+     * @param party The party data
+     * @returns The party object
+     */
+    private __buildParty(party: z.infer<typeof en16931PartySchema>) {
+        return {
+            'cac:Party': {
+                // Optional in EN 16931 (BT-34, BT-49), always present in Peppol BIS
+                ...(party.endPoint
+                    ? {
+                          'cbc:EndpointID': {
+                              '#text': party.endPoint.id,
+                              ...XMLAttributes({
+                                  schemeID: party.endPoint.scheme,
+                              }),
+                          },
+                      }
+                    : {}),
+                ...(party.identification && party.identification.length > 0
+                    ? {
+                          'cac:PartyIdentification': party.identification.map(
+                              (id) => ({
+                                  'cbc:ID': {
+                                      '#text': id.id,
+                                      ...XMLAttributes({
+                                          schemeID: id.scheme,
+                                      }),
+                                  },
+                              })
+                          ),
+                      }
+                    : {}),
+                ...(party.name
+                    ? { 'cac:PartyName': { 'cbc:Name': party.name } }
+                    : {}),
+                'cac:PostalAddress': this.__buildAddress(party.address),
+
+                ...(party.taxSchemes && party.taxSchemes.length > 0
+                    ? {
+                          'cac:PartyTaxScheme': party.taxSchemes.map((ts) =>
+                              this.__buildPartyTaxScheme(ts)
+                          ),
+                      }
+                    : {}),
+                'cac:PartyLegalEntity': {
+                    'cbc:RegistrationName': party.legalEntity.registrationName,
+                    ...(party.legalEntity.companyId
+                        ? {
+                              'cbc:CompanyID': {
+                                  '#text': party.legalEntity.companyId.id,
+                                  ...(party.legalEntity.companyId.schemeID
+                                      ? XMLAttributes({
+                                            schemeID:
+                                                party.legalEntity.companyId
+                                                    .schemeID,
+                                        })
+                                      : {}),
+                              },
+                          }
+                        : {}),
+                    ...(party.legalEntity.legalForm
+                        ? {
+                              'cbc:CompanyLegalForm':
+                                  party.legalEntity.legalForm,
+                          }
+                        : {}),
+                },
+                ...(party.contact
+                    ? {
+                          'cac:Contact': {
+                              'cbc:Name': party.contact.name,
+                              'cbc:Telephone': party.contact.phone,
+                              'cbc:ElectronicMail': party.contact.email,
+                          },
+                      }
+                    : {}),
+            },
+        };
+    }
+
+    /**
+     * Builds the payment means for the invoice, mapping the provided data into a specific structure.
+     * @param means - The payment means data from the invoice, including details about codes, payment IDs, and optional financial account information.
+     * @return An array of payment means objects with the structured data or undefined if no payment means are provided.
+     */
+    private __buildPaymentMeans(means: En16931Invoice['paymentMeans']) {
+        return means?.map((m) => {
+            const financialAccount = m.financialAccount;
+            const cardAccount = m.cardAccount;
+            const paymentMandate = m.paymentMandate;
+            return {
+                'cbc:PaymentMeansCode': m.name
+                    ? {
+                          '#text': m.code,
+                          ...XMLAttributes({ name: m.name }),
+                      }
+                    : m.code,
+                ...(m.paymentDueDate
+                    ? {
+                          'cbc:PaymentDueDate': getDateString(m.paymentDueDate),
+                      }
+                    : {}),
+                'cbc:PaymentID': m.paymentId,
+                ...(cardAccount
+                    ? {
+                          'cac:CardAccount': {
+                              'cbc:PrimaryAccountNumberID':
+                                  cardAccount.primaryAccountNumberId,
+                              'cbc:NetworkID': cardAccount.networkId,
+                              ...(cardAccount.holderName
+                                  ? {
+                                        'cbc:HolderName':
+                                            cardAccount.holderName,
+                                    }
+                                  : {}),
+                          },
+                      }
+                    : {}),
+                ...(financialAccount
+                    ? {
+                          'cac:PayeeFinancialAccount': {
+                              'cbc:ID': financialAccount.id,
+                              'cbc:Name': financialAccount.name,
+                              'cac:FinancialInstitutionBranch':
+                                  financialAccount.financialInstitutionBranch
+                                      ? {
+                                            'cbc:ID':
+                                                financialAccount.financialInstitutionBranch,
+                                        }
+                                      : undefined,
+                          },
+                      }
+                    : {}),
+
+                ...(paymentMandate
+                    ? {
+                          'cac:PaymentMandate': {
+                              ...(paymentMandate.id
+                                  ? {
+                                        'cbc:ID': paymentMandate.id,
+                                    }
+                                  : {}),
+                              ...(paymentMandate.payerFinancialAccountId
+                                  ? {
+                                        'cac:PayerFinancialAccount': {
+                                            'cbc:ID':
+                                                paymentMandate.payerFinancialAccountId,
+                                        },
+                                    }
+                                  : {}),
+                          },
+                      }
+                    : {}),
+            };
+        });
+    }
+
+    /**
+     * Builds the tax total information in the required format for an invoice.
+     * @param total - An array representing the tax total details, including tax amounts, sub totals, currencies, and tax categories.
+     * @return Returns an array of objects formatted as tax total components, including tax amounts, sub totals, and associated category details in compliance with specified XML attributes and structure.
+     */
+    private __buildTaxTotal(total: En16931Invoice['taxTotal']) {
+        return total.map((t, i) => {
+            const path = `taxTotal[${i}]`;
+            const taxAmount = formatAmount(`${path}.taxAmount`, t.taxAmount);
+            const subTotals = t.subTotals.map((st, j) => ({
+                taxableAmount: formatAmount(
+                    `${path}.subTotals[${j}].taxableAmount`,
+                    st.taxableAmount
+                ),
+                taxAmount: formatAmount(
+                    `${path}.subTotals[${j}].taxAmount`,
+                    st.taxAmount
+                ),
+            }));
+            this.__assertTaxTotalConsistency(
+                path,
+                taxAmount,
+                subTotals.map((st) => st.taxAmount)
+            );
+
+            return {
+                'cbc:TaxAmount': {
+                    '#text': taxAmount,
+                    ...XMLAttributes({
+                        currencyID: t.taxAmountCurrency,
+                    }),
+                },
+                'cac:TaxSubtotal': t.subTotals.map((st, j) => ({
+                    'cbc:TaxableAmount': {
+                        '#text': subTotals[j].taxableAmount,
+                        ...XMLAttributes({
+                            currencyID:
+                                st.taxableAmountCurrency ?? t.taxAmountCurrency,
+                        }),
+                    },
+                    'cbc:TaxAmount': {
+                        '#text': subTotals[j].taxAmount,
+                        ...XMLAttributes({
+                            currencyID:
+                                st.taxAmountCurrency ?? t.taxAmountCurrency,
+                        }),
+                    },
+                    'cac:TaxCategory': {
+                        'cbc:ID': st.taxCategory.categoryCode,
+                        'cbc:Percent': this.__formatPercent(
+                            st.taxCategory.percent
+                        ),
+                        'cbc:TaxExemptionReasonCode':
+                            st.taxCategory.exemptionReasonCode,
+                        'cbc:TaxExemptionReason':
+                            st.taxCategory.exemptionReason,
+                        'cac:TaxScheme': {
+                            'cbc:ID': 'VAT',
+                        },
+                    },
+                })),
+            };
+        });
+    }
+
+    /**
+     * Checks BR-CO-14: the tax total amount (BT-110) must equal the sum of the
+     * VAT category tax amounts (BT-117) of its sub totals. Tax totals without sub totals
+     * (e.g. the one expressed in the tax accounting currency) are not checked.
+     * @param path The path of the tax total in the input document (used in the error message)
+     * @param taxAmount The formatted tax total amount
+     * @param subTotalTaxAmounts The formatted tax amounts of the sub totals
+     */
+    private __assertTaxTotalConsistency(
+        path: string,
+        taxAmount: string,
+        subTotalTaxAmounts: string[]
+    ) {
+        if (subTotalTaxAmounts.length === 0) return;
+        // The amounts are already formatted with exactly two decimals, so they are summed as
+        // integer cents (BigInt): exact, and independent of the caller's global Decimal.set precision.
+        const sum = subTotalTaxAmounts.reduce(
+            (acc, amount) => acc + this.__toCents(amount),
+            0n
+        );
+        if (sum !== this.__toCents(taxAmount)) {
+            throw new RangeError(
+                `BR-CO-14 violation in "${path}": taxAmount (${taxAmount}) must equal the sum of ` +
+                    `subTotals[].taxAmount (${this.__centsToAmount(sum)})`
+            );
+        }
+    }
+
+    /**
+     * Formats a VAT rate (cbc:Percent). Peppol BIS 3.0 §7.2.3 puts no restriction on the number of
+     * decimals of percentages, so the rate is serialized at full precision in fixed-point notation
+     * (21 -> '21', 5.125 -> '5.125'), never rounded (BR-CO-17).
+     * @param percent The rate, or undefined when the category has none
+     */
+    private __formatPercent(percent: number | undefined): string | undefined {
+        return percent === undefined
+            ? undefined
+            : new Decimal(percent).toFixed();
+    }
+
+    /**
+     * Converts an amount formatted with exactly two decimals (e.g. '-12.34') to integer cents
+     */
+    private __toCents(amount: string): bigint {
+        return BigInt(amount.replace('.', ''));
+    }
+
+    /**
+     * Converts integer cents back to an amount string with two decimals (e.g. -1234n -> '-12.34')
+     */
+    private __centsToAmount(cents: bigint): string {
+        const sign = cents < 0n ? '-' : '';
+        const digits = (cents < 0n ? -cents : cents)
+            .toString()
+            .padStart(3, '0');
+        return `${sign}${digits.slice(0, -2)}.${digits.slice(-2)}`;
+    }
+
+    private __buildMonetaryTotal(total: En16931Invoice['legalMonetaryTotal']) {
+        const currency = total.currency;
+        return {
+            ...this.__buildAmount(
+                'LineExtensionAmount',
+                total.lineExtensionAmount,
+                total.lineExtensionAmountCurrency ?? currency
+            ),
+            ...this.__buildAmount(
+                'TaxExclusiveAmount',
+                total.taxExclusiveAmount,
+                total.taxExclusiveAmountCurrency ?? currency
+            ),
+            ...this.__buildAmount(
+                'TaxInclusiveAmount',
+                total.taxInclusiveAmount,
+                total.taxInclusiveAmountCurrency ?? currency
+            ),
+            ...this.__buildAmount(
+                'AllowanceTotalAmount',
+                total.allowanceTotalAmount,
+                total.allowanceTotalAmountCurrency ?? currency
+            ),
+            ...this.__buildAmount(
+                'ChargeTotalAmount',
+                total.chargeTotalAmount,
+                total.chargeTotalAmountCurrency ?? currency
+            ),
+            ...this.__buildAmount(
+                'PrepaidAmount',
+                total.prepaidAmount,
+                total.prepaidAmountCurrency ?? currency
+            ),
+            ...this.__buildAmount(
+                'PayableRoundingAmount',
+                total.payableRoundingAmount,
+                total.payableRoundingAmountCurrency ?? currency
+            ),
+            ...this.__buildAmount(
+                'PayableAmount',
+                total.payableAmount,
+                total.payableAmountCurrency ?? currency,
+                true
+            ),
+        };
+    }
+
+    private __buildAmount(
+        name: string,
+        amount: number | undefined,
+        currency: CurrencyCode,
+        generateOnZero = false
+    ) {
+        if (isNullish(amount)) return {};
+        if (!amount && !generateOnZero) return {};
+        // 'LineExtensionAmount' -> 'legalMonetaryTotal.lineExtensionAmount'
+        const field = `legalMonetaryTotal.${name.charAt(0).toLowerCase()}${name.slice(1)}`;
+        return {
+            [`cbc:${name}`]: {
+                '#text': formatAmount(field, amount),
+                ...XMLAttributes({
+                    currencyID: currency,
+                }),
+            },
+        };
+    }
+
+    private __buildInvoicePeriod(
+        period: NonNullable<En16931Invoice['invoicePeriod']>
+    ) {
+        return {
+            ...(period.startDate
+                ? { 'cbc:StartDate': getDateString(period.startDate) }
+                : {}),
+            ...(period.endDate
+                ? { 'cbc:EndDate': getDateString(period.endDate) }
+                : {}),
+            ...(period.descriptionCode
+                ? { 'cbc:DescriptionCode': period.descriptionCode }
+                : {}),
+        };
+    }
+
+    private __buildDelivery(delivery: NonNullable<En16931Invoice['delivery']>) {
+        return {
+            ...(delivery.actualDeliveryDate
+                ? {
+                      'cbc:ActualDeliveryDate': getDateString(
+                          delivery.actualDeliveryDate
+                      ),
+                  }
+                : {}),
+            ...(delivery.deliveryLocation
+                ? {
+                      'cac:DeliveryLocation': {
+                          ...(delivery.deliveryLocation.id
+                              ? {
+                                    'cbc:ID': {
+                                        '#text': delivery.deliveryLocation.id,
+                                        ...(delivery.deliveryLocation
+                                            .locationSchemeID
+                                            ? XMLAttributes({
+                                                  schemeID:
+                                                      delivery.deliveryLocation
+                                                          .locationSchemeID,
+                                              })
+                                            : {}),
+                                    },
+                                }
+                              : {}),
+                          ...(delivery.deliveryLocation.address
+                              ? {
+                                    'cac:Address': this.__buildAddress(
+                                        delivery.deliveryLocation.address
+                                    ),
+                                }
+                              : {}),
+                      },
+                  }
+                : {}),
+            ...(delivery.deliveryPartyName
+                ? {
+                      'cac:DeliveryParty': {
+                          'cac:PartyName': {
+                              'cbc:Name': delivery.deliveryPartyName,
+                          },
+                      },
+                  }
+                : {}),
+        };
+    }
+
+    private __buildAllowanceCharge(
+        ac: NonNullable<En16931Invoice['allowanceCharge']>[number],
+        documentCurrency: CurrencyCode,
+        path: string
+    ) {
+        const currency = ac.currency ?? documentCurrency;
+        return {
+            'cbc:ChargeIndicator': ac.chargeIndicator,
+            ...(ac.reasonCode
+                ? {
+                      'cbc:AllowanceChargeReasonCode': ac.reasonCode,
+                  }
+                : {}),
+            ...(ac.reason ? { 'cbc:AllowanceChargeReason': ac.reason } : {}),
+            ...(ac.multiplierFactorNumeric !== undefined
+                ? {
+                      'cbc:MultiplierFactorNumeric': ac.multiplierFactorNumeric,
+                  }
+                : {}),
+            'cbc:Amount': {
+                '#text': formatAmount(`${path}.amount`, ac.amount),
+                ...XMLAttributes({ currencyID: currency }),
+            },
+            ...(ac.baseAmount !== undefined
+                ? {
+                      'cbc:BaseAmount': {
+                          '#text': formatAmount(
+                              `${path}.baseAmount`,
+                              ac.baseAmount
+                          ),
+                          ...XMLAttributes({ currencyID: currency }),
+                      },
+                  }
+                : {}),
+            'cac:TaxCategory': {
+                'cbc:ID': ac.taxCategory.categoryCode,
+                ...(ac.taxCategory.percent !== undefined
+                    ? {
+                          'cbc:Percent': this.__formatPercent(
+                              ac.taxCategory.percent
+                          ),
+                      }
+                    : {}),
+                'cac:TaxScheme': {
+                    'cbc:ID': 'VAT',
+                },
+            },
+        };
+    }
+
+    private __buildLineAllowanceCharge(
+        ac: NonNullable<
+            En16931Invoice['invoiceLines'][number]['allowanceCharge']
+        >[number],
+        lineCurrency: CurrencyCode,
+        path: string
+    ) {
+        const currency = ac.currency ?? lineCurrency;
+        return {
+            'cbc:ChargeIndicator': ac.chargeIndicator,
+            ...(ac.reasonCode
+                ? {
+                      'cbc:AllowanceChargeReasonCode': ac.reasonCode,
+                  }
+                : {}),
+            ...(ac.reason ? { 'cbc:AllowanceChargeReason': ac.reason } : {}),
+            ...(ac.multiplierFactorNumeric !== undefined
+                ? {
+                      'cbc:MultiplierFactorNumeric': ac.multiplierFactorNumeric,
+                  }
+                : {}),
+            'cbc:Amount': {
+                '#text': formatAmount(`${path}.amount`, ac.amount),
+                ...XMLAttributes({ currencyID: currency }),
+            },
+            ...(ac.baseAmount !== undefined
+                ? {
+                      'cbc:BaseAmount': {
+                          '#text': formatAmount(
+                              `${path}.baseAmount`,
+                              ac.baseAmount
+                          ),
+                          ...XMLAttributes({ currencyID: currency }),
+                      },
+                  }
+                : {}),
+        };
+    }
+
+    private __buildAdditionalDocumentReference(
+        ref: NonNullable<En16931Invoice['additionalDocumentReference']>[number]
+    ) {
+        return {
+            'cbc:ID': {
+                '#text': ref.id,
+                ...(ref.schemeID
+                    ? XMLAttributes({ schemeID: ref.schemeID })
+                    : {}),
+            },
+            ...(ref.documentTypeCode
+                ? { 'cbc:DocumentTypeCode': ref.documentTypeCode }
+                : {}),
+            ...(ref.documentDescription
+                ? { 'cbc:DocumentDescription': ref.documentDescription }
+                : {}),
+            ...(ref.attachment
+                ? {
+                      'cac:Attachment': {
+                          ...(ref.attachment.embeddedDocumentBinaryObject
+                              ? {
+                                    'cbc:EmbeddedDocumentBinaryObject': {
+                                        '#text':
+                                            ref.attachment
+                                                .embeddedDocumentBinaryObject,
+                                        ...XMLAttributes({
+                                            mimeCode:
+                                                ref.attachment.mimeCode ?? '',
+                                            filename:
+                                                ref.attachment.filename ?? '',
+                                        }),
+                                    },
+                                }
+                              : {}),
+                          ...(ref.attachment.externalReference
+                              ? {
+                                    'cac:ExternalReference': {
+                                        'cbc:URI':
+                                            ref.attachment.externalReference,
+                                    },
+                                }
+                              : {}),
+                      },
+                  }
+                : {}),
+        };
+    }
+
+    private __buildNotes(notes: NonNullable<En16931Invoice['note']>) {
+        return notes.map((note) =>
+            note.languageID
+                ? {
+                      '#text': note.content,
+                      ...XMLAttributes({ languageID: note.languageID }),
+                  }
+                : note.content
+        );
+    }
+
+    /**
+     * Builds an invoice or credit note line.
+     * @param line The line data
+     * @param quantityTag The UBL quantity element name ('InvoicedQuantity' or 'CreditedQuantity')
+     * @param path The path of the line in the input document (used in error messages)
+     */
+    private __buildLineItem(
+        line: En16931Invoice['invoiceLines'][number],
+        quantityTag: string,
+        path: string
+    ) {
+        return {
+            'cbc:ID': line.id,
+            ...(line.note && line.note.length > 0
+                ? {
+                      'cbc:Note': this.__buildNotes(line.note),
+                  }
+                : {}),
+            [`cbc:${quantityTag}`]: {
+                '#text': new Decimal(line.invoicedQuantity).toFixed(),
+                ...XMLAttributes({
+                    unitCode: line.unitCode,
+                }),
+            },
+            'cbc:LineExtensionAmount': {
+                '#text': formatAmount(
+                    `${path}.lineExtensionAmount`,
+                    line.lineExtensionAmount
+                ),
+                ...XMLAttributes({
+                    currencyID: line.currency,
+                }),
+            },
+            ...(line.accountingCost
+                ? { 'cbc:AccountingCost': line.accountingCost }
+                : {}),
+            ...(line.invoicePeriod
+                ? {
+                      'cac:InvoicePeriod': {
+                          ...(line.invoicePeriod.startDate
+                              ? {
+                                    'cbc:StartDate': getDateString(
+                                        line.invoicePeriod.startDate
+                                    ),
+                                }
+                              : {}),
+                          ...(line.invoicePeriod.endDate
+                              ? {
+                                    'cbc:EndDate': getDateString(
+                                        line.invoicePeriod.endDate
+                                    ),
+                                }
+                              : {}),
+                      },
+                  }
+                : {}),
+            ...(line.orderLineReference
+                ? {
+                      'cac:OrderLineReference': {
+                          'cbc:LineID': line.orderLineReference,
+                      },
+                  }
+                : {}),
+            ...(line.documentReference
+                ? {
+                      'cac:DocumentReference': {
+                          'cbc:ID': line.documentReference.id,
+                          'cbc:DocumentTypeCode':
+                              line.documentReference.documentTypeCode ?? '130',
+                      },
+                  }
+                : {}),
+            ...(line.allowanceCharge && line.allowanceCharge.length > 0
+                ? {
+                      'cac:AllowanceCharge': line.allowanceCharge.map((ac, i) =>
+                          this.__buildLineAllowanceCharge(
+                              ac,
+                              line.currency,
+                              `${path}.allowanceCharge[${i}]`
+                          )
+                      ),
+                  }
+                : {}),
+            'cac:Item': {
+                ...(line.description
+                    ? { 'cbc:Description': line.description }
+                    : {}),
+                'cbc:Name': line.name,
+                ...(line.buyersItemIdentification
+                    ? {
+                          'cac:BuyersItemIdentification': {
+                              'cbc:ID': line.buyersItemIdentification,
+                          },
+                      }
+                    : {}),
+                ...(line.sellersItemIdentification
+                    ? {
+                          'cac:SellersItemIdentification': {
+                              'cbc:ID': line.sellersItemIdentification,
+                          },
+                      }
+                    : {}),
+                ...(line.standardItemIdentification
+                    ? {
+                          'cac:StandardItemIdentification': {
+                              'cbc:ID': {
+                                  '#text': line.standardItemIdentification.id,
+                                  ...XMLAttributes({
+                                      schemeID:
+                                          line.standardItemIdentification
+                                              .schemeID,
+                                  }),
+                              },
+                          },
+                      }
+                    : {}),
+                ...(line.originCountry
+                    ? {
+                          'cac:OriginCountry': {
+                              'cbc:IdentificationCode': line.originCountry,
+                          },
+                      }
+                    : {}),
+                ...(line.commodityClassification &&
+                line.commodityClassification.length > 0
+                    ? {
+                          'cac:CommodityClassification':
+                              line.commodityClassification.map((cc) => ({
+                                  'cbc:ItemClassificationCode': {
+                                      '#text': cc.code,
+                                      ...XMLAttributes({
+                                          listID: cc.listID,
+                                          ...(cc.listVersionID
+                                              ? {
+                                                    listVersionID:
+                                                        cc.listVersionID,
+                                                }
+                                              : {}),
+                                      }),
+                                  },
+                              })),
+                      }
+                    : {}),
+                'cac:ClassifiedTaxCategory': {
+                    'cbc:ID': line.taxCategory.categoryCode,
+                    'cbc:Percent': this.__formatPercent(
+                        line.taxCategory.percent
+                    ),
+                    'cac:TaxScheme': {
+                        'cbc:ID': 'VAT',
+                    },
+                },
+                ...(line.additionalItemProperties &&
+                line.additionalItemProperties.length > 0
+                    ? {
+                          'cac:AdditionalItemProperty':
+                              line.additionalItemProperties.map((prop) => ({
+                                  'cbc:Name': prop.name,
+                                  'cbc:Value': prop.value,
+                              })),
+                      }
+                    : {}),
+            },
+            'cac:Price': {
+                'cbc:PriceAmount': {
+                    '#text': new Decimal(line.price).toFixed(),
+                    ...XMLAttributes({
+                        currencyID: line.currency,
+                    }),
+                },
+                ...(line.baseQuantity !== undefined
+                    ? {
+                          'cbc:BaseQuantity': {
+                              '#text': new Decimal(line.baseQuantity).toFixed(),
+                              ...XMLAttributes({
+                                  unitCode: line.unitCode,
+                              }),
+                          },
+                      }
+                    : {}),
+                ...(line.priceAllowanceCharge
+                    ? {
+                          'cac:AllowanceCharge': {
+                              'cbc:ChargeIndicator': false,
+                              // Unit price discount: like cbc:PriceAmount, kept at full
+                              // precision (fixed-point) and not limited to two decimals.
+                              'cbc:Amount': {
+                                  '#text': new Decimal(
+                                      line.priceAllowanceCharge.amount
+                                  ).toFixed(),
+                                  ...XMLAttributes({
+                                      currencyID:
+                                          line.priceAllowanceCharge.currency ??
+                                          line.currency,
+                                  }),
+                              },
+                              ...(line.priceAllowanceCharge.baseAmount !==
+                              undefined
+                                  ? {
+                                        // Gross unit price: full precision as well
+                                        'cbc:BaseAmount': {
+                                            '#text': new Decimal(
+                                                line.priceAllowanceCharge
+                                                    .baseAmount
+                                            ).toFixed(),
+                                            ...XMLAttributes({
+                                                currencyID:
+                                                    line.priceAllowanceCharge
+                                                        .currency ??
+                                                    line.currency,
+                                            }),
+                                        },
+                                    }
+                                  : {}),
+                          },
+                      }
+                    : {}),
+            },
+        };
+    }
+}

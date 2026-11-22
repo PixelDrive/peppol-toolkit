@@ -1,6 +1,6 @@
 {
     "name": "@pixeldrive/peppol-toolkit",
-    "version": "0.9.0",
+    "version": "0.10.0-canary.0",
     "description": "A TypeScript toolkit for building and reading peppol UBL documents",
     "keywords": [
         "peppol",
@@ -21,7 +21,8 @@
         "url": "https://github.com/PixelDrive/peppol-toolkit"
     },
     "publishConfig": {
-        "access": "public"
+        "access": "public",
+        "tag": "canary"
     },
     "exports": {
         ".": {
@@ -43,6 +44,7 @@
         "test": "npm run build && vitest run --config vitest.config.ts",
         "test:e2e": "vitest run --config vitest.e2e.config.ts",
         "kosit:start": "bash scripts/kosit.sh",
+        "kosit:start:en16931": "bash scripts/kosit.sh en16931",
         "lint": "eslint .",
         "format": "prettier --write .",
         "format:check": "prettier --check ."
@@ -62,6 +64,7 @@
         "vitest": "^2.1.9"
     },
     "dependencies": {
+        "@xmldom/xmldom": "^0.9.12",
         "decimal.js": "^10.6.0",
         "fast-xml-parser": "^5.5.1",
         "zod": "^4.3.6"

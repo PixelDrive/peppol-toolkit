@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { PeppolToolkit } from '../src';
 import { basicCreditNote } from '../src/data/basic-creditNote';
+import { fullCreditNote } from './fixtures/full-documents';
 
 describe('CreditNote Parser', () => {
     let toolkit: PeppolToolkit;
@@ -166,9 +167,33 @@ describe('CreditNote Parser', () => {
     it('should work with a different credit note type code', () => {
         const xml = toolkit.creditNoteToPeppolUBL({
             ...basicCreditNote,
-            creditNoteTypeCode: 261,
+            creditNoteTypeCode: 396,
         });
         const parsed = toolkit.peppolUBLToCreditNote(xml);
-        expect(parsed.creditNoteTypeCode).toBe(261);
+        expect(parsed.creditNoteTypeCode).toBe(396);
+    });
+
+    it('should reject the self-billed credit note type code (not allowed by BIS Billing)', () => {
+        const xml = toolkit
+            .creditNoteToPeppolUBL(basicCreditNote)
+            .replace(
+                '<cbc:CreditNoteTypeCode>381</cbc:CreditNoteTypeCode>',
+                '<cbc:CreditNoteTypeCode>261</cbc:CreditNoteTypeCode>'
+            );
+        expect(() => toolkit.peppolUBLToCreditNote(xml)).toThrow(
+            'Invalid CreditNoteTypeCode'
+        );
+    });
+
+    it('should read back every supported element', () => {
+        const xml = toolkit.creditNoteToPeppolUBL(fullCreditNote);
+        const parsed = toolkit.peppolUBLToCreditNote(xml);
+
+        // Building the parsed credit note again gives the same document
+        expect(toolkit.creditNoteToPeppolUBL(parsed)).toBe(xml);
+        expect(parsed.creditNoteLines[0].priceAllowanceCharge).toEqual(
+            fullCreditNote.creditNoteLines[0].priceAllowanceCharge
+        );
+        expect(toolkit.en16931UBLToCreditNote(xml)).toEqual(parsed);
     });
 });

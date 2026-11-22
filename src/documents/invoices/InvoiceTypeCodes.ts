@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 /**
  * Invoice type codes as defined by the EU
+ *
+ * Follows the invoice type code list of Peppol BIS Billing 3.0.21.
  * @see https://docs.peppol.eu/poacc/billing/3.0/codelist/UNCL1001-inv/
  * */
 export const InvoiceTypeCodes = {

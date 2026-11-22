@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    KoSIT validator configuration for EN 16931 documents without CIUS
+    (CustomizationID urn:cen.eu:en16931:2017). Used by `scripts/kosit.sh en16931`,
+    which assembles the repository: the EN 16931 validation artefacts of CEN/TC 434
+    (xslt/) and the UBL 2.1 schemas and report stylesheets of the Peppol BIS
+    configuration (resources/).
+-->
+<scenarios xmlns="http://www.xoev.de/de/validator/framework/1/scenarios" frameworkVersion="1.0.0">
+  <name>EN 16931 (CEN) - @pixeldrive/peppol-toolkit</name>
+  <author>@pixeldrive/peppol-toolkit</author>
+  <date>2026-11-22</date>
+  <description>
+    <p>Validation of UBL 2.1 invoices and credit notes against the EN 16931 core model only: XML Schema UBL 2.1 and the EN 16931 schematron rules of CEN/TC 434, without any CIUS rules.</p>
+  </description>
+
+  <scenario>
+    <name>EN 16931 - UBL Invoice</name>
+    <description>
+      <p>XML Schema UBL 2.1 Invoice and schematron rules EN 16931 (UBL)</p>
+    </description>
+    <namespace prefix="cbc">urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2</namespace>
+    <namespace prefix="invoice">urn:oasis:names:specification:ubl:schema:xsd:Invoice-2</namespace>
+    <match>/invoice:Invoice[normalize-space(cbc:CustomizationID) = 'urn:cen.eu:en16931:2017']</match>
+    <validateWithXmlSchema>
+      <resource>
+        <name>XML Schema for UBL 2.1 Invoice</name>
+        <location>resources/ubl/2.1/xsd/maindoc/UBL-Invoice-2.1.xsd</location>
+      </resource>
+    </validateWithXmlSchema>
+    <validateWithSchematron>
+      <resource>
+        <name>Schematron rules for EN16931 (UBL)</name>
+        <location>xslt/EN16931-UBL-validation.xslt</location>
+      </resource>
+    </validateWithSchematron>
+    <createReport>
+      <resource>
+        <name>Validation report</name>
+        <location>resources/xrechnung-report.xsl</location>
+      </resource>
+    </createReport>
+  </scenario>
+
+  <scenario>
+    <name>EN 16931 - UBL CreditNote</name>
+    <description>
+      <p>XML Schema UBL 2.1 CreditNote and schematron rules EN 16931 (UBL)</p>
+    </description>
+    <namespace prefix="cbc">urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2</namespace>
+    <namespace prefix="creditnote">urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2</namespace>
+    <match>/creditnote:CreditNote[normalize-space(cbc:CustomizationID) = 'urn:cen.eu:en16931:2017']</match>
+    <validateWithXmlSchema>
+      <resource>
+        <name>XML Schema for UBL 2.1 CreditNote</name>
+        <location>resources/ubl/2.1/xsd/maindoc/UBL-CreditNote-2.1.xsd</location>
+      </resource>
+    </validateWithXmlSchema>
+    <validateWithSchematron>
+      <resource>
+        <name>Schematron rules for EN16931 (UBL)</name>
+        <location>xslt/EN16931-UBL-validation.xslt</location>
+      </resource>
+    </validateWithSchematron>
+    <createReport>
+      <resource>
+        <name>Validation report</name>
+        <location>resources/xrechnung-report.xsl</location>
+      </resource>
+    </createReport>
+  </scenario>
+
+  <noScenarioReport>
+    <resource>
+      <name>Default Report</name>
+      <location>resources/default-report.xsl</location>
+    </resource>
+  </noScenarioReport>
+</scenarios>

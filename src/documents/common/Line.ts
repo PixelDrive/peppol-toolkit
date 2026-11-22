@@ -16,8 +16,10 @@ export const lineSchema = z.object({
             })
         )
         .optional(),
-    invoicedQuantity: z.number().min(0),
-    lineExtensionAmount: z.number().min(0),
+    // Negative for e.g. a returned item (valid in EN 16931 and Peppol BIS). The price itself cannot
+    // be negative (BR-27).
+    invoicedQuantity: z.number(),
+    lineExtensionAmount: z.number(),
     accountingCost: z.string().optional(),
     invoicePeriod: z
         .object({

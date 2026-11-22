@@ -12,8 +12,16 @@ describe('CreditNoteTypeCodes', () => {
         expect(result.success).toBe(true);
     });
 
+    it('should reject the self-billed credit note code 261 (PEPPOL-EN16931-P0101)', () => {
+        const result = creditNoteSchema.safeParse({
+            ...basicCreditNote,
+            creditNoteTypeCode: 261,
+        });
+        expect(result.success).toBe(false);
+    });
+
     it('should return errors if not in supported list', () => {
-        const sampleCreditNote: CreditNote = {
+        const sampleCreditNote = {
             ...basicCreditNote,
             creditNoteTypeCode: 380,
         };

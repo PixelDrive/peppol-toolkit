@@ -7,6 +7,7 @@ PEPPOL (Pan-European Public Procurement On-Line) is a set of specifications that
 ## Features
 
 - 🚀 Generate PEPPOL-compliant UBL XML invoices and credit notes
+- 🧾 Generate and read plain EN 16931 UBL documents for invoices that do not travel over Peppol (e.g. B2C invoices)
 - ✅ Validate UBL XML against a KoSIT validator service
 - 📦 ESM and CommonJS builds for broad compatibility
 - 🔷 Written in TypeScript with bundled type definitions
@@ -18,6 +19,27 @@ PEPPOL (Pan-European Public Procurement On-Line) is a set of specifications that
 ```bash
 npm install @pixeldrive/peppol-toolkit
 ```
+
+Install prereleases with `npm install @pixeldrive/peppol-toolkit@canary`. The prerelease suffix keeps canary builds out of ordinary stable version ranges.
+
+## Breaking changes in the `0.10` series
+
+`0.10.0-canary.0` is the preview release. The first stable release with these changes is planned for `0.10.1`.
+
+The `0.10` series aligns the code lists with **Peppol BIS Billing 3.0.21** (mandatory since 2026-08-17, see [Code lists](#code-lists)). Codes that the toolkit used to accept but that a BIS 3.0.21 validator rejects are no longer part of the types and schemas: documents using them do not compile anymore and fail to parse with `peppolUBLToInvoice` / `peppolUBLToCreditNote`.
+
+- **EAS** (`EASCodes`, `EASCodeSchema`, used by `endPoint.scheme`): the 14 codes removed by BIS 3.0.21 are no longer accepted: `0037`, `0147`, `0154`, `0170`, `0177`, `0193`, `0194`, `0202`, `0203`, `0205`, `0212`, `0213`, `0215` and `0217` (they were rejected by `PEPPOL-EN16931-CL008`). `0242`, `0244`, `0245`, `0246` and `0248` are added, and 11 descriptions follow the new list (e.g. `0088` is now `Global Location Number`). The removed codes are still part of the CEF EAS code list: such parties can still be invoiced with an [EN 16931 document](#generate-an-en-16931-ubl-document-outside-peppol).
+- `getEASFromTaxId` returns `undefined` for Finnish VAT numbers instead of the removed `0213`.
+- **ICD** (`ICDCodes`, `ICDCodeSchema`, used by `identification[].scheme`): the list now holds the 243 codes of BIS 3.0.21 (192 were missing, including `0246`, `0247` and `0248`) and no longer accepts the `99xx` codes, which are electronic address schemes and not ICD codes (they were rejected by `BR-CL-10`). `SEPA` is still accepted for the seller, as bank assigned creditor identifier (BT-90), but no longer for the buyer (`BR-CL-10`).
+- **Currencies** (`CurrencyCodes`, `CurrencyCodeSchema`): `ANG` and `BGN` are removed, `XCG` and `CNH` are added.
+- **Credit note type codes** (`CreditNoteTypeCodes`, `CreditNoteTypeCodeSchema`): `261` (self-billed credit note) is removed. BIS Billing only allows `81`, `83`, `381`, `396` and `532` (`PEPPOL-EN16931-P0101`).
+
+Other changes in the `0.10` series:
+
+- EN 16931 documents for invoices that do not travel over Peppol, e.g. B2C invoices (see [Generate an EN 16931 UBL document](#generate-an-en-16931-ubl-document-outside-peppol)).
+- `PEPPOL_BIS3_BILLING_WITH_RESPONSE_PROFILE_ID` (`urn:peppol:bis:billing_with_response`), the profile 02 added by BIS 3.0.21, to set as `profileID`. `PEPPOL_BIS3_CUSTOMIZATION_ID` and `PEPPOL_BIS3_PROFILE_ID` are exported as well.
+- The Peppol builders throw a descriptive `TypeError` when the seller or the buyer has no `endPoint` (only possible with untyped input), instead of failing on `undefined`.
+- Negative quantities, line amounts and VAT amounts, valid in EN 16931 and Peppol BIS (e.g. an invoice with a returned item), are accepted by the schemas and by all parsers, Peppol ones included. The builders write them, as before.
 
 ## Breaking changes in `0.9.0`
 
@@ -322,6 +344,96 @@ const creditNote: CreditNote = toolkit.peppolUBLToCreditNote(creditNoteXml);
 console.log(creditNote.ID);
 ```
 
+### Generate an EN 16931 UBL document (outside Peppol)
+
+Some invoices are never sent over Peppol and cannot be valid Peppol BIS documents. B2C invoices are the typical case: Peppol requires an electronic address for the buyer (BT-49, `PEPPOL-EN16931-R010`), and no scheme of the Peppol EAS code list fits a consumer. For these documents, generate a plain EN 16931 document: the core semantic model, without the Peppol CIUS.
+
+```typescript
+import { PeppolToolkit, En16931Invoice } from '@pixeldrive/peppol-toolkit';
+
+const toolkit = new PeppolToolkit();
+
+const invoice: En16931Invoice = {
+    ID: 'B2C-2026-001',
+    issueDate: '2026-03-01',
+    dueDate: '2026-03-31',
+    invoiceTypeCode: 380,
+    documentCurrencyCode: 'EUR',
+    seller: {
+        endPoint: { scheme: '0208', id: '0732788874' },
+        legalEntity: { registrationName: 'Pixeldrive SRL' },
+        address: { cityName: 'Namur', postalZone: '5000', country: 'BE' },
+        taxSchemes: [{ companyId: 'BE0732788874', schemeID: 'VAT' }],
+    },
+    // A consumer: no electronic address, no VAT identifier
+    buyer: {
+        legalEntity: { registrationName: 'Jane Doe' },
+        address: {
+            streetName: 'Rue de Fer 12',
+            cityName: 'Namur',
+            postalZone: '5000',
+            country: 'BE',
+        },
+    },
+    paymentMeans: [
+        { code: '30', financialAccount: { id: 'BE71096123456769' } },
+    ],
+    taxTotal: [
+        {
+            taxAmountCurrency: 'EUR',
+            taxAmount: 21,
+            subTotals: [
+                {
+                    taxableAmount: 100,
+                    taxAmount: 21,
+                    taxCategory: { categoryCode: 'S', percent: 21 },
+                },
+            ],
+        },
+    ],
+    legalMonetaryTotal: {
+        currency: 'EUR',
+        lineExtensionAmount: 100,
+        taxExclusiveAmount: 100,
+        taxInclusiveAmount: 121,
+        payableAmount: 121,
+    },
+    invoiceLines: [
+        {
+            id: '1',
+            invoicedQuantity: 1,
+            unitCode: 'C62',
+            lineExtensionAmount: 100,
+            price: 100,
+            name: 'Website maintenance',
+            currency: 'EUR',
+            taxCategory: { categoryCode: 'S', percent: 21 },
+        },
+    ],
+};
+
+const xml: string = toolkit.invoiceToEn16931UBL(invoice);
+```
+
+Compared to `invoiceToPeppolUBL` and `creditNoteToPeppolUBL`, `invoiceToEn16931UBL` and `creditNoteToEn16931UBL`:
+
+- make `endPoint` (BT-34, BT-49) optional on the seller and the buyer. When present, its scheme must come from the CEF EAS code list (`CefEASCodes`, BR-CL-25), which is wider than the Peppol one: it includes for example `EM` (e-mail address);
+- always write `urn:cen.eu:en16931:2017` (`EN16931_CUSTOMIZATION_ID`) as `cbc:CustomizationID`. The `customizationID` of the document is ignored;
+- only write `cbc:ProfileID` (BT-23) when `profileID` is set;
+- check the amounts in the same way (see [Amount precision](#amount-precision)).
+
+The EN 16931 types are the base of the Peppol ones: every `Invoice` / `CreditNote` is also an `En16931Invoice` / `En16931CreditNote`. The Peppol schemas, builders and parsers keep their strictness: `invoiceToPeppolUBL` throws when the seller or the buyer has no electronic address.
+
+Use `en16931UBLToInvoice` and `en16931UBLToCreditNote` to read EN 16931 and Peppol BIS UBL documents. The Peppol parsers require seller and buyer electronic addresses from the Peppol EAS code list. All parsers read negative quantities, line amounts and VAT amounts, which the builders write as well.
+
+Use `detectUblProfile` to select the parser and validator for a stored document. It reads the UBL `cbc:CustomizationID` from a well-formed invoice or credit note. Use KoSIT to check the business rules for the detected profile.
+
+```typescript
+PeppolToolkit.detectUblProfile(xml); // 'peppol-bis3' | 'en16931' | 'unknown'
+```
+
+Validating an EN 16931 document with KoSIT requires a configuration with an EN 16931 (CEN) scenario: the Peppol BIS configuration only matches Peppol documents and rejects any other document. `npm run kosit:start:en16931` starts a validator with such a configuration (see [KoSIT end-to-end tests](#kosit-end-to-end-tests)).
+
 ### Compute Invoice Totals
 
 Use the static `computeTotals` helper to calculate line totals, tax amounts, and the grand total from a list of line items — following EN 16931 rounding rules.
@@ -428,6 +540,8 @@ const creditNoteXml = toolkit.creditNoteToPeppolUBL(exampleCreditNote);
 console.log(creditNoteXml);
 ```
 
+`exampleEn16931Invoice` and `exampleEn16931CreditNote` are EN 16931 documents to a consumer (buyer without electronic address), to use with `invoiceToEn16931UBL` and `creditNoteToEn16931UBL`.
+
 ### Validate UBL XML with KoSIT
 
 You can validate generated (or external) UBL XML through a running KoSIT validator service.
@@ -452,6 +566,7 @@ Notes:
 - Default endpoint is `http://localhost:8081/`.
 - Requests are sent as `POST` with `Content-Type: application/xml`.
 - Some KoSIT deployments can return HTTP `406` together with an XML report for invalid documents; this toolkit still parses that report and returns structured `errors`/`warnings`.
+- The Peppol BIS configuration only validates Peppol documents. EN 16931 documents (`invoiceToEn16931UBL`, `creditNoteToEn16931UBL`) need a configuration with an EN 16931 (CEN) scenario, such as the one started by `npm run kosit:start:en16931`.
 
 ## API Reference
 
@@ -467,6 +582,10 @@ The main class that provides invoice and credit note conversion functionality.
 | `creditNoteToPeppolUBL(creditNote: CreditNote): string`                                           | Converts a `CreditNote` object to a PEPPOL-compliant UBL XML string          |
 | `peppolUBLToInvoice(xml: string): Invoice`                                                        | Parses a PEPPOL UBL XML string into an `Invoice` object                      |
 | `peppolUBLToCreditNote(xml: string): CreditNote`                                                  | Parses a PEPPOL UBL XML string into a `CreditNote` object                    |
+| `invoiceToEn16931UBL(invoice: En16931Invoice): string`                                            | Converts an `En16931Invoice` object to an EN 16931 UBL XML string            |
+| `creditNoteToEn16931UBL(creditNote: En16931CreditNote): string`                                   | Converts an `En16931CreditNote` object to an EN 16931 UBL XML string         |
+| `en16931UBLToInvoice(xml: string): En16931Invoice`                                                | Parses an EN 16931 (or PEPPOL) UBL XML string into an `En16931Invoice`       |
+| `en16931UBLToCreditNote(xml: string): En16931CreditNote`                                          | Parses an EN 16931 (or PEPPOL) UBL XML string into an `En16931CreditNote`    |
 | `validateWithKosit(xml: string, options?: KositValidatorOptions): Promise<KositValidationResult>` | Sends XML to a KoSIT validator service and returns parsed validation outcome |
 
 #### Static Helpers
@@ -475,6 +594,7 @@ The main class that provides invoice and credit note conversion functionality.
 | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `PeppolToolkit.computeTotals(items: UBLLineItem[]): Totals` | Calculates line totals, the VAT breakdown per category code and rate (`vatBreakdown`), tax amounts (total and per rate) and grand total following EN 16931 rules |
 | `PeppolToolkit.getEASFromTaxId(taxId: string): string`      | Returns the EAS scheme code for a country-prefixed VAT number                                                                                                    |
+| `PeppolToolkit.detectUblProfile(xml: string): UblProfile`   | Returns `'peppol-bis3'`, `'en16931'` or `'unknown'` according to the `cbc:CustomizationID` of a UBL document                                                     |
 
 ### `createToolkit()`
 
@@ -494,6 +614,23 @@ Also exported for direct use:
 - `KositValidatorOptions`
 - `KositValidationResult`
 - `KositValidationMessage`
+
+## Code lists
+
+The Peppol code lists follow **Peppol BIS Billing 3.0.21**. The EN 16931 schemas follow the CEN 1.3.17 rules for electronic address schemes (BR-CL-25), party identification schemes (BR-CL-10) and document type codes (BR-CL-01). The EN 16931 document type schemas are exported as `En16931InvoiceTypeCodeSchema` and `En16931CreditNoteTypeCodeSchema`.
+
+| Code list                                   | Export                 | Follows                                                                                                  |
+| ------------------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------- |
+| Electronic address schemes (Peppol)         | `EASCodes`             | Peppol BIS Billing 3.0.21 (`PEPPOL-EN16931-CL008`)                                                       |
+| Electronic address schemes (EN 16931)       | `CefEASCodes`          | BR-CL-25 of the EN 16931 validation artefacts 1.3.17: CEF EAS code list version 17.0, without `XA` (yet) |
+| Party identifier schemes (ISO 6523 ICD)     | `ICDCodes`             | Peppol BIS Billing 3.0.21, plus `SEPA` for the seller (BT-90)                                            |
+| Currencies (ISO 4217)                       | `CurrencyCodes`        | Peppol BIS Billing 3.0.21                                                                                |
+| Countries (ISO 3166-1 alpha-2)              | `CountryCodes`         | Peppol BIS Billing 3.0.21                                                                                |
+| Invoice type codes (UNCL1001)               | `InvoiceTypeCodes`     | Peppol BIS Billing 3.0.21                                                                                |
+| Credit note type codes (UNCL1001)           | `CreditNoteTypeCodes`  | Peppol BIS Billing 3.0.21                                                                                |
+| Payment means (UNCL4461)                    | `PaymentMeansCodes`    | Peppol BIS Billing 3.0.21                                                                                |
+| VAT categories (UNCL5305)                   | `DutyTaxFeeCategories` | Peppol BIS Billing 3.0.21                                                                                |
+| Units of measure (UN/ECE Recommendation 20) | `UnitCodes`            | Peppol BIS Billing 3.0.21                                                                                |
 
 ## PEPPOL BIS UBL Invoice Elements Checklist
 
@@ -627,6 +764,7 @@ Last updated: 2026-05-13
 - `npm run test` - Run tests
 - `npm run test:e2e` - Run the KoSIT end-to-end tests (see below)
 - `npm run kosit:start` - Download and start a local KoSIT validator (Java 17+)
+- `npm run kosit:start:en16931` - Download and start a local KoSIT validator for EN 16931 documents (Java 17+)
 - `npm run lint` - Lint the codebase
 - `npm run format` - Format code with Prettier
 
@@ -643,6 +781,19 @@ npm run test:e2e      # terminal 2
 ```
 
 Set `KOSIT_ENDPOINT` to target another instance. Generated XML and KoSIT reports are written to `e2e/output/` for inspection. The suite runs in CI through `.github/workflows/kosit.yml`.
+
+EN 16931 documents are validated by a second, opt-in suite (`e2e/kosit/cases/en16931.ts`), since the Peppol BIS configuration rejects them. It needs a KoSIT validator with an EN 16931 (CEN) scenario: `npm run kosit:start:en16931` assembles one from the [EN 16931 validation artefacts](https://github.com/ConnectingEurope/eInvoicing-EN16931) of CEN/TC 434 (BR-62, BR-63 and BR-CL-25 included) and `scripts/kosit-en16931-scenarios.xml`. The suite only runs when `KOSIT_EN16931_ENDPOINT` is set:
+
+```bash
+npm run kosit:start:en16931                                    # terminal 3 – listens on :8082
+KOSIT_EN16931_ENDPOINT=http://localhost:8082/ npm run test:e2e # terminal 2
+```
+
+`KOSIT_CEN_VERSION` (default `1.3.17`) and `KOSIT_EN16931_PORT` (default `8082`) configure that validator.
+
+### Releasing
+
+Pushing a new `version` in `package.json` to `main` publishes it to npm (`.github/workflows/publish.yml`). The workflow publishes each version once. For a canary, use a prerelease version such as `0.10.0-canary.0` and set `publishConfig.tag` to `canary`. For a stable release, set a stable version and remove `publishConfig.tag` in the same commit to publish under `latest`.
 
 ## Requirements
 

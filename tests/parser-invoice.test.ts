@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { PeppolToolkit } from '../src';
 import { basicInvoice } from '../src/data/basic-invoice';
+import { fullInvoice } from './fixtures/full-documents';
 
 describe('Invoice Parser', () => {
     let toolkit: PeppolToolkit;
@@ -181,5 +182,17 @@ describe('Invoice Parser', () => {
         const parsed = toolkit.peppolUBLToInvoice(xml);
         expect(parsed.taxTotal[0].taxAmount).toBe(21.005);
         expect(parsed.taxTotal[0].subTotals[0].taxAmount).toBe(21.005);
+    });
+
+    it('should read back every supported element', () => {
+        const xml = toolkit.invoiceToPeppolUBL(fullInvoice);
+        const parsed = toolkit.peppolUBLToInvoice(xml);
+
+        // Building the parsed invoice again gives the same document
+        expect(toolkit.invoiceToPeppolUBL(parsed)).toBe(xml);
+        expect(parsed.invoiceLines[0].priceAllowanceCharge).toEqual(
+            fullInvoice.invoiceLines[0].priceAllowanceCharge
+        );
+        expect(toolkit.en16931UBLToInvoice(xml)).toEqual(parsed);
     });
 });

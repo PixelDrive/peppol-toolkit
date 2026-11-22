@@ -29,16 +29,15 @@ jobs:
                   VERSION=$(node -p "require('./package.json').version")
                   echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-            - name: Get published npm version
-              id: npm
-              run: |
-                  PUBLISHED=$(npm view . version || echo "0.0.0")
-                  echo "published=$PUBLISHED" >> $GITHUB_OUTPUT
-
-            - name: Check if version changed
+            - name: Check if this version is already published
               id: check
               run: |
-                  if [ "${{ steps.pkg.outputs.version }}" = "${{ steps.npm.outputs.published }}" ]; then
+                  # Look for this exact version: a version published under another
+                  # dist-tag than latest (publishConfig.tag, e.g. canary) is not
+                  # returned by `npm view . version`.
+                  NAME=$(node -p "require('./package.json').name")
+                  VERSION="${{ steps.pkg.outputs.version }}"
+                  if [ "$(npm view "$NAME@$VERSION" version 2>/dev/null)" = "$VERSION" ]; then
                     echo "changed=false" >> $GITHUB_OUTPUT
                   else
                     echo "changed=true" >> $GITHUB_OUTPUT
@@ -58,4 +57,8 @@ jobs:
 
             - name: Publish to npm
               if: steps.check.outputs.changed == 'true'
-              run: npm publish
+              run: |
+                  # Dist-tag from publishConfig.tag (latest when unset). Passed explicitly
+                  # because npm logs "with tag latest" even when publishing under publishConfig.tag.
+                  TAG=$(node -p "require('./package.json').publishConfig?.tag ?? 'latest'")
+                  npm publish --tag "$TAG"

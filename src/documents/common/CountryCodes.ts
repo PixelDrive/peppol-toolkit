@@ -1,6 +1,8 @@
 /**
  * ISO 3166-1 alpha-2 country codes with additional entries
  * These codes identify countries and territories worldwide
+ *
+ * Follows the ISO 3166-1 alpha-2 code list of Peppol BIS Billing 3.0.21.
  * @see https://www.iso.org/iso-3166-country-codes.html
  * @see https://docs.peppol.eu/poacc/billing/3.0/codelist/ISO3166/
  */

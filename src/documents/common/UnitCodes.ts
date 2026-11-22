@@ -1,6 +1,8 @@
 /**
  * Unit of measure codes based on UN/ECE Recommendation No. 20
  * These codes identify units of measurement used in commercial transactions
+ *
+ * Follows the UN/ECE Recommendation 20 code list of Peppol BIS Billing 3.0.21.
  * @see https://docs.peppol.eu/poacc/billing/3.0/codelist/UNECERec20/
  */
 import { z } from 'zod';
