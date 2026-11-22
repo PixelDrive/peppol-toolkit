@@ -16,8 +16,10 @@ export const lineSchema = z.object({
             })
         )
         .optional(),
-    invoicedQuantity: z.number().min(0),
-    lineExtensionAmount: z.number().min(0),
+    // Negative for e.g. a returned item: the parsers accept it, the builders reject it
+    // (see UblDocumentWriter). The price itself cannot be negative (BR-27).
+    invoicedQuantity: z.number(),
+    lineExtensionAmount: z.number(),
     accountingCost: z.string().optional(),
     invoicePeriod: z
         .object({

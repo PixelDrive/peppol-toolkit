@@ -172,3 +172,15 @@ export function creditNote(overrides: Partial<CreditNote> = {}): CreditNote {
         ...overrides,
     };
 }
+
+/**
+ * Negates the quantities and amounts (except the unit price, BR-27) of a document generated
+ * with positive values. The builders do not generate negative values, but EN 16931 and Peppol
+ * BIS allow them and the parsers read them.
+ */
+export function negateAmounts(xml: string): string {
+    return xml.replace(
+        /(<cbc:(?:InvoicedQuantity|CreditedQuantity|LineExtensionAmount|TaxAmount|TaxableAmount|TaxExclusiveAmount|TaxInclusiveAmount|PayableAmount)\b[^>]*>)(?=\d)/g,
+        '$1-'
+    );
+}

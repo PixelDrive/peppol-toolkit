@@ -205,48 +205,49 @@ describe('EN 16931 document schemas', () => {
         );
     });
 
-    it('round-trips negative line amounts, quantities and VAT totals', () => {
+    it('accept negative quantities, line amounts and VAT amounts, which the parsers read', () => {
         const toolkit = new PeppolToolkit();
-        const example = exampleEn16931Invoice;
-        const [tax] = example.taxTotal;
-        const invoice = {
-            ...example,
-            invoiceLines: [
-                {
-                    ...example.invoiceLines[0],
-                    invoicedQuantity: -1,
-                    lineExtensionAmount: -100,
-                },
-            ],
-            taxTotal: [
-                {
-                    ...tax,
-                    taxAmount: -21,
-                    subTotals: [
-                        {
-                            ...tax.subTotals[0],
-                            taxableAmount: -100,
-                            taxAmount: -21,
-                        },
-                    ],
-                },
-            ],
-            legalMonetaryTotal: {
-                ...example.legalMonetaryTotal,
-                lineExtensionAmount: -100,
-                taxExclusiveAmount: -100,
-                taxInclusiveAmount: -121,
-                payableAmount: -121,
-            },
-        } satisfies En16931Invoice;
+        // The builders do not generate negative values: negate those of a generated document
+        const negate = (xml: string) =>
+            xml.replace(
+                /(<cbc:(?:InvoicedQuantity|CreditedQuantity|LineExtensionAmount|TaxAmount|TaxableAmount|TaxExclusiveAmount|TaxInclusiveAmount|PayableAmount)\b[^>]*>)(?=\d)/g,
+                '$1-'
+            );
+        const line = exampleInvoice.invoiceLines[0];
+        expect(
+            invoiceSchema.safeParse({
+                ...exampleInvoice,
+                invoiceLines: [
+                    {
+                        ...line,
+                        invoicedQuantity: -1,
+                        lineExtensionAmount: -100,
+                    },
+                ],
+            }).success
+        ).toBe(true);
 
-        const parsed = toolkit.en16931UBLToInvoice(
-            toolkit.invoiceToEn16931UBL(invoice)
+        const peppol = toolkit.peppolUBLToInvoice(
+            negate(toolkit.invoiceToPeppolUBL(exampleInvoice))
         );
-        expect(parsed.invoiceLines[0]).toMatchObject(invoice.invoiceLines[0]);
-        expect(parsed.taxTotal[0]).toMatchObject(invoice.taxTotal[0]);
-        expect(parsed.legalMonetaryTotal).toMatchObject(
-            invoice.legalMonetaryTotal
+        const en16931 = toolkit.en16931UBLToInvoice(
+            negate(toolkit.invoiceToEn16931UBL(exampleEn16931Invoice))
         );
+        const creditNote = toolkit.peppolUBLToCreditNote(
+            negate(toolkit.creditNoteToPeppolUBL(exampleCreditNote))
+        );
+        for (const document of [peppol, en16931]) {
+            expect(document.invoiceLines[0]).toMatchObject({
+                invoicedQuantity: -1,
+                lineExtensionAmount: -100,
+                price: 100,
+            });
+            expect(document.taxTotal[0]).toMatchObject({
+                taxAmount: -21,
+                subTotals: [{ taxableAmount: -100, taxAmount: -21 }],
+            });
+            expect(document.legalMonetaryTotal.payableAmount).toBe(-121);
+        }
+        expect(creditNote.creditNoteLines[0].invoicedQuantity).toBe(-1);
     });
 });

@@ -1,7 +1,5 @@
 import { z } from 'zod';
-import { lineSchema } from '../common/Line';
 import { buyerPartySchema, partySchema } from '../common/Parties';
-import { taxTotalSchema } from '../common/TaxTotal';
 import { en16931InvoiceSchema } from '../en16931/Invoice';
 import { InvoiceTypeCodeSchema } from './InvoiceTypeCodes';
 
@@ -13,8 +11,6 @@ export const invoiceSchema = en16931InvoiceSchema.extend({
     invoiceTypeCode: InvoiceTypeCodeSchema,
     seller: partySchema,
     buyer: buyerPartySchema,
-    taxTotal: z.array(taxTotalSchema).min(1).max(2),
-    invoiceLines: z.array(lineSchema).min(1),
 });
 
 export type Invoice = z.infer<typeof invoiceSchema>;

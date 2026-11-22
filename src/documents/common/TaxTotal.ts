@@ -2,9 +2,11 @@ import { z } from 'zod';
 import { CurrencyCodeSchema } from './CurrencyCodes';
 import { taxCategorySchema } from './TaxCategory';
 
+// The VAT amounts can be negative (e.g. an invoice with a returned item): the parsers accept them,
+// the builders reject them (see UblDocumentWriter).
 export const taxSubtotalSchema = z.object({
-    taxableAmount: z.number().min(0),
-    taxAmount: z.number().min(0),
+    taxableAmount: z.number(),
+    taxAmount: z.number(),
     taxCategory: taxCategorySchema,
 
     // Required in the peppol specification, but we make it optional here for flexibility since
@@ -14,7 +16,7 @@ export const taxSubtotalSchema = z.object({
 });
 
 export const taxTotalSchema = z.object({
-    taxAmount: z.number().min(0),
+    taxAmount: z.number(),
     taxAmountCurrency: CurrencyCodeSchema,
     subTotals: z.array(taxSubtotalSchema),
 });

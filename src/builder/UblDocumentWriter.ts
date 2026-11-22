@@ -740,6 +740,17 @@ export class UblDocumentWriter {
     private __buildTaxTotal(total: En16931Invoice['taxTotal']) {
         return total.map((t, i) => {
             const path = `taxTotal[${i}]`;
+            this.__assertNotNegative(`${path}.taxAmount`, t.taxAmount);
+            t.subTotals.forEach((st, j) => {
+                this.__assertNotNegative(
+                    `${path}.subTotals[${j}].taxableAmount`,
+                    st.taxableAmount
+                );
+                this.__assertNotNegative(
+                    `${path}.subTotals[${j}].taxAmount`,
+                    st.taxAmount
+                );
+            });
             const taxAmount = formatAmount(`${path}.taxAmount`, t.taxAmount);
             const subTotals = t.subTotals.map((st, j) => ({
                 taxableAmount: formatAmount(
@@ -821,6 +832,22 @@ export class UblDocumentWriter {
             throw new RangeError(
                 `BR-CO-14 violation in "${path}": taxAmount (${taxAmount}) must equal the sum of ` +
                     `subTotals[].taxAmount (${this.__centsToAmount(sum)})`
+            );
+        }
+    }
+
+    /**
+     * EN 16931 and Peppol BIS allow negative quantities, line amounts and VAT amounts (e.g. for a
+     * returned item) and the parsers read them, but the builders do not generate them: a credit
+     * note is issued instead.
+     * @param path The path of the field in the input document (used in the error message)
+     * @param value The quantity or amount
+     */
+    private __assertNotNegative(path: string, value: number) {
+        if (value < 0) {
+            throw new RangeError(
+                `Invalid value for "${path}": ${value} is negative. The builder does not generate ` +
+                    'negative quantities, line amounts or VAT amounts: issue a credit note instead.'
             );
         }
     }
@@ -1146,6 +1173,14 @@ export class UblDocumentWriter {
         quantityTag: string,
         path: string
     ) {
+        this.__assertNotNegative(
+            `${path}.invoicedQuantity`,
+            line.invoicedQuantity
+        );
+        this.__assertNotNegative(
+            `${path}.lineExtensionAmount`,
+            line.lineExtensionAmount
+        );
         return {
             'cbc:ID': line.id,
             ...(line.note && line.note.length > 0

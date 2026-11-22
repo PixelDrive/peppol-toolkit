@@ -11,8 +11,6 @@ export const creditNoteSchema = en16931CreditNoteSchema.extend({
     creditNoteTypeCode: CreditNoteTypeCodeSchema,
     seller: invoiceSchema.shape.seller,
     buyer: invoiceSchema.shape.buyer,
-    taxTotal: invoiceSchema.shape.taxTotal,
-    creditNoteLines: invoiceSchema.shape.invoiceLines,
 });
 
 export type CreditNote = z.infer<typeof creditNoteSchema>;

@@ -57,7 +57,7 @@ describe('Invoice Lines', () => {
         expect(result1.success).toBe(true);
     });
 
-    it('should return failure if the invoiceQuantity is negative', () => {
+    it('should accept a negative invoicedQuantity (the builders reject it)', () => {
         const invoiceLines = {
             id: '1',
             invoicedQuantity: -1,
@@ -73,10 +73,7 @@ describe('Invoice Lines', () => {
             },
         };
         const result1 = lineSchema.safeParse(invoiceLines);
-        expect(result1.success).toBe(false);
-        expect(result1.error?.message).toContain(
-            'Too small: expected number to be >=0'
-        );
+        expect(result1.success).toBe(true);
     });
 
     it('should return failure if the currencyCode is not in supported list', () => {

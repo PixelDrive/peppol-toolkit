@@ -5,7 +5,7 @@ import {
     exampleEn16931CreditNote,
     exampleEn16931Invoice,
 } from '../../../src';
-import { belgianBuyer, belgianSeller } from './helpers';
+import { belgianBuyer, belgianSeller, negateAmounts } from './helpers';
 
 /**
  * An EN 16931 document to generate and submit to a KoSIT validator configured with the
@@ -112,35 +112,8 @@ export const en16931ValidCases: En16931KositCase[] = [
     {
         name: 'invoice - negative quantity and tax amounts',
         kind: 'invoice',
-        document: invoice({
-            invoiceLines: [
-                {
-                    ...exampleEn16931Invoice.invoiceLines[0],
-                    invoicedQuantity: -1,
-                    lineExtensionAmount: -100,
-                },
-            ],
-            taxTotal: [
-                {
-                    ...exampleEn16931Invoice.taxTotal[0],
-                    taxAmount: -21,
-                    subTotals: [
-                        {
-                            ...exampleEn16931Invoice.taxTotal[0].subTotals[0],
-                            taxableAmount: -100,
-                            taxAmount: -21,
-                        },
-                    ],
-                },
-            ],
-            legalMonetaryTotal: {
-                ...exampleEn16931Invoice.legalMonetaryTotal,
-                lineExtensionAmount: -100,
-                taxExclusiveAmount: -100,
-                taxInclusiveAmount: -121,
-                payableAmount: -121,
-            },
-        }),
+        document: invoice(),
+        mutateXml: negateAmounts,
     },
     {
         name: 'invoice - with a payee identifier',

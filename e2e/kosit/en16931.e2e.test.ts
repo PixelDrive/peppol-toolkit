@@ -79,7 +79,10 @@ describe.skipIf(!endpoint)('KoSIT EN 16931 validation', () => {
                     testCase.kind === 'invoice'
                         ? toolkit.en16931UBLToInvoice(xml)
                         : toolkit.en16931UBLToCreditNote(xml);
-                expect(parsed).toMatchObject(testCase.document);
+                // A document changed by mutateXml no longer matches the data it was built from
+                if (!testCase.mutateXml) {
+                    expect(parsed).toMatchObject(testCase.document);
+                }
             }
         );
     });
