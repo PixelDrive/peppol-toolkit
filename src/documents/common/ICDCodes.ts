@@ -262,7 +262,7 @@ export type ICDCode = keyof typeof ICDCodes;
  * @param code The code to check
  */
 export function isValidICDCode(code: string): code is ICDCode {
-    return code in ICDCodes;
+    return Object.prototype.hasOwnProperty.call(ICDCodes, code);
 }
 
 const icdCodeKeys = Object.keys(ICDCodes) as unknown as [ICDCode, ...ICDCode[]];

@@ -204,7 +204,7 @@ export function getCurrencyDescription(code: CurrencyCode): string {
  * @param code The code to check
  */
 export function isValidCurrencyCode(code: string): code is CurrencyCode {
-    return code in CurrencyCodes;
+    return Object.prototype.hasOwnProperty.call(CurrencyCodes, code);
 }
 
 // Zod schema for currency codes

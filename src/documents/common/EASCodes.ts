@@ -110,7 +110,7 @@ export function getEASDescription(code: EASCode): string {
  * @param code The code to check
  */
 export function isValidEASCode(code: string): code is EASCode {
-    return code in EASCodes;
+    return Object.prototype.hasOwnProperty.call(EASCodes, code);
 }
 
 /**

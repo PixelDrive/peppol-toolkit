@@ -111,7 +111,7 @@ export function getPaymentMeansDescription(code: PaymentMeansCode): string {
 export function isValidPaymentMeansCode(
     code: string
 ): code is PaymentMeansCode {
-    return code in PaymentMeansCodes;
+    return Object.prototype.hasOwnProperty.call(PaymentMeansCodes, code);
 }
 
 // Zod schema for payment means codes
