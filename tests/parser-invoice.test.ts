@@ -1,21 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { ZodError } from 'zod';
 import { PeppolToolkit } from '../src';
 import { basicInvoice } from '../src/data/basic-invoice';
 import { fullInvoice } from './fixtures/full-documents';
-
-function expectZodPath(fn: () => unknown, expectedPath: (string | number)[]) {
-    let caught: unknown;
-    try {
-        fn();
-    } catch (error) {
-        caught = error;
-    }
-    expect(caught).toBeInstanceOf(ZodError);
-    expect(
-        (caught as ZodError).issues.map((issue) => issue.path)
-    ).toContainEqual(expectedPath);
-}
+import { expectZodPath } from './helpers/expectZodPath';
 
 describe('Invoice Parser', () => {
     let toolkit: PeppolToolkit;
@@ -210,8 +197,8 @@ describe('Invoice Parser', () => {
         expect(toolkit.en16931UBLToInvoice(xml)).toEqual(parsed);
     });
 
-    describe('empty, missing, and repeated XML elements (#31)', () => {
-        it('should reject empty elements with attributes instead of parsing "[object Object]"', () => {
+    describe('empty, missing, invalid numeric, and repeated XML elements (#31)', () => {
+        it('should consistently reject empty elements with or without attributes', () => {
             const baseXml = toolkit.invoiceToPeppolUBL(basicInvoice);
 
             const emptyEndpoint = baseXml.replace(
@@ -223,50 +210,214 @@ describe('Invoice Parser', () => {
                 ['seller', 'endPoint', 'id']
             );
 
-            const emptyPartyId = baseXml.replace(
+            const emptyPartyIdWithAttr = baseXml.replace(
                 '<cbc:ID>BE0732788874</cbc:ID>',
                 '<cbc:ID schemeID="0088"/>'
+            );
+            expectZodPath(
+                () => toolkit.peppolUBLToInvoice(emptyPartyIdWithAttr),
+                ['seller', 'identification', 0, 'id']
+            );
+
+            const emptyPartyId = baseXml.replace(
+                '<cbc:ID>BE0732788874</cbc:ID>',
+                '<cbc:ID/>'
             );
             expectZodPath(
                 () => toolkit.peppolUBLToInvoice(emptyPartyId),
                 ['seller', 'identification', 0, 'id']
             );
 
-            const emptyNote = toolkit
-                .invoiceToPeppolUBL({
-                    ...basicInvoice,
-                    note: [{ content: 'Note', languageID: 'en' }],
-                })
-                .replace(
-                    '<cbc:Note languageID="en">Note</cbc:Note>',
-                    '<cbc:Note languageID="en"/>'
-                );
+            const emptyCompanyIdWithAttr = baseXml.replace(
+                '<cbc:CompanyID>0732788874</cbc:CompanyID>',
+                '<cbc:CompanyID schemeID="0208"/>'
+            );
             expectZodPath(
-                () => toolkit.peppolUBLToInvoice(emptyNote),
-                ['note', 0, 'content']
+                () => toolkit.peppolUBLToInvoice(emptyCompanyIdWithAttr),
+                ['seller', 'legalEntity', 'companyId', 'id']
             );
 
             const emptyCompanyId = baseXml.replace(
                 '<cbc:CompanyID>0732788874</cbc:CompanyID>',
-                '<cbc:CompanyID schemeID="0208"/>'
+                '<cbc:CompanyID/>'
             );
-            expect(
-                toolkit.peppolUBLToInvoice(emptyCompanyId).seller.legalEntity
-                    .companyId
-            ).toBeUndefined();
+            expectZodPath(
+                () => toolkit.peppolUBLToInvoice(emptyCompanyId),
+                ['seller', 'legalEntity', 'companyId', 'id']
+            );
+
+            const fullXml = toolkit.invoiceToPeppolUBL(fullInvoice);
+
+            const emptyBinaryWithAttr = fullXml.replace(
+                '<cbc:EmbeddedDocumentBinaryObject mimeCode="application/pdf" filename="timesheet.pdf">aGVsbG8gd29ybGQ=</cbc:EmbeddedDocumentBinaryObject>',
+                '<cbc:EmbeddedDocumentBinaryObject mimeCode="application/pdf" filename="timesheet.pdf"/>'
+            );
+            expectZodPath(
+                () => toolkit.peppolUBLToInvoice(emptyBinaryWithAttr),
+                [
+                    'additionalDocumentReference',
+                    0,
+                    'attachment',
+                    'embeddedDocumentBinaryObject',
+                ]
+            );
+
+            const emptyBinary = fullXml.replace(
+                '<cbc:EmbeddedDocumentBinaryObject mimeCode="application/pdf" filename="timesheet.pdf">aGVsbG8gd29ybGQ=</cbc:EmbeddedDocumentBinaryObject>',
+                '<cbc:EmbeddedDocumentBinaryObject/>'
+            );
+            expectZodPath(
+                () => toolkit.peppolUBLToInvoice(emptyBinary),
+                [
+                    'additionalDocumentReference',
+                    0,
+                    'attachment',
+                    'embeddedDocumentBinaryObject',
+                ]
+            );
+
+            const emptyDeliveryLocationId = fullXml.replace(
+                '<cbc:ID schemeID="0088">5790000435975</cbc:ID>',
+                '<cbc:ID schemeID="0088"/>'
+            );
+            expectZodPath(
+                () => toolkit.peppolUBLToInvoice(emptyDeliveryLocationId),
+                ['delivery', 'deliveryLocation', 'id']
+            );
         });
 
-        it('should reject duplicate scalar elements instead of joining array values', () => {
-            const duplicateId = toolkit
-                .invoiceToPeppolUBL(basicInvoice)
-                .replace(
-                    '<cbc:ID>TEST-003</cbc:ID>',
-                    '<cbc:ID>TEST-003</cbc:ID><cbc:ID>TEST-004</cbc:ID>'
-                );
-            expectZodPath(
-                () => toolkit.peppolUBLToInvoice(duplicateId),
-                ['ID']
+        it('should reject empty cbc:Note consistently whether alone, attributed, or repeated', () => {
+            const noteXml = toolkit.invoiceToPeppolUBL({
+                ...basicInvoice,
+                note: [{ content: 'Note', languageID: 'en' }],
+            });
+
+            const emptyAlone = noteXml.replace(
+                '<cbc:Note languageID="en">Note</cbc:Note>',
+                '<cbc:Note/>'
             );
+            expectZodPath(
+                () => toolkit.peppolUBLToInvoice(emptyAlone),
+                ['note', 0, 'content']
+            );
+
+            const emptyWithLang = noteXml.replace(
+                '<cbc:Note languageID="en">Note</cbc:Note>',
+                '<cbc:Note languageID="en"/>'
+            );
+            expectZodPath(
+                () => toolkit.peppolUBLToInvoice(emptyWithLang),
+                ['note', 0, 'content']
+            );
+
+            const emptyWithSibling = noteXml.replace(
+                '<cbc:Note languageID="en">Note</cbc:Note>',
+                '<cbc:Note/><cbc:Note>Valid note</cbc:Note>'
+            );
+            expectZodPath(
+                () => toolkit.peppolUBLToInvoice(emptyWithSibling),
+                ['note', 0, 'content']
+            );
+        });
+
+        it('should reject duplicate non-repeatable elements (required, optional, and aggregate)', () => {
+            const fullXml = toolkit.invoiceToPeppolUBL(fullInvoice);
+
+            expect(() =>
+                toolkit.peppolUBLToInvoice(
+                    fullXml.replace(
+                        '<cbc:ID>INV-2026-042</cbc:ID>',
+                        '<cbc:ID>INV-2026-042</cbc:ID><cbc:ID>INV-2026-043</cbc:ID>'
+                    )
+                )
+            ).toThrow('Duplicate element "cbc:ID" in "Invoice"');
+
+            expect(() =>
+                toolkit.peppolUBLToInvoice(
+                    fullXml.replace(
+                        '<cbc:BuyerReference>PO-4521</cbc:BuyerReference>',
+                        '<cbc:BuyerReference>PO-1</cbc:BuyerReference><cbc:BuyerReference>PO-2</cbc:BuyerReference>'
+                    )
+                )
+            ).toThrow('Duplicate element "cbc:BuyerReference" in "Invoice"');
+
+            expect(() =>
+                toolkit.peppolUBLToInvoice(
+                    fullXml.replace(
+                        '<cbc:DueDate>2026-03-31</cbc:DueDate>',
+                        '<cbc:DueDate>2026-03-31</cbc:DueDate><cbc:DueDate>2026-04-30</cbc:DueDate>'
+                    )
+                )
+            ).toThrow('Duplicate element "cbc:DueDate" in "Invoice"');
+
+            expect(() =>
+                toolkit.peppolUBLToInvoice(
+                    fullXml.replace(
+                        '<cbc:Percent>21</cbc:Percent>',
+                        '<cbc:Percent>21</cbc:Percent><cbc:Percent>6</cbc:Percent>'
+                    )
+                )
+            ).toThrow('Duplicate element "cbc:Percent" in "cac:TaxCategory"');
+
+            expect(() =>
+                toolkit.peppolUBLToInvoice(
+                    fullXml.replace(
+                        '<cbc:PrepaidAmount currencyID="EUR">100.00</cbc:PrepaidAmount>',
+                        '<cbc:PrepaidAmount currencyID="EUR">50.00</cbc:PrepaidAmount><cbc:PrepaidAmount currencyID="EUR">50.00</cbc:PrepaidAmount>'
+                    )
+                )
+            ).toThrow(
+                'Duplicate element "cbc:PrepaidAmount" in "cac:LegalMonetaryTotal"'
+            );
+
+            expect(() =>
+                toolkit.peppolUBLToInvoice(
+                    fullXml.replace(
+                        '<cbc:MultiplierFactorNumeric>10</cbc:MultiplierFactorNumeric>',
+                        '<cbc:MultiplierFactorNumeric>10</cbc:MultiplierFactorNumeric><cbc:MultiplierFactorNumeric>5</cbc:MultiplierFactorNumeric>'
+                    )
+                )
+            ).toThrow(
+                'Duplicate element "cbc:MultiplierFactorNumeric" in "cac:AllowanceCharge"'
+            );
+
+            expect(() =>
+                toolkit.peppolUBLToInvoice(
+                    fullXml.replace(
+                        '<cac:AddressLine>',
+                        '<cac:AddressLine><cbc:Line>Building A</cbc:Line></cac:AddressLine><cac:AddressLine>'
+                    )
+                )
+            ).toThrow(
+                'Duplicate element "cac:AddressLine" in "cac:PostalAddress"'
+            );
+
+            expect(() =>
+                toolkit.peppolUBLToInvoice(
+                    fullXml.replace(
+                        '<cac:Contact>',
+                        '<cac:Contact><cbc:Name>Other</cbc:Name></cac:Contact><cac:Contact>'
+                    )
+                )
+            ).toThrow('Duplicate element "cac:Contact" in "cac:Party"');
+
+            expect(() =>
+                toolkit.peppolUBLToInvoice(
+                    fullXml.replace(
+                        '<cbc:Note>Payment within 30 days</cbc:Note>',
+                        '<cbc:Note>Term 1</cbc:Note><cbc:Note>Term 2</cbc:Note>'
+                    )
+                )
+            ).toThrow('Duplicate element "cbc:Note" in "cac:PaymentTerms"');
+
+            expect(() =>
+                toolkit.peppolUBLToInvoice(
+                    fullXml.replace(
+                        '<cac:AllowanceCharge>\n        <cbc:ChargeIndicator>false</cbc:ChargeIndicator>\n        <cbc:Amount currencyID="EUR">10.5882</cbc:Amount>',
+                        '<cac:AllowanceCharge><cbc:ChargeIndicator>false</cbc:ChargeIndicator><cbc:Amount currencyID="EUR">1.00</cbc:Amount></cac:AllowanceCharge><cac:AllowanceCharge>\n        <cbc:ChargeIndicator>false</cbc:ChargeIndicator>\n        <cbc:Amount currencyID="EUR">10.5882</cbc:Amount>'
+                    )
+                )
+            ).toThrow('Duplicate element "cac:AllowanceCharge" in "cac:Price"');
         });
 
         it('should reject missing LineExtensionAmount in LegalMonetaryTotal instead of defaulting to 0', () => {
@@ -282,17 +433,20 @@ describe('Invoice Parser', () => {
             );
         });
 
-        it('should parse empty optional numeric elements as undefined instead of 0', () => {
+        it('should parse empty or whitespace-only optional numeric elements as undefined instead of 0', () => {
             const xml = toolkit
                 .invoiceToPeppolUBL(fullInvoice)
-                .replace(/<cbc:Percent>21<\/cbc:Percent>/g, '<cbc:Percent/>')
+                .replace(
+                    /<cbc:Percent>21<\/cbc:Percent>/g,
+                    '<cbc:Percent><![CDATA[ ]]></cbc:Percent>'
+                )
                 .replace(
                     '<cbc:MultiplierFactorNumeric>10</cbc:MultiplierFactorNumeric>',
                     '<cbc:MultiplierFactorNumeric/>'
                 )
                 .replace(
                     '<cbc:MultiplierFactorNumeric>5</cbc:MultiplierFactorNumeric>',
-                    '<cbc:MultiplierFactorNumeric/>'
+                    '<cbc:MultiplierFactorNumeric><![CDATA[   ]]></cbc:MultiplierFactorNumeric>'
                 );
             const parsed = toolkit.peppolUBLToInvoice(xml);
 
@@ -313,6 +467,31 @@ describe('Invoice Parser', () => {
             ).toBeUndefined();
         });
 
+        it.each(['0x10', '0b11', '0o10', '1e3', 'Infinity'])(
+            'should reject non-decimal numeric syntax "%s"',
+            (badNumber) => {
+                const baseXml = toolkit.invoiceToPeppolUBL(basicInvoice);
+
+                const badPercent = baseXml.replace(
+                    '<cbc:Percent>21</cbc:Percent>',
+                    `<cbc:Percent>${badNumber}</cbc:Percent>`
+                );
+                expectZodPath(
+                    () => toolkit.peppolUBLToInvoice(badPercent),
+                    ['taxTotal', 0, 'subTotals', 0, 'taxCategory', 'percent']
+                );
+
+                const badAmount = baseXml.replace(
+                    '<cbc:PayableAmount currencyID="EUR">121.00</cbc:PayableAmount>',
+                    `<cbc:PayableAmount currencyID="EUR">${badNumber}</cbc:PayableAmount>`
+                );
+                expectZodPath(
+                    () => toolkit.peppolUBLToInvoice(badAmount),
+                    ['legalMonetaryTotal', 'payableAmount']
+                );
+            }
+        );
+
         it('should parse numeric elements that carry XML attributes', () => {
             const xml = toolkit
                 .invoiceToPeppolUBL(basicInvoice)
@@ -323,58 +502,44 @@ describe('Invoice Parser', () => {
             expect(toolkit.peppolUBLToInvoice(xml).invoiceTypeCode).toBe(380);
         });
 
-        it('should defer line allowanceCharge currency validation to the document schema', () => {
-            const xml = toolkit.invoiceToPeppolUBL({
-                ...basicInvoice,
-                invoiceLines: [
-                    {
-                        ...basicInvoice.invoiceLines[0],
-                        allowanceCharge: [
-                            { chargeIndicator: false, amount: 10 },
-                        ],
-                    },
-                ],
-            });
+        it('should reject missing or invalid currencyID on allowanceCharge with full Zod error paths', () => {
+            const xml = toolkit.invoiceToPeppolUBL(fullInvoice);
 
-            const withoutCurrency = xml.replace(
-                '<cbc:Amount currencyID="EUR">10.00</cbc:Amount>',
-                '<cbc:Amount>10.00</cbc:Amount>'
-            );
-            expect(
-                toolkit.peppolUBLToInvoice(withoutCurrency).invoiceLines[0]
-                    .allowanceCharge?.[0].currency
-            ).toBeUndefined();
-
-            const invalidCurrency = xml.replace(
-                '<cbc:Amount currencyID="EUR">10.00</cbc:Amount>',
-                '<cbc:Amount currencyID="INVALID">10.00</cbc:Amount>'
+            const missingLineCurrency = xml.replace(
+                '<cbc:Amount currencyID="EUR">10.00</cbc:Amount>\n      <cbc:BaseAmount currencyID="EUR">200.00</cbc:BaseAmount>',
+                '<cbc:Amount>10.00</cbc:Amount>\n      <cbc:BaseAmount currencyID="EUR">200.00</cbc:BaseAmount>'
             );
             expectZodPath(
-                () => toolkit.peppolUBLToInvoice(invalidCurrency),
+                () => toolkit.peppolUBLToInvoice(missingLineCurrency),
                 ['invoiceLines', 0, 'allowanceCharge', 0, 'currency']
             );
-        });
 
-        it('should preserve multiple cac:AddressLine elements', () => {
-            const xml = toolkit
-                .invoiceToPeppolUBL({
-                    ...basicInvoice,
-                    seller: {
-                        ...basicInvoice.seller,
-                        address: {
-                            ...basicInvoice.seller.address,
-                            addressLine: 'Third floor',
-                        },
-                    },
-                })
-                .replace(
-                    '<cac:AddressLine>',
-                    '<cac:AddressLine><cbc:Line>Building A</cbc:Line></cac:AddressLine><cac:AddressLine/><cac:AddressLine>'
-                );
+            const invalidLineCurrency = xml.replace(
+                '<cbc:Amount currencyID="EUR">10.00</cbc:Amount>\n      <cbc:BaseAmount currencyID="EUR">200.00</cbc:BaseAmount>',
+                '<cbc:Amount currencyID="INVALID">10.00</cbc:Amount>\n      <cbc:BaseAmount currencyID="EUR">200.00</cbc:BaseAmount>'
+            );
+            expectZodPath(
+                () => toolkit.peppolUBLToInvoice(invalidLineCurrency),
+                ['invoiceLines', 0, 'allowanceCharge', 0, 'currency']
+            );
 
-            expect(
-                toolkit.peppolUBLToInvoice(xml).seller.address.addressLine
-            ).toBe('Building A\nThird floor');
+            const missingDocCurrency = xml.replace(
+                '<cbc:Amount currencyID="EUR">20.00</cbc:Amount>',
+                '<cbc:Amount>20.00</cbc:Amount>'
+            );
+            expectZodPath(
+                () => toolkit.peppolUBLToInvoice(missingDocCurrency),
+                ['allowanceCharge', 0, 'currency']
+            );
+
+            const missingPriceAcCurrency = xml.replace(
+                '<cbc:Amount currencyID="EUR">10.5882</cbc:Amount>',
+                '<cbc:Amount>10.5882</cbc:Amount>'
+            );
+            expectZodPath(
+                () => toolkit.peppolUBLToInvoice(missingPriceAcCurrency),
+                ['invoiceLines', 0, 'priceAllowanceCharge', 'currency']
+            );
         });
     });
 });

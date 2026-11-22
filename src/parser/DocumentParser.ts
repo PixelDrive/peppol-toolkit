@@ -21,6 +21,8 @@ import { partyIdentificationSchema } from '../documents/en16931/Parties';
 import { z } from 'zod';
 
 export class DocumentParser {
+    private static readonly __DECIMAL_PATTERN = /^[+-]?(\d+\.?\d*|\.\d+)$/;
+
     private __hasWarnedLegacyAddressLine = false;
 
     /***
@@ -196,7 +198,7 @@ export class DocumentParser {
         ).map((pi) => {
             const idEl = (pi as Record<string, unknown>)['cbc:ID'];
             return {
-                id: this.__text(idEl)!,
+                id: this.__str(idEl)!,
                 scheme: this.__attr(idEl, 'schemeID') as z.infer<
                     typeof partyIdentificationSchema
                 >['scheme'],
@@ -226,7 +228,7 @@ export class DocumentParser {
                               endpointEl,
                               'schemeID'
                           ) as CefEASCode,
-                          id: this.__text(endpointEl)!,
+                          id: this.__str(endpointEl)!,
                       }
                     : undefined,
             identification:
@@ -264,15 +266,16 @@ export class DocumentParser {
                 registrationName: this.__str(
                     legalEntity['cbc:RegistrationName']
                 )!,
-                companyId: this.__str(legalEntity['cbc:CompanyID'])
-                    ? {
-                          id: this.__text(legalEntity['cbc:CompanyID'])!,
-                          schemeID: this.__attr(
-                              legalEntity['cbc:CompanyID'],
-                              'schemeID'
-                          ),
-                      }
-                    : undefined,
+                companyId:
+                    legalEntity['cbc:CompanyID'] !== undefined
+                        ? {
+                              id: this.__str(legalEntity['cbc:CompanyID'])!,
+                              schemeID: this.__attr(
+                                  legalEntity['cbc:CompanyID'],
+                                  'schemeID'
+                              ),
+                          }
+                        : undefined,
                 legalForm: this.__str(legalEntity['cbc:CompanyLegalForm']),
             },
             contact: contact
@@ -306,22 +309,23 @@ export class DocumentParser {
         return {
             identification: identEl
                 ? {
-                      id: this.__text(idEl)!,
+                      id: this.__str(idEl)!,
                       schemeID: this.__attr(idEl, 'schemeID'),
                   }
                 : undefined,
             name: this.__str(partyNameEl?.['cbc:Name'])!,
             legalEntity: legalEntity
                 ? {
-                      companyId: this.__text(legalEntityIdEl)
-                          ? {
-                                id: this.__text(legalEntityIdEl)!,
-                                schemeID: this.__attr(
-                                    legalEntityIdEl,
-                                    'schemeID'
-                                ),
-                            }
-                          : undefined,
+                      companyId:
+                          legalEntityIdEl !== undefined
+                              ? {
+                                    id: this.__str(legalEntityIdEl)!,
+                                    schemeID: this.__attr(
+                                        legalEntityIdEl,
+                                        'schemeID'
+                                    ),
+                                }
+                              : undefined,
                   }
                 : undefined,
         };
@@ -374,22 +378,10 @@ export class DocumentParser {
     ): string | undefined {
         // Prefer the current cac:AddressLine/cbc:Line structure.
         const addressLine = address['cac:AddressLine'];
-        if (addressLine !== undefined) {
-            const entries = Array.isArray(addressLine)
-                ? addressLine
-                : [addressLine];
-            const lines = entries
-                .map((entry) =>
-                    entry && typeof entry === 'object'
-                        ? this.__str(
-                              (entry as Record<string, unknown>)['cbc:Line']
-                          )
-                        : undefined
-                )
-                .filter((line): line is string => line !== undefined);
-            if (lines.length > 0) {
-                return lines.join('\n');
-            }
+        if (addressLine && typeof addressLine === 'object') {
+            return this.__str(
+                (addressLine as Record<string, unknown>)['cbc:Line']
+            );
         }
 
         const legacyAddressLine = this.__str(address['cbc:AddressLine']);
@@ -470,13 +462,16 @@ export class DocumentParser {
                 | Record<string, unknown>
                 | undefined;
             return {
-                id: this.__text(idEl)!,
+                id: this.__str(idEl)!,
                 schemeID: this.__attr(idEl, 'schemeID'),
                 documentTypeCode: this.__str(r['cbc:DocumentTypeCode']),
                 documentDescription: this.__str(r['cbc:DocumentDescription']),
                 attachment: attachment
                     ? {
-                          embeddedDocumentBinaryObject: this.__text(binaryObj),
+                          embeddedDocumentBinaryObject:
+                              binaryObj !== undefined
+                                  ? (this.__str(binaryObj) ?? '')
+                                  : undefined,
                           mimeCode: this.__attr(binaryObj, 'mimeCode'),
                           filename: this.__attr(binaryObj, 'filename'),
                           externalReference: extRef
@@ -512,7 +507,10 @@ export class DocumentParser {
             actualDeliveryDate: this.__str(delivery['cbc:ActualDeliveryDate']),
             deliveryLocation: location
                 ? {
-                      id: this.__text(location['cbc:ID']),
+                      id:
+                          location['cbc:ID'] !== undefined
+                              ? (this.__str(location['cbc:ID']) ?? '')
+                              : undefined,
                       locationSchemeID: this.__attr(
                           location['cbc:ID'],
                           'schemeID'
@@ -571,9 +569,8 @@ export class DocumentParser {
                     ac['cbc:MultiplierFactorNumeric']
                 ),
                 amount: this.__num(amtEl)!,
-                currency: this.__attr(amtEl, 'currencyID') as
-                    | CurrencyCode
-                    | undefined,
+                currency: (this.__attr(amtEl, 'currencyID') ??
+                    '') as CurrencyCode,
                 baseAmount: this.__num(baseAmtEl),
                 taxCategory: {
                     categoryCode: this.__str(
@@ -697,50 +694,47 @@ export class DocumentParser {
     private __parseMonetaryTotal(
         total: Record<string, unknown>
     ): Invoice['legalMonetaryTotal'] {
-        const get = (name: string): number | undefined =>
-            this.__num(total[`cbc:${name}`]);
-
-        const getCurrency = (
-            name: string
-        ): Invoice['legalMonetaryTotal']['currency'] | undefined => {
-            const el = total[`cbc:${name}`];
-            return el !== undefined
-                ? (this.__attr(
-                      el,
-                      'currencyID'
-                  ) as Invoice['legalMonetaryTotal']['currency'])
-                : undefined;
-        };
-
         const lineExtEl = total['cbc:LineExtensionAmount'];
         const taxExclEl = total['cbc:TaxExclusiveAmount'];
         const taxInclEl = total['cbc:TaxInclusiveAmount'];
         const payableEl = total['cbc:PayableAmount'];
+        const allowanceEl = total['cbc:AllowanceTotalAmount'];
+        const chargeEl = total['cbc:ChargeTotalAmount'];
+        const prepaidEl = total['cbc:PrepaidAmount'];
+        const roundingEl = total['cbc:PayableRoundingAmount'];
 
-        const currency = (this.__attr(lineExtEl, 'currencyID') ??
-            this.__attr(taxExclEl, 'currencyID') ??
-            this.__attr(taxInclEl, 'currencyID') ??
-            this.__attr(payableEl, 'currencyID') ??
-            '') as Invoice['legalMonetaryTotal']['currency'];
+        const attrCurrency = (el: unknown): CurrencyCode | undefined =>
+            this.__attr(el, 'currencyID') as CurrencyCode | undefined;
+
+        const lineExtensionAmountCurrency = attrCurrency(lineExtEl);
+        const taxExclusiveAmountCurrency = attrCurrency(taxExclEl);
+        const taxInclusiveAmountCurrency = attrCurrency(taxInclEl);
+        const payableAmountCurrency = attrCurrency(payableEl);
+
+        const currency = (lineExtensionAmountCurrency ??
+            taxExclusiveAmountCurrency ??
+            taxInclusiveAmountCurrency ??
+            payableAmountCurrency ??
+            '') as CurrencyCode;
 
         return {
             currency,
-            lineExtensionAmount: get('LineExtensionAmount')!,
-            lineExtensionAmountCurrency: getCurrency('LineExtensionAmount'),
-            taxExclusiveAmount: get('TaxExclusiveAmount')!,
-            taxExclusiveAmountCurrency: getCurrency('TaxExclusiveAmount'),
-            taxInclusiveAmount: get('TaxInclusiveAmount')!,
-            taxInclusiveAmountCurrency: getCurrency('TaxInclusiveAmount'),
-            payableAmount: get('PayableAmount')!,
-            payableAmountCurrency: getCurrency('PayableAmount'),
-            allowanceTotalAmount: get('AllowanceTotalAmount'),
-            allowanceTotalAmountCurrency: getCurrency('AllowanceTotalAmount'),
-            chargeTotalAmount: get('ChargeTotalAmount'),
-            chargeTotalAmountCurrency: getCurrency('ChargeTotalAmount'),
-            prepaidAmount: get('PrepaidAmount'),
-            prepaidAmountCurrency: getCurrency('PrepaidAmount'),
-            payableRoundingAmount: get('PayableRoundingAmount'),
-            payableRoundingAmountCurrency: getCurrency('PayableRoundingAmount'),
+            lineExtensionAmount: this.__num(lineExtEl)!,
+            lineExtensionAmountCurrency,
+            taxExclusiveAmount: this.__num(taxExclEl)!,
+            taxExclusiveAmountCurrency,
+            taxInclusiveAmount: this.__num(taxInclEl)!,
+            taxInclusiveAmountCurrency,
+            payableAmount: this.__num(payableEl)!,
+            payableAmountCurrency,
+            allowanceTotalAmount: this.__num(allowanceEl),
+            allowanceTotalAmountCurrency: attrCurrency(allowanceEl),
+            chargeTotalAmount: this.__num(chargeEl),
+            chargeTotalAmountCurrency: attrCurrency(chargeEl),
+            prepaidAmount: this.__num(prepaidEl),
+            prepaidAmountCurrency: attrCurrency(prepaidEl),
+            payableRoundingAmount: this.__num(roundingEl),
+            payableRoundingAmountCurrency: attrCurrency(roundingEl),
         };
     }
 
@@ -853,9 +847,8 @@ export class DocumentParser {
                                   a['cbc:MultiplierFactorNumeric']
                               ),
                               amount: this.__num(acAmtEl)!,
-                              currency: this.__attr(acAmtEl, 'currencyID') as
-                                  | CurrencyCode
-                                  | undefined,
+                              currency: (this.__attr(acAmtEl, 'currencyID') ??
+                                  '') as CurrencyCode,
                               baseAmount: this.__num(acBaseEl),
                           };
                       })
@@ -878,7 +871,7 @@ export class DocumentParser {
             ),
             standardItemIdentification: stdIdEl
                 ? {
-                      id: this.__text(stdIdEl)!,
+                      id: this.__str(stdIdEl)!,
                       schemeID: this.__attr(stdIdEl, 'schemeID')!,
                   }
                 : undefined,
@@ -895,7 +888,7 @@ export class DocumentParser {
                           const c = cc as Record<string, unknown>;
                           const codeEl = c['cbc:ItemClassificationCode'];
                           return {
-                              code: this.__text(codeEl)!,
+                              code: this.__str(codeEl)!,
                               listID: this.__attr(codeEl, 'listID')!,
                               listVersionID: this.__attr(
                                   codeEl,
@@ -925,10 +918,10 @@ export class DocumentParser {
             priceAllowanceCharge: priceAC
                 ? {
                       amount: this.__num(priceAC['cbc:Amount'])!,
-                      currency: this.__attr(
+                      currency: (this.__attr(
                           priceAC['cbc:Amount'],
                           'currencyID'
-                      ) as Invoice['invoiceLines'][number]['currency'],
+                      ) ?? '') as CurrencyCode,
                       baseAmount: this.__num(priceAC['cbc:BaseAmount']),
                   }
                 : undefined,
@@ -939,12 +932,11 @@ export class DocumentParser {
      * Returns the text content of a parsed XML element.
      * Handles both plain values and objects with a '#text' property.
      * Returns undefined for objects without text content (e.g. empty elements
-     * with attributes) and for arrays.
+     * with attributes).
      */
     private __text(value: unknown): string | undefined {
         if (value === undefined || value === null) return undefined;
         if (typeof value === 'object') {
-            if (Array.isArray(value)) return undefined;
             const text = (value as Record<string, unknown>)['#text'];
             return text !== undefined && text !== null
                 ? String(text)
@@ -956,7 +948,7 @@ export class DocumentParser {
     private __parseNotes(
         notes: unknown
     ): { content: string; languageID?: string }[] | undefined {
-        if (!notes) return undefined;
+        if (notes === undefined) return undefined;
         const notesArray = Array.isArray(notes) ? notes : [notes];
         return notesArray.map((note) => ({
             content: this.__str(note)!,
@@ -966,21 +958,23 @@ export class DocumentParser {
 
     /**
      * Returns the string value of an element, returning undefined for
-     * missing or empty values.
+     * missing, empty, or whitespace-only values.
      */
     private __str(value: unknown): string | undefined {
         const text = this.__text(value);
-        if (text === undefined || text === '') return undefined;
+        if (text === undefined || text.trim() === '') return undefined;
         return text;
     }
 
     /**
-     * Returns the numeric value of an element, returning undefined for
-     * missing or empty values rather than coercing "" to 0.
+     * Returns the numeric value of an element as an xsd:decimal, returning
+     * undefined for missing/empty/whitespace-only values and NaN for invalid
+     * numeric syntax (such as hex, binary, or scientific notation).
      */
     private __num(value: unknown): number | undefined {
-        const text = this.__str(value);
-        if (text === undefined) return undefined;
+        const text = this.__str(value)?.trim();
+        if (text === undefined || text === '') return undefined;
+        if (!DocumentParser.__DECIMAL_PATTERN.test(text)) return Number.NaN;
         return Number(text);
     }
 
@@ -989,7 +983,7 @@ export class DocumentParser {
      */
     private __attr(value: unknown, attrName: string): string | undefined {
         if (value === undefined || value === null) return undefined;
-        if (typeof value === 'object' && !Array.isArray(value)) {
+        if (typeof value === 'object') {
             const attr = (value as Record<string, unknown>)[`$${attrName}`];
             return attr !== undefined ? String(attr) : undefined;
         }

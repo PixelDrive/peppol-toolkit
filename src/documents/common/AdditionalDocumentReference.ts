@@ -17,7 +17,7 @@ export const additionalDocumentReferenceSchema = z.object({
     attachment: z
         .object({
             /** Base64 encoded embedded document */
-            embeddedDocumentBinaryObject: z.string().optional(),
+            embeddedDocumentBinaryObject: z.string().min(1).optional(),
             /** MIME type of the embedded document */
             mimeCode: z.string().optional(),
             /** File name of the attached document */

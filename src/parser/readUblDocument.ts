@@ -5,6 +5,40 @@ const UBL_NAMESPACE = 'urn:oasis:names:specification:ubl:schema:xsd:';
 export const CBC_NAMESPACE = `${UBL_NAMESPACE}CommonBasicComponents-2`;
 const CAC_NAMESPACE = `${UBL_NAMESPACE}CommonAggregateComponents-2`;
 
+/**
+ * Child elements allowed to appear more than once under a given parent element
+ * in EN 16931 / Peppol BIS Billing 3.0. Repeating any other element is rejected
+ * during parsing so duplicates cannot silently disappear.
+ */
+const REPEATABLE_CHILDREN: Record<string, ReadonlySet<string>> = {
+    Invoice: new Set([
+        'cbc:Note',
+        'cac:BillingReference',
+        'cac:AdditionalDocumentReference',
+        'cac:PaymentMeans',
+        'cac:AllowanceCharge',
+        'cac:TaxTotal',
+        'cac:InvoiceLine',
+    ]),
+    CreditNote: new Set([
+        'cbc:Note',
+        'cac:BillingReference',
+        'cac:AdditionalDocumentReference',
+        'cac:PaymentMeans',
+        'cac:AllowanceCharge',
+        'cac:TaxTotal',
+        'cac:CreditNoteLine',
+    ]),
+    'cac:Party': new Set(['cac:PartyIdentification', 'cac:PartyTaxScheme']),
+    'cac:TaxTotal': new Set(['cac:TaxSubtotal']),
+    'cac:InvoiceLine': new Set(['cbc:Note', 'cac:AllowanceCharge']),
+    'cac:CreditNoteLine': new Set(['cbc:Note', 'cac:AllowanceCharge']),
+    'cac:Item': new Set([
+        'cac:CommodityClassification',
+        'cac:AdditionalItemProperty',
+    ]),
+};
+
 export function readUblDocument(xml: string) {
     const parser = new DOMParser({
         onError: (_level, message) => {
@@ -32,6 +66,8 @@ export function readUblDocument(xml: string) {
 /** Reads an element into the field shape used by the document parser. */
 export function readUblFields(element: Element): Record<string, unknown> {
     const fields: Record<string, unknown> = {};
+    const parentName =
+        getUblFieldName(element) ?? element.localName ?? element.tagName;
     let text = '';
     let pendingText = '';
 
@@ -46,7 +82,7 @@ export function readUblFields(element: Element): Record<string, unknown> {
             pendingText = '';
             const childElement = child as Element;
             const name = getUblFieldName(childElement);
-            if (name) appendField(fields, name, childElement);
+            if (name) appendField(fields, parentName, name, childElement);
         }
     }
 
@@ -89,8 +125,13 @@ function getUblFieldName(element: Element): string | undefined {
     return undefined;
 }
 
+function isRepeatableChild(parentName: string, childName: string): boolean {
+    return REPEATABLE_CHILDREN[parentName]?.has(childName) ?? false;
+}
+
 function appendField(
     fields: Record<string, unknown>,
+    parentName: string,
     name: string,
     element: Element
 ): void {
@@ -101,10 +142,15 @@ function appendField(
             ? (childFields['#text'] ?? '')
             : childFields;
     const previous = fields[name];
-    if (Array.isArray(previous)) {
-        previous.push(value);
-    } else if (previous !== undefined) {
-        fields[name] = [previous, value];
+    if (previous !== undefined) {
+        if (!isRepeatableChild(parentName, name)) {
+            throw new Error(`Duplicate element "${name}" in "${parentName}"`);
+        }
+        if (Array.isArray(previous)) {
+            previous.push(value);
+        } else {
+            fields[name] = [previous, value];
+        }
     } else {
         fields[name] = parserOptions.isArray(name) ? [value] : value;
     }
