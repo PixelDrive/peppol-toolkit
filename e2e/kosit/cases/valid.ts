@@ -1,11 +1,4 @@
-import {
-    creditNote,
-    dutchBuyer,
-    invoice,
-    KositCase,
-    line,
-    negateAmounts,
-} from './helpers';
+import { creditNote, dutchBuyer, invoice, KositCase, line } from './helpers';
 import { PEPPOL_BIS3_BILLING_WITH_RESPONSE_PROFILE_ID } from '../../../src';
 
 export const validCases: KositCase[] = [
@@ -17,8 +10,29 @@ export const validCases: KositCase[] = [
     {
         name: 'invoice - negative quantity and amounts',
         kind: 'invoice',
-        document: invoice(),
-        mutateXml: negateAmounts,
+        document: invoice({
+            invoiceLines: [line('1', -1, 100, 'S', 21)],
+            taxTotal: [
+                {
+                    taxAmount: -21,
+                    taxAmountCurrency: 'EUR',
+                    subTotals: [
+                        {
+                            taxableAmount: -100,
+                            taxAmount: -21,
+                            taxCategory: { categoryCode: 'S', percent: 21 },
+                        },
+                    ],
+                },
+            ],
+            legalMonetaryTotal: {
+                currency: 'EUR',
+                lineExtensionAmount: -100,
+                taxExclusiveAmount: -100,
+                taxInclusiveAmount: -121,
+                payableAmount: -121,
+            },
+        }),
     },
     {
         name: 'invoice - billing with response profile (BIS 3.0.21)',

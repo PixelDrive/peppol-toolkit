@@ -34,13 +34,12 @@ The `0.10` series aligns the code lists with **Peppol BIS Billing 3.0.21** (mand
 - **Currencies** (`CurrencyCodes`, `CurrencyCodeSchema`): `ANG` and `BGN` are removed, `XCG` and `CNH` are added.
 - **Credit note type codes** (`CreditNoteTypeCodes`, `CreditNoteTypeCodeSchema`): `261` (self-billed credit note) is removed. BIS Billing only allows `81`, `83`, `381`, `396` and `532` (`PEPPOL-EN16931-P0101`).
 
-The builders also reject negative quantities, line amounts and VAT amounts with a `RangeError`, where they used to write them as is: the toolkit does not generate negative lines, issue a credit note instead. EN 16931 and Peppol BIS allow them, so the schemas and both parsers now accept them (e.g. a received invoice with a returned item).
-
 Other changes in the `0.10` series:
 
 - EN 16931 documents for invoices that do not travel over Peppol, e.g. B2C invoices (see [Generate an EN 16931 UBL document](#generate-an-en-16931-ubl-document-outside-peppol)).
 - `PEPPOL_BIS3_BILLING_WITH_RESPONSE_PROFILE_ID` (`urn:peppol:bis:billing_with_response`), the profile 02 added by BIS 3.0.21, to set as `profileID`. `PEPPOL_BIS3_CUSTOMIZATION_ID` and `PEPPOL_BIS3_PROFILE_ID` are exported as well.
 - The Peppol builders throw a descriptive `TypeError` when the seller or the buyer has no `endPoint` (only possible with untyped input), instead of failing on `undefined`.
+- Negative quantities, line amounts and VAT amounts, valid in EN 16931 and Peppol BIS (e.g. an invoice with a returned item), are accepted by the schemas and by all parsers, Peppol ones included. The builders write them, as before.
 
 ## Breaking changes in `0.9.0`
 
@@ -425,7 +424,7 @@ Compared to `invoiceToPeppolUBL` and `creditNoteToPeppolUBL`, `invoiceToEn16931U
 
 The EN 16931 types are the base of the Peppol ones: every `Invoice` / `CreditNote` is also an `En16931Invoice` / `En16931CreditNote`. The Peppol schemas, builders and parsers keep their strictness: `invoiceToPeppolUBL` throws when the seller or the buyer has no electronic address.
 
-Use `en16931UBLToInvoice` and `en16931UBLToCreditNote` to read EN 16931 and Peppol BIS UBL documents. The Peppol parsers require seller and buyer electronic addresses from the Peppol EAS code list. All parsers read negative quantities, line amounts and VAT amounts, which the builders do not generate (see [Amount precision](#amount-precision)).
+Use `en16931UBLToInvoice` and `en16931UBLToCreditNote` to read EN 16931 and Peppol BIS UBL documents. The Peppol parsers require seller and buyer electronic addresses from the Peppol EAS code list. All parsers read negative quantities, line amounts and VAT amounts, which the builders write as well.
 
 Use `detectUblProfile` to select the parser and validator for a stored document. It reads the UBL `cbc:CustomizationID` from a well-formed invoice or credit note. Use KoSIT to check the business rules for the detected profile.
 
@@ -503,7 +502,7 @@ toolkit.invoiceToPeppolUBL({ ...invoice, taxTotal: [{ ..., subTotals: [{ taxAmou
 // RangeError: Invalid amount for "taxTotal[0].subTotals[0].taxAmount": 52.605 has more than 2 decimal places. ...
 ```
 
-The unit price fields are intentionally excluded and keep their full precision (serialized in fixed-point notation): the line price (`cac:Price/cbc:PriceAmount`) and the unit price discount and gross price (`priceAllowanceCharge.amount` / `.baseAmount` → `cac:Price/cac:AllowanceCharge/cbc:Amount` and `cbc:BaseAmount`). Line-level and document-level allowances/charges remain limited to two decimals. The builder also checks BR-CO-14 before serializing: each `taxTotal[].taxAmount` must equal the sum of its `subTotals[].taxAmount`, otherwise a descriptive error is thrown. It rejects negative quantities, line amounts and VAT amounts as well: EN 16931 and Peppol BIS allow them, but the toolkit does not generate them (issue a credit note instead). Parsing received documents is never affected by these checks.
+The unit price fields are intentionally excluded and keep their full precision (serialized in fixed-point notation): the line price (`cac:Price/cbc:PriceAmount`) and the unit price discount and gross price (`priceAllowanceCharge.amount` / `.baseAmount` → `cac:Price/cac:AllowanceCharge/cbc:Amount` and `cbc:BaseAmount`). Line-level and document-level allowances/charges remain limited to two decimals. The builder also checks BR-CO-14 before serializing: each `taxTotal[].taxAmount` must equal the sum of its `subTotals[].taxAmount`, otherwise a descriptive error is thrown. Parsing received documents is never affected by these checks.
 
 ### Look up an EAS Endpoint Scheme from a VAT Number
 

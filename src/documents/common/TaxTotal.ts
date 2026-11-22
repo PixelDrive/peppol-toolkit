@@ -2,8 +2,8 @@ import { z } from 'zod';
 import { CurrencyCodeSchema } from './CurrencyCodes';
 import { taxCategorySchema } from './TaxCategory';
 
-// The VAT amounts can be negative (e.g. an invoice with a returned item): the parsers accept them,
-// the builders reject them (see UblDocumentWriter).
+// The VAT amounts can be negative, e.g. for an invoice with a returned item (valid in EN 16931 and
+// Peppol BIS)
 export const taxSubtotalSchema = z.object({
     taxableAmount: z.number(),
     taxAmount: z.number(),

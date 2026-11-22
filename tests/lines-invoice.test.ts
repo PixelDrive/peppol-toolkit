@@ -57,7 +57,7 @@ describe('Invoice Lines', () => {
         expect(result1.success).toBe(true);
     });
 
-    it('should accept a negative invoicedQuantity (the builders reject it)', () => {
+    it('should accept a negative invoicedQuantity (e.g. a returned item)', () => {
         const invoiceLines = {
             id: '1',
             invoicedQuantity: -1,

@@ -175,79 +175,61 @@ describe('Peppol builder', () => {
 });
 
 describe('Negative quantities and amounts', () => {
-    const builder = new DocumentBuilder();
-    const line = exampleInvoice.invoiceLines[0];
-    const [tax] = exampleInvoice.taxTotal;
-    const [subTotal] = tax.subTotals;
-
-    // Valid in EN 16931 and Peppol BIS, and read by the parsers, but never generated
-    it.each<[string, number, Partial<Invoice>]>([
-        [
-            'invoiceLines[0].invoicedQuantity',
-            -1,
-            { invoiceLines: [{ ...line, invoicedQuantity: -1 }] },
-        ],
-        [
-            'invoiceLines[0].lineExtensionAmount',
-            -100,
-            { invoiceLines: [{ ...line, lineExtensionAmount: -100 }] },
-        ],
-        [
-            'taxTotal[0].taxAmount',
-            -21,
-            { taxTotal: [{ ...tax, taxAmount: -21 }] },
-        ],
-        [
-            'taxTotal[0].subTotals[0].taxableAmount',
-            -100,
+    // Valid in EN 16931 and Peppol BIS, e.g. for a returned item
+    it('are written by every builder', () => {
+        const builder = new DocumentBuilder();
+        const line = {
+            ...exampleInvoice.invoiceLines[0],
+            invoicedQuantity: -1,
+            lineExtensionAmount: -100,
+        };
+        const [tax] = exampleInvoice.taxTotal;
+        const taxTotal = [
             {
-                taxTotal: [
+                ...tax,
+                taxAmount: -21,
+                subTotals: [
                     {
-                        ...tax,
-                        subTotals: [{ ...subTotal, taxableAmount: -100 }],
+                        ...tax.subTotals[0],
+                        taxableAmount: -100,
+                        taxAmount: -21,
                     },
                 ],
             },
-        ],
-        [
-            'taxTotal[0].subTotals[0].taxAmount',
-            -21,
-            {
-                taxTotal: [
-                    { ...tax, subTotals: [{ ...subTotal, taxAmount: -21 }] },
-                ],
-            },
-        ],
-    ])('are rejected by the builder: %s', (path, value, overrides) => {
-        expect(() =>
-            builder.generatePeppolInvoice({ ...exampleInvoice, ...overrides })
-        ).toThrow(
-            new RangeError(
-                `Invalid value for "${path}": ${value} is negative. The builder does not generate ` +
-                    'negative quantities, line amounts or VAT amounts: issue a credit note instead.'
-            )
-        );
-    });
-
-    it('are rejected by every builder', () => {
-        const negativeLine = { ...line, invoicedQuantity: -1 };
-        expect(() =>
+        ];
+        const documents = [
+            builder.generatePeppolInvoice({
+                ...exampleInvoice,
+                invoiceLines: [line],
+                taxTotal,
+            }),
             builder.generateEn16931Invoice({
                 ...exampleEn16931Invoice,
-                invoiceLines: [negativeLine],
-            })
-        ).toThrow('"invoiceLines[0].invoicedQuantity"');
-        expect(() =>
+                invoiceLines: [line],
+                taxTotal,
+            }),
             builder.generatePeppolCreditNote({
                 ...exampleCreditNote,
-                creditNoteLines: [negativeLine],
-            })
-        ).toThrow('"creditNoteLines[0].invoicedQuantity"');
-        expect(() =>
+                creditNoteLines: [line],
+                taxTotal,
+            }),
             builder.generateEn16931CreditNote({
                 ...exampleEn16931CreditNote,
-                creditNoteLines: [negativeLine],
-            })
-        ).toThrow('"creditNoteLines[0].invoicedQuantity"');
+                creditNoteLines: [line],
+                taxTotal,
+            }),
+        ];
+        for (const xml of documents) {
+            expect(xml).toMatch(/Quantity unitCode="H67">-1</);
+            expect(xml).toContain(
+                '<cbc:LineExtensionAmount currencyID="EUR">-100.00</cbc:LineExtensionAmount>'
+            );
+            expect(xml).toContain(
+                '<cbc:TaxableAmount currencyID="EUR">-100.00</cbc:TaxableAmount>'
+            );
+            expect(xml).toContain(
+                '<cbc:TaxAmount currencyID="EUR">-21.00</cbc:TaxAmount>'
+            );
+        }
     });
 });

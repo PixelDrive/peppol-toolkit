@@ -205,36 +205,59 @@ describe('EN 16931 document schemas', () => {
         );
     });
 
-    it('accept negative quantities, line amounts and VAT amounts, which the parsers read', () => {
+    it('accept negative quantities, line amounts and VAT amounts, built and read back', () => {
         const toolkit = new PeppolToolkit();
-        // The builders do not generate negative values: negate those of a generated document
-        const negate = (xml: string) =>
-            xml.replace(
-                /(<cbc:(?:InvoicedQuantity|CreditedQuantity|LineExtensionAmount|TaxAmount|TaxableAmount|TaxExclusiveAmount|TaxInclusiveAmount|PayableAmount)\b[^>]*>)(?=\d)/g,
-                '$1-'
-            );
-        const line = exampleInvoice.invoiceLines[0];
-        expect(
-            invoiceSchema.safeParse({
-                ...exampleInvoice,
-                invoiceLines: [
-                    {
-                        ...line,
-                        invoicedQuantity: -1,
-                        lineExtensionAmount: -100,
-                    },
-                ],
-            }).success
-        ).toBe(true);
+        // An invoice for a returned item: valid in EN 16931 and Peppol BIS
+        const negative = {
+            taxTotal: [
+                {
+                    taxAmount: -21,
+                    taxAmountCurrency: 'EUR',
+                    subTotals: [
+                        {
+                            taxableAmount: -100,
+                            taxAmount: -21,
+                            taxCategory: { categoryCode: 'S', percent: 21 },
+                        },
+                    ],
+                },
+            ],
+            legalMonetaryTotal: {
+                currency: 'EUR',
+                lineExtensionAmount: -100,
+                taxExclusiveAmount: -100,
+                taxInclusiveAmount: -121,
+                payableAmount: -121,
+            },
+        } satisfies Partial<Invoice>;
+        const line = {
+            ...exampleInvoice.invoiceLines[0],
+            invoicedQuantity: -1,
+            lineExtensionAmount: -100,
+        };
+        const invoice = {
+            ...exampleInvoice,
+            ...negative,
+            invoiceLines: [line],
+        };
+        expect(invoiceSchema.safeParse(invoice).success).toBe(true);
 
         const peppol = toolkit.peppolUBLToInvoice(
-            negate(toolkit.invoiceToPeppolUBL(exampleInvoice))
+            toolkit.invoiceToPeppolUBL(invoice)
         );
         const en16931 = toolkit.en16931UBLToInvoice(
-            negate(toolkit.invoiceToEn16931UBL(exampleEn16931Invoice))
+            toolkit.invoiceToEn16931UBL({
+                ...exampleEn16931Invoice,
+                ...negative,
+                invoiceLines: [line],
+            })
         );
         const creditNote = toolkit.peppolUBLToCreditNote(
-            negate(toolkit.creditNoteToPeppolUBL(exampleCreditNote))
+            toolkit.creditNoteToPeppolUBL({
+                ...exampleCreditNote,
+                ...negative,
+                creditNoteLines: [line],
+            })
         );
         for (const document of [peppol, en16931]) {
             expect(document.invoiceLines[0]).toMatchObject({
