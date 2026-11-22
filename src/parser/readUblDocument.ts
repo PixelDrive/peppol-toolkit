@@ -7,14 +7,19 @@ const CAC_NAMESPACE = `${UBL_NAMESPACE}CommonAggregateComponents-2`;
 
 /**
  * Child elements allowed to appear more than once under a given parent element
- * in EN 16931 / Peppol BIS Billing 3.0. Repeating any other element is rejected
- * during parsing so duplicates cannot silently disappear.
+ * when reading UBL documents. Repeating any other element is rejected so
+ * duplicates cannot silently disappear.
+ *
+ * Includes `cac:Signature` (ignored by the parser, repeatable in UBL 2.1) and
+ * line-level `cbc:Note` (modeled as an array in `lineSchema`, even though
+ * EN 16931 UBL-SR-34 limits lines to a single note).
  */
 const REPEATABLE_CHILDREN: Record<string, ReadonlySet<string>> = {
     Invoice: new Set([
         'cbc:Note',
         'cac:BillingReference',
         'cac:AdditionalDocumentReference',
+        'cac:Signature',
         'cac:PaymentMeans',
         'cac:AllowanceCharge',
         'cac:TaxTotal',
@@ -24,6 +29,7 @@ const REPEATABLE_CHILDREN: Record<string, ReadonlySet<string>> = {
         'cbc:Note',
         'cac:BillingReference',
         'cac:AdditionalDocumentReference',
+        'cac:Signature',
         'cac:PaymentMeans',
         'cac:AllowanceCharge',
         'cac:TaxTotal',

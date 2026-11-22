@@ -542,19 +542,86 @@ describe('Invoice Parser', () => {
             );
         });
 
-        it('should allow cac:PayeeParty with both a payee identifier and a SEPA creditor identifier (UBL-SR-20)', () => {
-            const xml = toolkit
+        it('should preserve both payee identifier (BT-60) and SEPA creditor identifier (BT-90) in either order (UBL-SR-20)', () => {
+            const payeeFirstXml = toolkit
                 .invoiceToPeppolUBL(fullInvoice)
                 .replace(
                     '<cac:PartyIdentification>\n      <cbc:ID schemeID="SEPA">BE12ZZZ0000000001</cbc:ID>\n    </cac:PartyIdentification>',
                     '<cac:PartyIdentification>\n      <cbc:ID schemeID="0088">5790000435968</cbc:ID>\n    </cac:PartyIdentification>\n    <cac:PartyIdentification>\n      <cbc:ID schemeID="SEPA">BE12ZZZ0000000001</cbc:ID>\n    </cac:PartyIdentification>'
                 );
-            const parsed = toolkit.peppolUBLToInvoice(xml);
-
-            expect(parsed.payeeParty?.identification).toEqual({
-                id: '5790000435968',
-                schemeID: '0088',
+            const parsedPayeeFirst = toolkit.peppolUBLToInvoice(payeeFirstXml);
+            expect(parsedPayeeFirst.payeeParty).toMatchObject({
+                identification: {
+                    id: '5790000435968',
+                    schemeID: '0088',
+                },
+                creditorIdentification: 'BE12ZZZ0000000001',
             });
+
+            // Round-trip both identifiers cleanly through the builder
+            const rebuilt = toolkit.invoiceToPeppolUBL(parsedPayeeFirst);
+            expect(toolkit.peppolUBLToInvoice(rebuilt).payeeParty).toEqual(
+                parsedPayeeFirst.payeeParty
+            );
+
+            // Reverse XML order: SEPA first, then 0208 — neither identifier is lost
+            const sepaFirstXml = toolkit
+                .invoiceToPeppolUBL(fullInvoice)
+                .replace(
+                    '<cac:PartyIdentification>\n      <cbc:ID schemeID="SEPA">BE12ZZZ0000000001</cbc:ID>\n    </cac:PartyIdentification>',
+                    '<cac:PartyIdentification>\n      <cbc:ID schemeID="SEPA">BE12ZZZ0000000001</cbc:ID>\n    </cac:PartyIdentification>\n    <cac:PartyIdentification>\n      <cbc:ID schemeID="0208">0403170701</cbc:ID>\n    </cac:PartyIdentification>'
+                );
+            const parsedSepaFirst = toolkit.peppolUBLToInvoice(sepaFirstXml);
+            expect(parsedSepaFirst.payeeParty).toMatchObject({
+                identification: {
+                    id: '0403170701',
+                    schemeID: '0208',
+                },
+                creditorIdentification: 'BE12ZZZ0000000001',
+            });
+
+            // Reject duplicate non-SEPA payee identifiers or duplicate SEPA identifiers
+            const duplicatePayeeIds = toolkit
+                .invoiceToPeppolUBL(fullInvoice)
+                .replace(
+                    '<cac:PartyIdentification>\n      <cbc:ID schemeID="SEPA">BE12ZZZ0000000001</cbc:ID>\n    </cac:PartyIdentification>',
+                    '<cac:PartyIdentification><cbc:ID schemeID="0088">111</cbc:ID></cac:PartyIdentification><cac:PartyIdentification><cbc:ID schemeID="0208">222</cbc:ID></cac:PartyIdentification>'
+                );
+            expect(() => toolkit.peppolUBLToInvoice(duplicatePayeeIds)).toThrow(
+                'Duplicate payee identification in "cac:PayeeParty"'
+            );
+
+            const duplicateSepaIds = toolkit
+                .invoiceToPeppolUBL(fullInvoice)
+                .replace(
+                    '<cac:PartyIdentification>\n      <cbc:ID schemeID="SEPA">BE12ZZZ0000000001</cbc:ID>\n    </cac:PartyIdentification>',
+                    '<cac:PartyIdentification><cbc:ID schemeID="SEPA">BE12ZZZ0000000001</cbc:ID></cac:PartyIdentification><cac:PartyIdentification><cbc:ID schemeID="SEPA">BE12ZZZ0000000002</cbc:ID></cac:PartyIdentification>'
+                );
+            expect(() => toolkit.peppolUBLToInvoice(duplicateSepaIds)).toThrow(
+                'Duplicate SEPA creditor identification in "cac:PayeeParty"'
+            );
+
+            // Empty SEPA identifier alongside payee identifier fails Zod
+            const emptySepaId = toolkit
+                .invoiceToPeppolUBL(fullInvoice)
+                .replace(
+                    '<cac:PartyIdentification>\n      <cbc:ID schemeID="SEPA">BE12ZZZ0000000001</cbc:ID>\n    </cac:PartyIdentification>',
+                    '<cac:PartyIdentification><cbc:ID schemeID="0208">0403170701</cbc:ID></cac:PartyIdentification><cac:PartyIdentification><cbc:ID schemeID="SEPA"/></cac:PartyIdentification>'
+                );
+            expectZodPath(
+                () => toolkit.peppolUBLToInvoice(emptySepaId),
+                ['payeeParty', 'creditorIdentification']
+            );
+        });
+
+        it('should not fail on repeated ignored cac:Signature elements', () => {
+            const xml = toolkit
+                .invoiceToPeppolUBL(basicInvoice)
+                .replace(
+                    '<cac:AccountingSupplierParty>',
+                    '<cac:Signature><cbc:ID>SIG-1</cbc:ID></cac:Signature><cac:Signature><cbc:ID>SIG-2</cbc:ID></cac:Signature><cac:AccountingSupplierParty>'
+                );
+            expect(toolkit.peppolUBLToInvoice(xml).ID).toBe(basicInvoice.ID);
         });
 
         it('should serialize small multiplierFactorNumeric in fixed-point notation and round-trip cleanly', () => {

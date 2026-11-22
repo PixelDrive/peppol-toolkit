@@ -17,9 +17,11 @@ export class DocumentBuilder {
      * @param invoice The invoice data
      * @returns The Peppol invoice XML document as a string
      * @throws TypeError when the seller or the buyer has no electronic address (`endPoint`)
+     * @throws RangeError when an embedded binary attachment is empty (PEPPOL-EN16931-R008)
      */
     public generatePeppolInvoice(invoice: Invoice) {
         this.__assertPeppolEndpoints(invoice, 'invoiceToEn16931UBL');
+        this.__assertPeppolAttachments(invoice, 'invoiceToEn16931UBL');
         return this.__writer.writeInvoice(invoice, {
             customizationID:
                 invoice.customizationID ?? PEPPOL_BIS3_CUSTOMIZATION_ID,
@@ -32,9 +34,11 @@ export class DocumentBuilder {
      * @param creditNote The credit note data
      * @returns The Peppol credit note XML document as a string
      * @throws TypeError when the seller or the buyer has no electronic address (`endPoint`)
+     * @throws RangeError when an embedded binary attachment is empty (PEPPOL-EN16931-R008)
      */
     public generatePeppolCreditNote(creditNote: CreditNote) {
         this.__assertPeppolEndpoints(creditNote, 'creditNoteToEn16931UBL');
+        this.__assertPeppolAttachments(creditNote, 'creditNoteToEn16931UBL');
         return this.__writer.writeCreditNote(creditNote, {
             customizationID:
                 creditNote.customizationID ?? PEPPOL_BIS3_CUSTOMIZATION_ID,
@@ -99,5 +103,25 @@ export class DocumentBuilder {
                 );
             }
         }
+    }
+
+    /**
+     * Peppol BIS forbids empty elements (PEPPOL-EN16931-R008), so an embedded binary
+     * attachment cannot be empty (`""`). Plain EN 16931 allows zero-byte attachments.
+     */
+    private __assertPeppolAttachments(
+        document: Pick<Invoice, 'additionalDocumentReference'>,
+        en16931Alternative: string
+    ) {
+        document.additionalDocumentReference?.forEach((ref, index) => {
+            const binary = ref.attachment?.embeddedDocumentBinaryObject;
+            if (binary !== undefined && binary.trim() === '') {
+                throw new RangeError(
+                    `Empty additionalDocumentReference[${index}].attachment.embeddedDocumentBinaryObject: ` +
+                        'Peppol BIS forbids empty elements (PEPPOL-EN16931-R008). ' +
+                        `Zero-byte attachments can be built as EN 16931 documents with ${en16931Alternative}.`
+                );
+            }
+        });
     }
 }

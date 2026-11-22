@@ -395,4 +395,24 @@ describe('Creditnote Builder', () => {
             ).not.toThrow();
         });
     });
+
+    it('should reject empty embedded binary attachments in Peppol credit notes (PEPPOL-EN16931-R008)', () => {
+        expect(() =>
+            toolkit.creditNoteToPeppolUBL({
+                ...basicCreditNote,
+                additionalDocumentReference: [
+                    {
+                        id: 'DOC-1',
+                        attachment: {
+                            embeddedDocumentBinaryObject: '',
+                            mimeCode: 'application/pdf',
+                            filename: 'empty.pdf',
+                        },
+                    },
+                ],
+            })
+        ).toThrow(
+            'Empty additionalDocumentReference[0].attachment.embeddedDocumentBinaryObject: Peppol BIS forbids empty elements (PEPPOL-EN16931-R008).'
+        );
+    });
 });

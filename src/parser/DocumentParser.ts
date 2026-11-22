@@ -29,6 +29,7 @@ export class DocumentParser {
      * Parses a Peppol UBL Invoice XML string into an Invoice object
      * @param xml The UBL Invoice XML string
      * @returns The parsed Invoice object
+     * @throws Error when the XML is malformed, not a UBL Invoice, or repeats a non-repeatable element
      * @throws ZodError when the document is not a valid Peppol invoice, e.g. when a party has no electronic address
      */
     public parseInvoice(xml: string): Invoice {
@@ -40,6 +41,8 @@ export class DocumentParser {
      * following the EN 16931 model, Peppol BIS invoices included; the seller and the buyer may have
      * no electronic address.
      * @param xml The UBL Invoice XML string
+     * @throws Error when the XML is malformed, not a UBL Invoice, or repeats a non-repeatable element
+     * @throws ZodError when the document does not satisfy the EN 16931 invoice schema
      * @returns The parsed En16931Invoice object
      */
     public parseEn16931Invoice(xml: string): En16931Invoice {
@@ -50,6 +53,7 @@ export class DocumentParser {
      * Parses a Peppol UBL CreditNote XML string into a CreditNote object
      * @param xml The UBL CreditNote XML string
      * @returns The parsed CreditNote object
+     * @throws Error when the XML is malformed, not a UBL CreditNote, or repeats a non-repeatable element
      * @throws ZodError when the document is not a valid Peppol credit note, e.g. when a party has no electronic address
      */
     public parseCreditNote(xml: string): CreditNote {
@@ -61,6 +65,8 @@ export class DocumentParser {
      * credit note following the EN 16931 model, Peppol BIS credit notes included; the seller and the
      * buyer may have no electronic address.
      * @param xml The UBL CreditNote XML string
+     * @throws Error when the XML is malformed, not a UBL CreditNote, or repeats a non-repeatable element
+     * @throws ZodError when the document does not satisfy the EN 16931 credit note schema
      * @returns The parsed En16931CreditNote object
      */
     public parseEn16931CreditNote(xml: string): En16931CreditNote {
@@ -293,11 +299,12 @@ export class DocumentParser {
     ): Invoice['payeeParty'] {
         if (!party) return undefined;
 
-        const identEl = getUblChildren(
-            party,
-            'cac:PartyIdentification'
-        )?.[0] as Record<string, unknown> | undefined;
-        const idEl = identEl?.['cbc:ID'];
+        const { identification, creditorIdentification } =
+            this.__parsePayeeIdentifications(
+                (getUblChildren(party, 'cac:PartyIdentification') ??
+                    []) as Record<string, unknown>[]
+            );
+
         const partyNameEl = party['cac:PartyName'] as
             | Record<string, unknown>
             | undefined;
@@ -307,12 +314,8 @@ export class DocumentParser {
         const legalEntityIdEl = legalEntity?.['cbc:CompanyID'];
 
         return {
-            identification: identEl
-                ? {
-                      id: this.__str(idEl)!,
-                      schemeID: this.__attr(idEl, 'schemeID'),
-                  }
-                : undefined,
+            identification,
+            creditorIdentification,
             name: this.__str(partyNameEl?.['cbc:Name'])!,
             legalEntity: legalEntity
                 ? {
@@ -328,6 +331,59 @@ export class DocumentParser {
                               : undefined,
                   }
                 : undefined,
+        };
+    }
+
+    private __parsePayeeIdentifications(
+        identEls: Record<string, unknown>[]
+    ): Pick<
+        NonNullable<Invoice['payeeParty']>,
+        'identification' | 'creditorIdentification'
+    > {
+        const parsedIdents = identEls.map((el) => {
+            const idEl = el['cbc:ID'];
+            return {
+                id: this.__str(idEl)!,
+                schemeID: this.__attr(idEl, 'schemeID'),
+            };
+        });
+
+        if (parsedIdents.length === 0) {
+            return {
+                identification: undefined,
+                creditorIdentification: undefined,
+            };
+        }
+        if (parsedIdents.length === 1) {
+            // Preserve backward compatibility when a single identifier is present
+            // (including a standalone SEPA creditor identifier).
+            return {
+                identification: parsedIdents[0],
+                creditorIdentification: undefined,
+            };
+        }
+
+        const sepaIdents = parsedIdents.filter(
+            (entry) => entry.schemeID?.toUpperCase() === 'SEPA'
+        );
+        const payeeIdents = parsedIdents.filter(
+            (entry) => entry.schemeID?.toUpperCase() !== 'SEPA'
+        );
+        if (sepaIdents.length > 1) {
+            throw new Error(
+                'Duplicate SEPA creditor identification in "cac:PayeeParty"'
+            );
+        }
+        if (payeeIdents.length > 1) {
+            throw new Error(
+                'Duplicate payee identification in "cac:PayeeParty"'
+            );
+        }
+
+        return {
+            identification: payeeIdents[0],
+            creditorIdentification:
+                sepaIdents.length === 1 ? (sepaIdents[0].id ?? '') : undefined,
         };
     }
 
