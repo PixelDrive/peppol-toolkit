@@ -43,6 +43,7 @@
         "test": "npm run build && vitest run --config vitest.config.ts",
         "test:e2e": "vitest run --config vitest.e2e.config.ts",
         "kosit:start": "bash scripts/kosit.sh",
+        "kosit:start:en16931": "bash scripts/kosit.sh en16931",
         "lint": "eslint .",
         "format": "prettier --write .",
         "format:check": "prettier --check ."

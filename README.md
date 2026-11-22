@@ -427,7 +427,7 @@ To know which kind of document you hold, for example to pick the parser and the 
 PeppolToolkit.detectUblProfile(xml); // 'peppol-bis3' | 'en16931' | 'unknown'
 ```
 
-Validating an EN 16931 document with KoSIT requires a configuration with an EN 16931 (CEN) scenario: the Peppol BIS configuration only matches Peppol documents and rejects any other document.
+Validating an EN 16931 document with KoSIT requires a configuration with an EN 16931 (CEN) scenario: the Peppol BIS configuration only matches Peppol documents and rejects any other document. `npm run kosit:start:en16931` starts a validator with such a configuration (see [KoSIT end-to-end tests](#kosit-end-to-end-tests)).
 
 ### Compute Invoice Totals
 
@@ -561,6 +561,7 @@ Notes:
 - Default endpoint is `http://localhost:8081/`.
 - Requests are sent as `POST` with `Content-Type: application/xml`.
 - Some KoSIT deployments can return HTTP `406` together with an XML report for invalid documents; this toolkit still parses that report and returns structured `errors`/`warnings`.
+- The Peppol BIS configuration only validates Peppol documents. EN 16931 documents (`invoiceToEn16931UBL`, `creditNoteToEn16931UBL`) need a configuration with an EN 16931 (CEN) scenario, such as the one started by `npm run kosit:start:en16931`.
 
 ## API Reference
 
@@ -758,6 +759,7 @@ Last updated: 2026-05-13
 - `npm run test` - Run tests
 - `npm run test:e2e` - Run the KoSIT end-to-end tests (see below)
 - `npm run kosit:start` - Download and start a local KoSIT validator (Java 17+)
+- `npm run kosit:start:en16931` - Download and start a local KoSIT validator for EN 16931 documents (Java 17+)
 - `npm run lint` - Lint the codebase
 - `npm run format` - Format code with Prettier
 
@@ -774,6 +776,15 @@ npm run test:e2e      # terminal 2
 ```
 
 Set `KOSIT_ENDPOINT` to target another instance. Generated XML and KoSIT reports are written to `e2e/output/` for inspection. The suite runs in CI through `.github/workflows/kosit.yml`.
+
+EN 16931 documents are validated by a second, opt-in suite (`e2e/kosit/cases/en16931.ts`), since the Peppol BIS configuration rejects them. It needs a KoSIT validator with an EN 16931 (CEN) scenario: `npm run kosit:start:en16931` assembles one from the [EN 16931 validation artefacts](https://github.com/ConnectingEurope/eInvoicing-EN16931) of CEN/TC 434 (BR-62, BR-63 and BR-CL-25 included) and `scripts/kosit-en16931-scenarios.xml`. The suite only runs when `KOSIT_EN16931_ENDPOINT` is set:
+
+```bash
+npm run kosit:start:en16931                                    # terminal 3 – listens on :8082
+KOSIT_EN16931_ENDPOINT=http://localhost:8082/ npm run test:e2e # terminal 2
+```
+
+`KOSIT_CEN_VERSION` (default `1.3.17`) and `KOSIT_EN16931_PORT` (default `8082`) configure that validator.
 
 ## Requirements
 
