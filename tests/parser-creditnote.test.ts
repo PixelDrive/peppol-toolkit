@@ -310,5 +310,58 @@ describe('CreditNote Parser', () => {
                 )
             ).toThrow('Duplicate element "cbc:BuyerReference" in "CreditNote"');
         });
+
+        it('should reject empty embedded binary attachment in Peppol credit notes (PEPPOL-EN16931-R008)', () => {
+            const xml = toolkit
+                .creditNoteToPeppolUBL(fullCreditNote)
+                .replace(
+                    '<cbc:EmbeddedDocumentBinaryObject mimeCode="application/pdf" filename="timesheet.pdf">aGVsbG8gd29ybGQ=</cbc:EmbeddedDocumentBinaryObject>',
+                    '<cbc:EmbeddedDocumentBinaryObject mimeCode="application/pdf" filename="timesheet.pdf"/>'
+                );
+            expectZodPath(
+                () => toolkit.peppolUBLToCreditNote(xml),
+                [
+                    'additionalDocumentReference',
+                    0,
+                    'attachment',
+                    'embeddedDocumentBinaryObject',
+                ]
+            );
+        });
+
+        it('should serialize small multiplierFactorNumeric in fixed-point notation and round-trip cleanly', () => {
+            const xml = toolkit.creditNoteToPeppolUBL({
+                ...fullCreditNote,
+                allowanceCharge: [
+                    {
+                        ...fullCreditNote.allowanceCharge![0],
+                        multiplierFactorNumeric: 1e-7,
+                    },
+                ],
+                creditNoteLines: [
+                    {
+                        ...fullCreditNote.creditNoteLines[0],
+                        allowanceCharge: [
+                            {
+                                ...fullCreditNote.creditNoteLines[0]
+                                    .allowanceCharge![0],
+                                multiplierFactorNumeric: 1e-7,
+                            },
+                        ],
+                    },
+                    ...fullCreditNote.creditNoteLines.slice(1),
+                ],
+            });
+
+            expect(xml).not.toContain('1e-7');
+            const parsed = toolkit.peppolUBLToCreditNote(xml);
+            expect(parsed.allowanceCharge?.[0].multiplierFactorNumeric).toBe(
+                1e-7
+            );
+            expect(
+                parsed.creditNoteLines[0].allowanceCharge?.[0]
+                    .multiplierFactorNumeric
+            ).toBe(1e-7);
+        });
     });
 });

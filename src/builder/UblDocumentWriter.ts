@@ -1003,7 +1003,9 @@ export class UblDocumentWriter {
             ...(ac.reason ? { 'cbc:AllowanceChargeReason': ac.reason } : {}),
             ...(ac.multiplierFactorNumeric !== undefined
                 ? {
-                      'cbc:MultiplierFactorNumeric': ac.multiplierFactorNumeric,
+                      'cbc:MultiplierFactorNumeric': new Decimal(
+                          ac.multiplierFactorNumeric
+                      ).toFixed(),
                   }
                 : {}),
             'cbc:Amount': {
@@ -1055,7 +1057,9 @@ export class UblDocumentWriter {
             ...(ac.reason ? { 'cbc:AllowanceChargeReason': ac.reason } : {}),
             ...(ac.multiplierFactorNumeric !== undefined
                 ? {
-                      'cbc:MultiplierFactorNumeric': ac.multiplierFactorNumeric,
+                      'cbc:MultiplierFactorNumeric': new Decimal(
+                          ac.multiplierFactorNumeric
+                      ).toFixed(),
                   }
                 : {}),
             'cbc:Amount': {
@@ -1095,7 +1099,8 @@ export class UblDocumentWriter {
             ...(ref.attachment
                 ? {
                       'cac:Attachment': {
-                          ...(ref.attachment.embeddedDocumentBinaryObject
+                          ...(ref.attachment.embeddedDocumentBinaryObject !==
+                          undefined
                               ? {
                                     'cbc:EmbeddedDocumentBinaryObject': {
                                         '#text':

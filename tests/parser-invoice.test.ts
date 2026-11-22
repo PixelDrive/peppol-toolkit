@@ -541,5 +541,61 @@ describe('Invoice Parser', () => {
                 ['invoiceLines', 0, 'priceAllowanceCharge', 'currency']
             );
         });
+
+        it('should allow cac:PayeeParty with both a payee identifier and a SEPA creditor identifier (UBL-SR-20)', () => {
+            const xml = toolkit
+                .invoiceToPeppolUBL(fullInvoice)
+                .replace(
+                    '<cac:PartyIdentification>\n      <cbc:ID schemeID="SEPA">BE12ZZZ0000000001</cbc:ID>\n    </cac:PartyIdentification>',
+                    '<cac:PartyIdentification>\n      <cbc:ID schemeID="0088">5790000435968</cbc:ID>\n    </cac:PartyIdentification>\n    <cac:PartyIdentification>\n      <cbc:ID schemeID="SEPA">BE12ZZZ0000000001</cbc:ID>\n    </cac:PartyIdentification>'
+                );
+            const parsed = toolkit.peppolUBLToInvoice(xml);
+
+            expect(parsed.payeeParty?.identification).toEqual({
+                id: '5790000435968',
+                schemeID: '0088',
+            });
+        });
+
+        it('should serialize small multiplierFactorNumeric in fixed-point notation and round-trip cleanly', () => {
+            const xml = toolkit.invoiceToPeppolUBL({
+                ...fullInvoice,
+                allowanceCharge: [
+                    {
+                        ...fullInvoice.allowanceCharge![0],
+                        multiplierFactorNumeric: 1e-7,
+                    },
+                ],
+                invoiceLines: [
+                    {
+                        ...fullInvoice.invoiceLines[0],
+                        allowanceCharge: [
+                            {
+                                ...fullInvoice.invoiceLines[0]
+                                    .allowanceCharge![0],
+                                multiplierFactorNumeric: 1e-7,
+                            },
+                        ],
+                    },
+                    ...fullInvoice.invoiceLines.slice(1),
+                ],
+            });
+
+            expect(xml).not.toContain('1e-7');
+            expect(
+                xml.match(
+                    /<cbc:MultiplierFactorNumeric>0\.0000001<\/cbc:MultiplierFactorNumeric>/g
+                )
+            ).toHaveLength(2);
+
+            const parsed = toolkit.peppolUBLToInvoice(xml);
+            expect(parsed.allowanceCharge?.[0].multiplierFactorNumeric).toBe(
+                1e-7
+            );
+            expect(
+                parsed.invoiceLines[0].allowanceCharge?.[0]
+                    .multiplierFactorNumeric
+            ).toBe(1e-7);
+        });
     });
 });

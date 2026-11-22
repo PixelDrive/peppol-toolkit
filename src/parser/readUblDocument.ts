@@ -30,6 +30,8 @@ const REPEATABLE_CHILDREN: Record<string, ReadonlySet<string>> = {
         'cac:CreditNoteLine',
     ]),
     'cac:Party': new Set(['cac:PartyIdentification', 'cac:PartyTaxScheme']),
+    // UBL-SR-20 permits both a payee identifier (BT-60) and a SEPA creditor identifier (BT-90).
+    'cac:PayeeParty': new Set(['cac:PartyIdentification']),
     'cac:TaxTotal': new Set(['cac:TaxSubtotal']),
     'cac:InvoiceLine': new Set(['cbc:Note', 'cac:AllowanceCharge']),
     'cac:CreditNoteLine': new Set(['cbc:Note', 'cac:AllowanceCharge']),

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { peppolAdditionalDocumentReferenceSchema } from '../common/AdditionalDocumentReference';
 import { buyerPartySchema, partySchema } from '../common/Parties';
 import { en16931InvoiceSchema } from '../en16931/Invoice';
 import { InvoiceTypeCodeSchema } from './InvoiceTypeCodes';
@@ -9,6 +10,9 @@ import { InvoiceTypeCodeSchema } from './InvoiceTypeCodes';
  */
 export const invoiceSchema = en16931InvoiceSchema.extend({
     invoiceTypeCode: InvoiceTypeCodeSchema,
+    additionalDocumentReference: z
+        .array(peppolAdditionalDocumentReferenceSchema)
+        .optional(),
     seller: partySchema,
     buyer: buyerPartySchema,
 });
