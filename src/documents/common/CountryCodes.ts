@@ -278,7 +278,7 @@ export function getCountryDescription(code: CountryCode): string {
  * @param code The code to check
  */
 export function isValidCountryCode(code: string): code is CountryCode {
-    return code in CountryCodes;
+    return Object.prototype.hasOwnProperty.call(CountryCodes, code);
 }
 
 // Zod schema for country codes

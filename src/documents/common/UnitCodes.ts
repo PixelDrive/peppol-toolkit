@@ -2188,7 +2188,7 @@ export function getUnitDescription(code: UnitCode): string {
  * @param code The code to check
  */
 export function isValidUnitCode(code: string): code is UnitCode {
-    return code in UnitCodes;
+    return Object.prototype.hasOwnProperty.call(UnitCodes, code);
 }
 
 // Zod schema for unit codes
