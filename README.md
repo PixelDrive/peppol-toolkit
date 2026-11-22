@@ -75,7 +75,7 @@ Version `0.8.0` tightens the public data model to better match PEPPOL BIS Billin
 - `paymentMeans` supports `paymentDueDate`, `cardAccount`, and `paymentMandate`.
 - Tax exemption reasons should be modeled on `taxTotal[].subTotals[].taxCategory`.
   Line `taxCategory` is intentionally limited to `categoryCode` and `percent` in the current TypeScript schema.
-- The package now ships several advanced invoice fixtures for testing: `mixedVatAllowanceInvoice`, `reverseChargeServiceInvoice`, `dualCurrencyInvoice`, `specialVatCategoriesInvoice`, and the grouped `exampleInvoices` export.
+- The package exports example fixtures for testing and quick starts: `exampleInvoice`, `exampleCreditNote`, `exampleEn16931Invoice`, and `exampleEn16931CreditNote`.
 
 ### Before / after example
 
@@ -593,7 +593,7 @@ The main class that provides invoice and credit note conversion functionality.
 | Helper                                                      | Description                                                                                                                                                      |
 | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `PeppolToolkit.computeTotals(items: UBLLineItem[]): Totals` | Calculates line totals, the VAT breakdown per category code and rate (`vatBreakdown`), tax amounts (total and per rate) and grand total following EN 16931 rules |
-| `PeppolToolkit.getEASFromTaxId(taxId: string): string`      | Returns the EAS scheme code for a country-prefixed VAT number                                                                                                    |
+| `PeppolToolkit.getEASFromTaxId(taxId: string): EASCode \| undefined` | Returns the EAS scheme code for a country-prefixed VAT number, or `undefined` if unrecognized                                                                   |
 | `PeppolToolkit.detectUblProfile(xml: string): UblProfile`   | Returns `'peppol-bis3'`, `'en16931'` or `'unknown'` according to the `cbc:CustomizationID` of a UBL document                                                     |
 
 ### `createToolkit()`
@@ -750,12 +750,12 @@ Starting from version 1.0.0, this library will follow [Semantic Versioning (SemV
 - [ ] Implement UBL 2.1 schema validation (offline)
 - [ ] Implement PEPPOL BIS profile validation (offline)
 - [x] Enable online validation against remote services
-- [ ] Support attachments/binary objects embedding (e.g., PDF)
+- [x] Support attachments/binary objects embedding (e.g., PDF)
 - [ ] CLI: Convert JSON invoices to UBL XML
 - [x] Documentation: Examples and recipe-style guides
 - [ ] QA: Expand unit tests
 
-Last updated: 2026-05-13
+Last updated: 2026-11-22
 
 ## Development Scripts
 
