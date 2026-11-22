@@ -11,8 +11,10 @@ export function readUblDocument(xml: string) {
             throw new Error(message);
         },
     });
+    // xmldom rejects a UTF-8 BOM (kept by readFileSync(path, 'utf8')) and whitespace
+    // before the XML declaration; trimStart() removes both.
     const { documentElement: root } = parser.parseFromString(
-        xml,
+        xml.trimStart(),
         'application/xml'
     );
     if (!root) return undefined;

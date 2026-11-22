@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { PeppolToolkit } from '../src';
 import { basicCreditNote } from '../src/data/basic-creditNote';
+import { fullCreditNote } from './fixtures/full-documents';
 
 describe('CreditNote Parser', () => {
     let toolkit: PeppolToolkit;
@@ -182,5 +183,17 @@ describe('CreditNote Parser', () => {
         expect(() => toolkit.peppolUBLToCreditNote(xml)).toThrow(
             'Invalid CreditNoteTypeCode'
         );
+    });
+
+    it('should read back every supported element', () => {
+        const xml = toolkit.creditNoteToPeppolUBL(fullCreditNote);
+        const parsed = toolkit.peppolUBLToCreditNote(xml);
+
+        // Building the parsed credit note again gives the same document
+        expect(toolkit.creditNoteToPeppolUBL(parsed)).toBe(xml);
+        expect(parsed.creditNoteLines[0].priceAllowanceCharge).toEqual(
+            fullCreditNote.creditNoteLines[0].priceAllowanceCharge
+        );
+        expect(toolkit.en16931UBLToCreditNote(xml)).toEqual(parsed);
     });
 });

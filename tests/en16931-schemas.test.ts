@@ -177,6 +177,34 @@ describe('EN 16931 document schemas', () => {
         ).toBe(false);
     });
 
+    it('rejects SEPA as a buyer identifier in Peppol documents too', () => {
+        const identification = [{ id: 'BE12ZZZ0000000001', scheme: 'SEPA' }];
+        const sellerWithSepa = {
+            ...exampleInvoice,
+            seller: { ...exampleInvoice.seller, identification },
+        };
+        const buyerWithSepa = {
+            ...exampleInvoice,
+            buyer: { ...exampleInvoice.buyer, identification },
+        };
+
+        expect(invoiceSchema.safeParse(sellerWithSepa).success).toBe(true);
+        expect(invoiceSchema.safeParse(buyerWithSepa).success).toBe(false);
+        expect(
+            creditNoteSchema.safeParse({
+                ...exampleCreditNote,
+                buyer: { ...exampleCreditNote.buyer, identification },
+            }).success
+        ).toBe(false);
+        // A Peppol document stays an EN 16931 document (BR-CL-10)
+        expect(en16931InvoiceSchema.safeParse(sellerWithSepa).success).toBe(
+            true
+        );
+        expect(en16931InvoiceSchema.safeParse(buyerWithSepa).success).toBe(
+            false
+        );
+    });
+
     it('round-trips negative line amounts, quantities and VAT totals', () => {
         const toolkit = new PeppolToolkit();
         const example = exampleEn16931Invoice;

@@ -760,9 +760,11 @@ export class DocumentParser {
         const priceSection = (l['cac:Price'] ?? {}) as Record<string, unknown>;
         const priceEl = priceSection['cbc:PriceAmount'];
         const baseQtyEl = priceSection['cbc:BaseQuantity'];
-        const priceAC = priceSection['cac:AllowanceCharge'] as
-            | Record<string, unknown>
-            | undefined;
+        // cac:AllowanceCharge is always read as an array (parserOptions); the price has at most one
+        const priceAC = getUblChildren(
+            priceSection,
+            'cac:AllowanceCharge'
+        )?.[0] as Record<string, unknown> | undefined;
         const taxCat = (item['cac:ClassifiedTaxCategory'] ?? {}) as Record<
             string,
             unknown

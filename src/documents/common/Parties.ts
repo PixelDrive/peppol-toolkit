@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { EASCodeSchema } from './EASCodes';
 import { ICDCodeSchema } from './ICDCodes';
 import {
+    buyerIdentificationSchema,
     en16931PartySchema,
     partyIdentificationSchema,
 } from '../en16931/Parties';
@@ -20,4 +21,12 @@ export const partySchema = en16931PartySchema.extend({
         .extend({ scheme: ICDCodeSchema.optional() })
         .array()
         .optional(),
+});
+
+/**
+ * Buyer of a Peppol BIS document: like the EN 16931 buyer, its identifiers cannot use the SEPA
+ * scheme (BR-CL-10), reserved for the seller or payee creditor identifier.
+ */
+export const buyerPartySchema = partySchema.extend({
+    identification: buyerIdentificationSchema(ICDCodeSchema),
 });

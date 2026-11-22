@@ -135,6 +135,40 @@ describe('EN 16931 parser', () => {
         ]);
     });
 
+    it('reads a document starting with a UTF-8 BOM or whitespace', () => {
+        // readFileSync(path, 'utf8') keeps the BOM of a stored file
+        const xml = toolkit.invoiceToEn16931UBL(exampleEn16931Invoice);
+        const expected = toolkit.en16931UBLToInvoice(xml);
+        expect(toolkit.en16931UBLToInvoice(`\uFEFF${xml}`)).toEqual(expected);
+        expect(toolkit.en16931UBLToInvoice(`\n  ${xml}`)).toEqual(expected);
+
+        const peppolXml = toolkit.invoiceToPeppolUBL(exampleInvoice);
+        expect(toolkit.peppolUBLToInvoice(`\uFEFF${peppolXml}`).ID).toBe(
+            exampleInvoice.ID
+        );
+    });
+
+    it('reads the price allowance of a line (BT-147, BT-148)', () => {
+        const priceAllowanceCharge = {
+            amount: 10,
+            baseAmount: 110,
+            currency: 'EUR',
+        } as const;
+        const xml = toolkit.invoiceToEn16931UBL({
+            ...exampleEn16931Invoice,
+            invoiceLines: [
+                {
+                    ...exampleEn16931Invoice.invoiceLines[0],
+                    priceAllowanceCharge,
+                },
+            ],
+        });
+        expect(
+            toolkit.en16931UBLToInvoice(xml).invoiceLines[0]
+                .priceAllowanceCharge
+        ).toEqual(priceAllowanceCharge);
+    });
+
     it('accepts Peppol BIS documents', () => {
         const invoice = toolkit.en16931UBLToInvoice(
             toolkit.invoiceToPeppolUBL(exampleInvoice)

@@ -59,6 +59,12 @@ describe('detectUblProfile', () => {
         expect(detectUblProfile(xml)).toBe('en16931');
     });
 
+    it('recognizes a document starting with a UTF-8 BOM or whitespace', () => {
+        const xml = toolkit.invoiceToPeppolUBL(exampleInvoice);
+        expect(detectUblProfile(`\uFEFF${xml}`)).toBe('peppol-bis3');
+        expect(detectUblProfile(`\n  ${xml}`)).toBe('peppol-bis3');
+    });
+
     it('recognizes CustomizationID declared in the default namespace locally', () => {
         const xml = invoiceWithCustomizationID(EN16931_CUSTOMIZATION_ID)
             .replace(

@@ -49,11 +49,15 @@ export const en16931PartySchema = z.object({
     contact: contactSchema.optional(),
 });
 
-// BR-CL-10 permits SEPA only for the seller or payee creditor identifier (BT-90).
-export const en16931BuyerPartySchema = en16931PartySchema.extend({
-    identification: partyIdentificationSchema
+/**
+ * BR-CL-10 permits SEPA only for the seller or payee creditor identifier (BT-90): the buyer
+ * identifiers use the same schemes, without SEPA.
+ * @param schemes The identification schemes allowed for the parties of the document
+ */
+export function buyerIdentificationSchema<T extends z.ZodEnum>(schemes: T) {
+    return partyIdentificationSchema
         .extend({
-            scheme: en16931ICDCodeSchema
+            scheme: schemes
                 .refine(
                     (scheme): boolean => scheme !== 'SEPA',
                     'SEPA is reserved for the seller or payee creditor identifier'
@@ -61,5 +65,9 @@ export const en16931BuyerPartySchema = en16931PartySchema.extend({
                 .optional(),
         })
         .array()
-        .optional(),
+        .optional();
+}
+
+export const en16931BuyerPartySchema = en16931PartySchema.extend({
+    identification: buyerIdentificationSchema(en16931ICDCodeSchema),
 });
