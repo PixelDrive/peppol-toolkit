@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 /**
  * Duty or tax or fee category codes (subset per EN 16931 / issue request)
+ *
+ * Follows the UNCL5305 code list of Peppol BIS Billing 3.0.21.
  * @see https://docs.peppol.eu/poacc/billing/3.0/codelist/UNCL5305/
  */
 export const DutyTaxFeeCategories = {

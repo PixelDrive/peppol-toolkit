@@ -22,14 +22,14 @@ describe('Creditnote Builder', () => {
 
         const invoiceXML2 = toolkit.creditNoteToPeppolUBL({
             ...basicCreditNote,
-            creditNoteTypeCode: 261,
+            creditNoteTypeCode: 396,
         });
 
         expect(invoiceXML1).toContain(
             '<cbc:CreditNoteTypeCode>381</cbc:CreditNoteTypeCode>'
         );
         expect(invoiceXML2).toContain(
-            '<cbc:CreditNoteTypeCode>261</cbc:CreditNoteTypeCode>'
+            '<cbc:CreditNoteTypeCode>396</cbc:CreditNoteTypeCode>'
         );
     });
 

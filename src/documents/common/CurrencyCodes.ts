@@ -1,5 +1,7 @@
 /**
  * Currency codes as defined by ISO 4217
+ *
+ * Follows the ISO 4217 code list of Peppol BIS Billing 3.0.21 (BR-CL-03, BR-CL-04, BR-CL-05).
  * @see https://www.iso.org/iso-4217-currency-codes.html
  * @see https://docs.peppol.eu/poacc/billing/3.0/codelist/ISO4217/
  */
@@ -10,7 +12,6 @@ export const CurrencyCodes = {
     AFN: 'Afghani',
     ALL: 'Lek',
     AMD: 'Armenian Dram',
-    ANG: 'Netherlands Antillean Guilder',
     AOA: 'Kwanza',
     ARS: 'Argentine Peso',
     AUD: 'Australian Dollar',
@@ -19,7 +20,6 @@ export const CurrencyCodes = {
     BAM: 'Convertible Mark',
     BBD: 'Barbados Dollar',
     BDT: 'Taka',
-    BGN: 'Bulgarian Lev',
     BHD: 'Bahraini Dinar',
     BIF: 'Burundi Franc',
     BMD: 'Bermudian Dollar',
@@ -39,6 +39,7 @@ export const CurrencyCodes = {
     CHW: 'WIR Franc',
     CLF: 'Unidad de Fomento',
     CLP: 'Chilean Peso',
+    CNH: 'Renminbi (offshore)',
     CNY: 'Yuan Renminbi',
     COP: 'Colombian Peso',
     COU: 'Unidad de Valor Real',
@@ -171,6 +172,7 @@ export const CurrencyCodes = {
     XBC: 'Bond Markets Unit European Unit of Account 9 (E.U.A.-9)',
     XBD: 'Bond Markets Unit European Unit of Account 17 (E.U.A.-17)',
     XCD: 'East Caribbean Dollar',
+    XCG: 'Caribbean guilder',
     XDR: 'SDR (Special Drawing Right)',
     XOF: 'CFA Franc BCEAO',
     XPD: 'Palladium',

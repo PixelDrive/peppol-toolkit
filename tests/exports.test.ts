@@ -5,8 +5,8 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 
-/** Values added for EN 16931 documents (types are checked by the tests using them) */
-const en16931Exports = [
+/** Values added for EN 16931 documents and BIS 3.0.21 (types are checked by the tests using them) */
+const addedExports = [
     'CefEASCodes',
     'CefEASCodeSchema',
     'getCefEASDescription',
@@ -17,6 +17,7 @@ const en16931Exports = [
     'EN16931_CUSTOMIZATION_ID',
     'PEPPOL_BIS3_CUSTOMIZATION_ID',
     'PEPPOL_BIS3_PROFILE_ID',
+    'PEPPOL_BIS3_BILLING_WITH_RESPONSE_PROFILE_ID',
     'detectUblProfile',
     'exampleEn16931Invoice',
     'exampleEn16931CreditNote',
@@ -41,7 +42,7 @@ describe('ESM import works', () => {
     });
 
     it('exports the EN 16931 API', () => {
-        for (const name of en16931Exports) {
+        for (const name of addedExports) {
             expect(pkg, name).toHaveProperty(name);
         }
         for (const method of en16931Methods) {
@@ -63,7 +64,7 @@ describe('CJS require works', () => {
 
     it('should expose the EN 16931 API in the built CJS bundle', () => {
         const cjs = require('../dist/index.js');
-        for (const name of en16931Exports) {
+        for (const name of addedExports) {
             expect(cjs, name).toHaveProperty(name);
         }
         const client = cjs.createToolkit();

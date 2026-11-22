@@ -1,10 +1,18 @@
 import { creditNote, dutchBuyer, invoice, KositCase, line } from './helpers';
+import { PEPPOL_BIS3_BILLING_WITH_RESPONSE_PROFILE_ID } from '../../../src';
 
 export const validCases: KositCase[] = [
     {
         name: 'invoice - single line, standard rate 21%',
         kind: 'invoice',
         document: invoice(),
+    },
+    {
+        name: 'invoice - billing with response profile (BIS 3.0.21)',
+        kind: 'invoice',
+        document: invoice({
+            profileID: PEPPOL_BIS3_BILLING_WITH_RESPONSE_PROFILE_ID,
+        }),
     },
     {
         name: 'invoice - several lines with 21% and 6% VAT rates',

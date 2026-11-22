@@ -15,6 +15,13 @@ describe('Currency Codes', () => {
         expect(isValidCurrencyCode('')).toBe(false);
     });
 
+    it('should follow the ISO 4217 list of Peppol BIS 3.0.21', () => {
+        expect(isValidCurrencyCode('XCG')).toBe(true); // Caribbean guilder
+        expect(isValidCurrencyCode('CNH')).toBe(true); // Renminbi (offshore)
+        expect(isValidCurrencyCode('ANG')).toBe(false); // replaced by XCG
+        expect(isValidCurrencyCode('BGN')).toBe(false); // Bulgaria adopted the euro
+    });
+
     it('should return correct currency descriptions', () => {
         expect(getCurrencyDescription('USD')).toBe('US Dollar');
         expect(getCurrencyDescription('EUR')).toBe('Euro');

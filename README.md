@@ -20,6 +20,22 @@ PEPPOL (Pan-European Public Procurement On-Line) is a set of specifications that
 npm install @pixeldrive/peppol-toolkit
 ```
 
+## Breaking changes in `0.10.0`
+
+Version `0.10.0` aligns the code lists with **Peppol BIS Billing 3.0.21** (mandatory since 2026-08-17, see [Code lists](#code-lists)). Codes that the toolkit used to accept but that a BIS 3.0.21 validator rejects are no longer part of the types and schemas: documents using them do not compile anymore and fail to parse with `peppolUBLToInvoice` / `peppolUBLToCreditNote`.
+
+- **EAS** (`EASCodes`, `EASCodeSchema`, used by `endPoint.scheme`): the 14 codes removed by BIS 3.0.21 are no longer accepted: `0037`, `0147`, `0154`, `0170`, `0177`, `0193`, `0194`, `0202`, `0203`, `0205`, `0212`, `0213`, `0215` and `0217` (they were rejected by `PEPPOL-EN16931-CL008`). `0242`, `0244`, `0245`, `0246` and `0248` are added, and 11 descriptions follow the new list (e.g. `0088` is now `Global Location Number`). The removed codes are still part of the CEF EAS code list: such parties can still be invoiced with an [EN 16931 document](#generate-an-en-16931-ubl-document-outside-peppol).
+- `getEASFromTaxId` returns `undefined` for Finnish VAT numbers instead of the removed `0213`.
+- **ICD** (`ICDCodes`, `ICDCodeSchema`, used by `identification[].scheme`): the list now holds the 243 codes of BIS 3.0.21 (192 were missing, including `0246`, `0247` and `0248`) and no longer accepts the `99xx` codes, which are electronic address schemes and not ICD codes (they were rejected by `BR-CL-10`). `SEPA` is still accepted, for the bank assigned creditor identifier (BT-90).
+- **Currencies** (`CurrencyCodes`, `CurrencyCodeSchema`): `ANG` and `BGN` are removed, `XCG` and `CNH` are added.
+- **Credit note type codes** (`CreditNoteTypeCodes`, `CreditNoteTypeCodeSchema`): `261` (self-billed credit note) is removed. BIS Billing only allows `81`, `83`, `381`, `396` and `532` (`PEPPOL-EN16931-P0101`).
+
+Also new in `0.10.0`, without breaking change:
+
+- EN 16931 documents for invoices that do not travel over Peppol, e.g. B2C invoices (see [Generate an EN 16931 UBL document](#generate-an-en-16931-ubl-document-outside-peppol)).
+- `PEPPOL_BIS3_BILLING_WITH_RESPONSE_PROFILE_ID` (`urn:peppol:bis:billing_with_response`), the profile 02 added by BIS 3.0.21, to set as `profileID`. `PEPPOL_BIS3_CUSTOMIZATION_ID` and `PEPPOL_BIS3_PROFILE_ID` are exported as well.
+- The Peppol builders throw a descriptive `TypeError` when the seller or the buyer has no `endPoint` (only possible with untyped input), instead of failing on `undefined`.
+
 ## Breaking changes in `0.9.0`
 
 Version `0.9.0` validates monetary amounts when building UBL documents (see [Amount precision](#amount-precision)).
@@ -592,6 +608,23 @@ Also exported for direct use:
 - `KositValidatorOptions`
 - `KositValidationResult`
 - `KositValidationMessage`
+
+## Code lists
+
+The code lists follow **Peppol BIS Billing 3.0.21**. The EN 16931 schemas use the same lists, except for the electronic address schemes.
+
+| Code list                                   | Export                 | Follows                                                                                                  |
+| ------------------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------- |
+| Electronic address schemes (Peppol)         | `EASCodes`             | Peppol BIS Billing 3.0.21 (`PEPPOL-EN16931-CL008`)                                                       |
+| Electronic address schemes (EN 16931)       | `CefEASCodes`          | BR-CL-25 of the EN 16931 validation artefacts 1.3.17: CEF EAS code list version 17.0, without `XA` (yet) |
+| Party identifier schemes (ISO 6523 ICD)     | `ICDCodes`             | Peppol BIS Billing 3.0.21, plus `SEPA`                                                                   |
+| Currencies (ISO 4217)                       | `CurrencyCodes`        | Peppol BIS Billing 3.0.21                                                                                |
+| Countries (ISO 3166-1 alpha-2)              | `CountryCodes`         | Peppol BIS Billing 3.0.21                                                                                |
+| Invoice type codes (UNCL1001)               | `InvoiceTypeCodes`     | Peppol BIS Billing 3.0.21                                                                                |
+| Credit note type codes (UNCL1001)           | `CreditNoteTypeCodes`  | Peppol BIS Billing 3.0.21                                                                                |
+| Payment means (UNCL4461)                    | `PaymentMeansCodes`    | Peppol BIS Billing 3.0.21                                                                                |
+| VAT categories (UNCL5305)                   | `DutyTaxFeeCategories` | Peppol BIS Billing 3.0.21                                                                                |
+| Units of measure (UN/ECE Recommendation 20) | `UnitCodes`            | Peppol BIS Billing 3.0.21                                                                                |
 
 ## PEPPOL BIS UBL Invoice Elements Checklist
 

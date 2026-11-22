@@ -7,7 +7,7 @@ import {
     KositCase,
     line,
 } from './helpers';
-import { Invoice } from '../../../src';
+import { CreditNote, Invoice } from '../../../src';
 
 const base = invoice();
 
@@ -334,6 +334,21 @@ export const invalidCases: KositCase[] = [
             },
         }),
     },
+    {
+        // 0154 is still in the CEF EAS list, used by EN 16931 documents
+        name: 'invoice - electronic address scheme removed in BIS 3.0.21',
+        kind: 'invoice',
+        expectedErrors: ['PEPPOL-EN16931-CL008'],
+        document: invoice({
+            seller: {
+                ...belgianSeller,
+                endPoint: {
+                    scheme: '0154' as Invoice['seller']['endPoint']['scheme'],
+                    id: '12345678',
+                },
+            },
+        }),
+    },
 
     // --- Credit notes -----------------------------------------------------
     {
@@ -353,6 +368,14 @@ export const invalidCases: KositCase[] = [
         kind: 'creditNote',
         expectedErrors: ['PEPPOL-EN16931-R003'],
         document: creditNote({ buyerReference: undefined }),
+    },
+    {
+        name: 'credit note - self-billed credit note type code',
+        kind: 'creditNote',
+        expectedErrors: ['PEPPOL-EN16931-P0101'],
+        document: creditNote({
+            creditNoteTypeCode: 261 as CreditNote['creditNoteTypeCode'],
+        }),
     },
 
     // --- Syntax (XSD) -----------------------------------------------------

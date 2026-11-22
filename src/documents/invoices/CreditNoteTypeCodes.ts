@@ -1,13 +1,14 @@
 import { z } from 'zod';
 
 /**
- * Invoice type codes as defined by the EU
+ * Credit note type codes (UNCL1001)
+ *
+ * Follows the credit note type code list of Peppol BIS Billing 3.0.21 (PEPPOL-EN16931-P0101).
  * @see https://docs.peppol.eu/poacc/billing/3.0/codelist/UNCL1001-cn/
  * */
 export const CreditNoteTypeCodes = {
     81: 'Credit note related to goods or services',
     83: 'Credit note related to financial adjustments',
-    261: 'Self-billed credit-note',
     381: 'Credit note',
     396: 'Factored credit note',
     532: "Forwarder's credit note",

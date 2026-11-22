@@ -1,5 +1,7 @@
 /**
  * Payment means codes as defined by UN/CEFACT UNCL4461
+ *
+ * Follows the UNCL4461 code list of Peppol BIS Billing 3.0.21.
  * @see https://docs.peppol.eu/poacc/billing/3.0/codelist/UNCL4461/
  */
 import { z } from 'zod';

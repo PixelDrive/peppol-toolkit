@@ -166,9 +166,21 @@ describe('CreditNote Parser', () => {
     it('should work with a different credit note type code', () => {
         const xml = toolkit.creditNoteToPeppolUBL({
             ...basicCreditNote,
-            creditNoteTypeCode: 261,
+            creditNoteTypeCode: 396,
         });
         const parsed = toolkit.peppolUBLToCreditNote(xml);
-        expect(parsed.creditNoteTypeCode).toBe(261);
+        expect(parsed.creditNoteTypeCode).toBe(396);
+    });
+
+    it('should reject the self-billed credit note type code (not allowed by BIS Billing)', () => {
+        const xml = toolkit
+            .creditNoteToPeppolUBL(basicCreditNote)
+            .replace(
+                '<cbc:CreditNoteTypeCode>381</cbc:CreditNoteTypeCode>',
+                '<cbc:CreditNoteTypeCode>261</cbc:CreditNoteTypeCode>'
+            );
+        expect(() => toolkit.peppolUBLToCreditNote(xml)).toThrow(
+            'Invalid CreditNoteTypeCode'
+        );
     });
 });
