@@ -1,4 +1,5 @@
 export * from './EASCodes';
+export * from './CefEASCodes';
 export * from './ICDCodes';
 export * from './CountryCodes';
 export * from './AdressSchema';
@@ -6,6 +7,7 @@ export * from './CurrencyCodes';
 export * from './UnitCodes';
 export * from './PaymentMeansCodes';
 export * from './TaxCategory';
+export * from './PartyTaxScheme';
 export * from './Parties';
 export * from './Date';
 export * from './LegalMonetaryTotal';

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { addressSchema } from './AdressSchema';
-import { partyTaxSchemeSchema } from './Parties';
+import { partyTaxSchemeSchema } from './PartyTaxScheme';
 
 /**
  * Seller tax representative party (BG-11) — required when the seller

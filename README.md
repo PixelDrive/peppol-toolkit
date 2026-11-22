@@ -7,6 +7,7 @@ PEPPOL (Pan-European Public Procurement On-Line) is a set of specifications that
 ## Features
 
 - 🚀 Generate PEPPOL-compliant UBL XML invoices and credit notes
+- 🧾 Generate and read plain EN 16931 UBL documents for invoices that do not travel over Peppol (e.g. B2C invoices)
 - ✅ Validate UBL XML against a KoSIT validator service
 - 📦 ESM and CommonJS builds for broad compatibility
 - 🔷 Written in TypeScript with bundled type definitions
@@ -322,6 +323,96 @@ const creditNote: CreditNote = toolkit.peppolUBLToCreditNote(creditNoteXml);
 console.log(creditNote.ID);
 ```
 
+### Generate an EN 16931 UBL document (outside Peppol)
+
+Some invoices are never sent over Peppol and cannot be valid Peppol BIS documents. B2C invoices are the typical case: Peppol requires an electronic address for the buyer (BT-49, `PEPPOL-EN16931-R010`), and no scheme of the Peppol EAS code list fits a consumer. For these documents, generate a plain EN 16931 document: the core semantic model, without the Peppol CIUS.
+
+```typescript
+import { PeppolToolkit, En16931Invoice } from '@pixeldrive/peppol-toolkit';
+
+const toolkit = new PeppolToolkit();
+
+const invoice: En16931Invoice = {
+    ID: 'B2C-2026-001',
+    issueDate: '2026-03-01',
+    dueDate: '2026-03-31',
+    invoiceTypeCode: 380,
+    documentCurrencyCode: 'EUR',
+    seller: {
+        endPoint: { scheme: '0208', id: '0732788874' },
+        legalEntity: { registrationName: 'Pixeldrive SRL' },
+        address: { cityName: 'Namur', postalZone: '5000', country: 'BE' },
+        taxSchemes: [{ companyId: 'BE0732788874', schemeID: 'VAT' }],
+    },
+    // A consumer: no electronic address, no VAT identifier
+    buyer: {
+        legalEntity: { registrationName: 'Jane Doe' },
+        address: {
+            streetName: 'Rue de Fer 12',
+            cityName: 'Namur',
+            postalZone: '5000',
+            country: 'BE',
+        },
+    },
+    paymentMeans: [
+        { code: '30', financialAccount: { id: 'BE71096123456769' } },
+    ],
+    taxTotal: [
+        {
+            taxAmountCurrency: 'EUR',
+            taxAmount: 21,
+            subTotals: [
+                {
+                    taxableAmount: 100,
+                    taxAmount: 21,
+                    taxCategory: { categoryCode: 'S', percent: 21 },
+                },
+            ],
+        },
+    ],
+    legalMonetaryTotal: {
+        currency: 'EUR',
+        lineExtensionAmount: 100,
+        taxExclusiveAmount: 100,
+        taxInclusiveAmount: 121,
+        payableAmount: 121,
+    },
+    invoiceLines: [
+        {
+            id: '1',
+            invoicedQuantity: 1,
+            unitCode: 'C62',
+            lineExtensionAmount: 100,
+            price: 100,
+            name: 'Website maintenance',
+            currency: 'EUR',
+            taxCategory: { categoryCode: 'S', percent: 21 },
+        },
+    ],
+};
+
+const xml: string = toolkit.invoiceToEn16931UBL(invoice);
+```
+
+Compared to `invoiceToPeppolUBL` and `creditNoteToPeppolUBL`, `invoiceToEn16931UBL` and `creditNoteToEn16931UBL`:
+
+- make `endPoint` (BT-34, BT-49) optional on the seller and the buyer. When present, its scheme must come from the CEF EAS code list (`CefEASCodes`, BR-CL-25), which is wider than the Peppol one: it includes for example `EM` (e-mail address);
+- always write `urn:cen.eu:en16931:2017` (`EN16931_CUSTOMIZATION_ID`) as `cbc:CustomizationID`. The `customizationID` of the document is ignored;
+- only write `cbc:ProfileID` (BT-23) when `profileID` is set;
+- check the amounts in the same way (see [Amount precision](#amount-precision)).
+
+The EN 16931 types are the base of the Peppol ones: every `Invoice` / `CreditNote` is also an `En16931Invoice` / `En16931CreditNote`. The Peppol schemas, builders and parsers keep their strictness: `invoiceToPeppolUBL` throws when the seller or the buyer has no electronic address.
+
+Read EN 16931 documents with `en16931UBLToInvoice` and `en16931UBLToCreditNote`. They accept any document following the EN 16931 model, Peppol BIS documents included, whereas `peppolUBLToInvoice` and `peppolUBLToCreditNote` reject documents that are not valid Peppol documents (e.g. without buyer electronic address).
+
+To know which kind of document you hold, for example to pick the parser and the validator of a stored document or to refuse to send a non-Peppol document over the network, use `detectUblProfile`. It reads the `cbc:CustomizationID`:
+
+```typescript
+PeppolToolkit.detectUblProfile(xml); // 'peppol-bis3' | 'en16931' | 'unknown'
+```
+
+Validating an EN 16931 document with KoSIT requires a configuration with an EN 16931 (CEN) scenario: the Peppol BIS configuration only matches Peppol documents and rejects any other document.
+
 ### Compute Invoice Totals
 
 Use the static `computeTotals` helper to calculate line totals, tax amounts, and the grand total from a list of line items — following EN 16931 rounding rules.
@@ -428,6 +519,8 @@ const creditNoteXml = toolkit.creditNoteToPeppolUBL(exampleCreditNote);
 console.log(creditNoteXml);
 ```
 
+`exampleEn16931Invoice` and `exampleEn16931CreditNote` are EN 16931 documents to a consumer (buyer without electronic address), to use with `invoiceToEn16931UBL` and `creditNoteToEn16931UBL`.
+
 ### Validate UBL XML with KoSIT
 
 You can validate generated (or external) UBL XML through a running KoSIT validator service.
@@ -467,6 +560,10 @@ The main class that provides invoice and credit note conversion functionality.
 | `creditNoteToPeppolUBL(creditNote: CreditNote): string`                                           | Converts a `CreditNote` object to a PEPPOL-compliant UBL XML string          |
 | `peppolUBLToInvoice(xml: string): Invoice`                                                        | Parses a PEPPOL UBL XML string into an `Invoice` object                      |
 | `peppolUBLToCreditNote(xml: string): CreditNote`                                                  | Parses a PEPPOL UBL XML string into a `CreditNote` object                    |
+| `invoiceToEn16931UBL(invoice: En16931Invoice): string`                                            | Converts an `En16931Invoice` object to an EN 16931 UBL XML string            |
+| `creditNoteToEn16931UBL(creditNote: En16931CreditNote): string`                                   | Converts an `En16931CreditNote` object to an EN 16931 UBL XML string         |
+| `en16931UBLToInvoice(xml: string): En16931Invoice`                                                | Parses an EN 16931 (or PEPPOL) UBL XML string into an `En16931Invoice`       |
+| `en16931UBLToCreditNote(xml: string): En16931CreditNote`                                          | Parses an EN 16931 (or PEPPOL) UBL XML string into an `En16931CreditNote`    |
 | `validateWithKosit(xml: string, options?: KositValidatorOptions): Promise<KositValidationResult>` | Sends XML to a KoSIT validator service and returns parsed validation outcome |
 
 #### Static Helpers
@@ -475,6 +572,7 @@ The main class that provides invoice and credit note conversion functionality.
 | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `PeppolToolkit.computeTotals(items: UBLLineItem[]): Totals` | Calculates line totals, the VAT breakdown per category code and rate (`vatBreakdown`), tax amounts (total and per rate) and grand total following EN 16931 rules |
 | `PeppolToolkit.getEASFromTaxId(taxId: string): string`      | Returns the EAS scheme code for a country-prefixed VAT number                                                                                                    |
+| `PeppolToolkit.detectUblProfile(xml: string): UblProfile`   | Returns `'peppol-bis3'`, `'en16931'` or `'unknown'` according to the `cbc:CustomizationID` of a UBL document                                                     |
 
 ### `createToolkit()`
 

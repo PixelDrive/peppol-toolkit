@@ -11,3 +11,9 @@ export const PEPPOL_BIS3_CUSTOMIZATION_ID =
  */
 export const PEPPOL_BIS3_PROFILE_ID =
     'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0';
+
+/**
+ * Specification identifier (cbc:CustomizationID, BT-24) of a document following the EN 16931
+ * core model, without CIUS or extension
+ */
+export const EN16931_CUSTOMIZATION_ID = 'urn:cen.eu:en16931:2017';

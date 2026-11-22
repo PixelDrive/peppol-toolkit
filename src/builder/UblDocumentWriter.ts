@@ -1,7 +1,12 @@
 import { XMLBuilder } from 'fast-xml-parser';
 import Decimal from 'decimal.js';
 import { builderOptions } from './builderOptions';
-import { CurrencyCode, Invoice, partySchema, CreditNote } from '../documents';
+import {
+    CurrencyCode,
+    En16931CreditNote,
+    En16931Invoice,
+    en16931PartySchema,
+} from '../documents';
 import XMLAttributes from '../helpers/XMLAttributes';
 import getDateString from '../helpers/getDateString';
 import { z } from 'zod';
@@ -41,7 +46,7 @@ export class UblDocumentWriter {
      * @param identifiers The customization and profile identifiers of the document
      */
     public writeInvoice(
-        invoice: Invoice,
+        invoice: En16931Invoice,
         identifiers: UblDocumentIdentifiers
     ): string {
         return this.__builder.build(this.__buildInvoice(invoice, identifiers));
@@ -53,7 +58,7 @@ export class UblDocumentWriter {
      * @param identifiers The customization and profile identifiers of the document
      */
     public writeCreditNote(
-        creditNote: CreditNote,
+        creditNote: En16931CreditNote,
         identifiers: UblDocumentIdentifiers
     ): string {
         return this.__builder.build(
@@ -68,7 +73,7 @@ export class UblDocumentWriter {
      * @returns The invoice in UBL format as an object
      */
     private __buildInvoice(
-        invoice: Invoice,
+        invoice: En16931Invoice,
         identifiers: UblDocumentIdentifiers
     ) {
         return {
@@ -269,7 +274,7 @@ export class UblDocumentWriter {
      * @returns The creditNote in UBL format as an object
      */
     private __buildCreditNote(
-        creditNote: CreditNote,
+        creditNote: En16931CreditNote,
         identifiers: UblDocumentIdentifiers
     ) {
         return {
@@ -463,7 +468,7 @@ export class UblDocumentWriter {
      * @returns The PayeeParty XML object
      */
     private __buildPayeeParty(
-        payee: NonNullable<Invoice['payeeParty']>
+        payee: NonNullable<En16931Invoice['payeeParty']>
     ): Record<string, unknown> {
         return {
             ...(payee.identification
@@ -512,7 +517,7 @@ export class UblDocumentWriter {
      * @returns The TaxRepresentativeParty XML object
      */
     private __buildTaxRepresentativeParty(
-        taxRep: NonNullable<Invoice['taxRepresentativeParty']>
+        taxRep: NonNullable<En16931Invoice['taxRepresentativeParty']>
     ): Record<string, unknown> {
         return {
             'cac:PartyName': {
@@ -523,7 +528,9 @@ export class UblDocumentWriter {
         };
     }
 
-    private __buildAddress(address: z.infer<typeof partySchema>['address']) {
+    private __buildAddress(
+        address: z.infer<typeof en16931PartySchema>['address']
+    ) {
         return {
             'cbc:StreetName': address.streetName,
             'cbc:AdditionalStreetName': address.additionalStreetName,
@@ -549,7 +556,7 @@ export class UblDocumentWriter {
      * @returns The PartyTaxScheme XML object
      */
     private __buildPartyTaxScheme(
-        ts: NonNullable<Invoice['taxRepresentativeParty']>['taxScheme']
+        ts: NonNullable<En16931Invoice['taxRepresentativeParty']>['taxScheme']
     ) {
         return {
             'cbc:CompanyID': ts.companyId,
@@ -572,15 +579,20 @@ export class UblDocumentWriter {
      * @param party The party data
      * @returns The party object
      */
-    private __buildParty(party: z.infer<typeof partySchema>) {
+    private __buildParty(party: z.infer<typeof en16931PartySchema>) {
         return {
             'cac:Party': {
-                'cbc:EndpointID': {
-                    '#text': party.endPoint.id,
-                    ...XMLAttributes({
-                        schemeID: party.endPoint.scheme,
-                    }),
-                },
+                // Optional in EN 16931 (BT-34, BT-49), always present in Peppol BIS
+                ...(party.endPoint
+                    ? {
+                          'cbc:EndpointID': {
+                              '#text': party.endPoint.id,
+                              ...XMLAttributes({
+                                  schemeID: party.endPoint.scheme,
+                              }),
+                          },
+                      }
+                    : {}),
                 ...(party.identification && party.identification.length > 0
                     ? {
                           'cac:PartyIdentification': party.identification.map(
@@ -648,7 +660,7 @@ export class UblDocumentWriter {
      * @param means - The payment means data from the invoice, including details about codes, payment IDs, and optional financial account information.
      * @return An array of payment means objects with the structured data or undefined if no payment means are provided.
      */
-    private __buildPaymentMeans(means: Invoice['paymentMeans']) {
+    private __buildPaymentMeans(means: En16931Invoice['paymentMeans']) {
         return means?.map((m) => {
             const financialAccount = m.financialAccount;
             const cardAccount = m.cardAccount;
@@ -725,7 +737,7 @@ export class UblDocumentWriter {
      * @param total - An array representing the tax total details, including tax amounts, sub totals, currencies, and tax categories.
      * @return Returns an array of objects formatted as tax total components, including tax amounts, sub totals, and associated category details in compliance with specified XML attributes and structure.
      */
-    private __buildTaxTotal(total: Invoice['taxTotal']) {
+    private __buildTaxTotal(total: En16931Invoice['taxTotal']) {
         return total.map((t, i) => {
             const path = `taxTotal[${i}]`;
             const taxAmount = formatAmount(`${path}.taxAmount`, t.taxAmount);
@@ -843,7 +855,7 @@ export class UblDocumentWriter {
         return `${sign}${digits.slice(0, -2)}.${digits.slice(-2)}`;
     }
 
-    private __buildMonetaryTotal(total: Invoice['legalMonetaryTotal']) {
+    private __buildMonetaryTotal(total: En16931Invoice['legalMonetaryTotal']) {
         const currency = total.currency;
         return {
             ...this.__buildAmount(
@@ -911,7 +923,7 @@ export class UblDocumentWriter {
     }
 
     private __buildInvoicePeriod(
-        period: NonNullable<Invoice['invoicePeriod']>
+        period: NonNullable<En16931Invoice['invoicePeriod']>
     ) {
         return {
             ...(period.startDate
@@ -926,7 +938,7 @@ export class UblDocumentWriter {
         };
     }
 
-    private __buildDelivery(delivery: NonNullable<Invoice['delivery']>) {
+    private __buildDelivery(delivery: NonNullable<En16931Invoice['delivery']>) {
         return {
             ...(delivery.actualDeliveryDate
                 ? {
@@ -976,7 +988,7 @@ export class UblDocumentWriter {
     }
 
     private __buildAllowanceCharge(
-        ac: NonNullable<Invoice['allowanceCharge']>[number],
+        ac: NonNullable<En16931Invoice['allowanceCharge']>[number],
         documentCurrency: CurrencyCode,
         path: string
     ) {
@@ -1027,7 +1039,7 @@ export class UblDocumentWriter {
 
     private __buildLineAllowanceCharge(
         ac: NonNullable<
-            Invoice['invoiceLines'][number]['allowanceCharge']
+            En16931Invoice['invoiceLines'][number]['allowanceCharge']
         >[number],
         lineCurrency: CurrencyCode,
         path: string
@@ -1065,7 +1077,7 @@ export class UblDocumentWriter {
     }
 
     private __buildAdditionalDocumentReference(
-        ref: NonNullable<Invoice['additionalDocumentReference']>[number]
+        ref: NonNullable<En16931Invoice['additionalDocumentReference']>[number]
     ) {
         return {
             'cbc:ID': {
@@ -1112,7 +1124,7 @@ export class UblDocumentWriter {
         };
     }
 
-    private __buildNotes(notes: NonNullable<Invoice['note']>) {
+    private __buildNotes(notes: NonNullable<En16931Invoice['note']>) {
         return notes.map((note) =>
             note.languageID
                 ? {
@@ -1130,7 +1142,7 @@ export class UblDocumentWriter {
      * @param path The path of the line in the input document (used in error messages)
      */
     private __buildLineItem(
-        line: Invoice['invoiceLines'][number],
+        line: En16931Invoice['invoiceLines'][number],
         quantityTag: string,
         path: string
     ) {

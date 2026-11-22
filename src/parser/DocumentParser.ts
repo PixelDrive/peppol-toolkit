@@ -1,12 +1,18 @@
 import { XMLParser } from 'fast-xml-parser';
 import { parserOptions } from './parserOptions';
 import {
+    CefEASCode,
     CreditNote,
     creditNoteSchema,
     CurrencyCodeSchema,
+    En16931CreditNote,
+    en16931CreditNoteSchema,
+    En16931Invoice,
+    en16931InvoiceSchema,
+    en16931PartySchema,
+    ICDCode,
     Invoice,
     invoiceSchema,
-    partySchema,
 } from '../documents';
 import { z } from 'zod';
 
@@ -18,13 +24,54 @@ export class DocumentParser {
      * Parses a Peppol UBL Invoice XML string into an Invoice object
      * @param xml The UBL Invoice XML string
      * @returns The parsed Invoice object
+     * @throws ZodError when the document is not a valid Peppol invoice, e.g. when a party has no electronic address
      */
     public parseInvoice(xml: string): Invoice {
+        return invoiceSchema.parse(this.__readInvoice(xml));
+    }
+
+    /***
+     * Parses an EN 16931 UBL Invoice XML string into an En16931Invoice object. Accepts any invoice
+     * following the EN 16931 model, Peppol BIS invoices included; the seller and the buyer may have
+     * no electronic address.
+     * @param xml The UBL Invoice XML string
+     * @returns The parsed En16931Invoice object
+     */
+    public parseEn16931Invoice(xml: string): En16931Invoice {
+        return en16931InvoiceSchema.parse(this.__readInvoice(xml));
+    }
+
+    /***
+     * Parses a Peppol UBL CreditNote XML string into a CreditNote object
+     * @param xml The UBL CreditNote XML string
+     * @returns The parsed CreditNote object
+     * @throws ZodError when the document is not a valid Peppol credit note, e.g. when a party has no electronic address
+     */
+    public parseCreditNote(xml: string): CreditNote {
+        return creditNoteSchema.parse(this.__readCreditNote(xml));
+    }
+
+    /***
+     * Parses an EN 16931 UBL CreditNote XML string into an En16931CreditNote object. Accepts any
+     * credit note following the EN 16931 model, Peppol BIS credit notes included; the seller and the
+     * buyer may have no electronic address.
+     * @param xml The UBL CreditNote XML string
+     * @returns The parsed En16931CreditNote object
+     */
+    public parseEn16931CreditNote(xml: string): En16931CreditNote {
+        return en16931CreditNoteSchema.parse(this.__readCreditNote(xml));
+    }
+
+    /**
+     * Reads the content of a UBL Invoice, before validation against a schema
+     * @param xml The UBL Invoice XML string
+     */
+    private __readInvoice(xml: string) {
         const parsed = this.__parser.parse(xml);
         const inv = parsed['Invoice'];
         if (!inv) throw new Error('Not a valid UBL Invoice document');
 
-        const raw = {
+        return {
             customizationID: this.__str(inv['cbc:CustomizationID']),
             profileID: this.__str(inv['cbc:ProfileID']),
             ID: this.__str(inv['cbc:ID'])!,
@@ -89,21 +136,18 @@ export class DocumentParser {
                 this.__parseLineItem(line, 'InvoicedQuantity')
             ),
         };
-
-        return invoiceSchema.parse(raw);
     }
 
-    /***
-     * Parses a Peppol UBL CreditNote XML string into a CreditNote object
+    /**
+     * Reads the content of a UBL CreditNote, before validation against a schema
      * @param xml The UBL CreditNote XML string
-     * @returns The parsed CreditNote object
      */
-    public parseCreditNote(xml: string): CreditNote {
+    private __readCreditNote(xml: string) {
         const parsed = this.__parser.parse(xml);
         const cn = parsed['CreditNote'];
         if (!cn) throw new Error('Not a valid UBL CreditNote document');
 
-        const raw = {
+        return {
             customizationID: this.__str(cn['cbc:CustomizationID']),
             profileID: this.__str(cn['cbc:ProfileID']),
             ID: this.__str(cn['cbc:ID'])!,
@@ -165,13 +209,11 @@ export class DocumentParser {
                     this.__parseLineItem(line, 'CreditedQuantity')
             ),
         };
-
-        return creditNoteSchema.parse(raw);
     }
 
     private __parseParty(
         party: Record<string, unknown>
-    ): z.infer<typeof partySchema> {
+    ): z.infer<typeof en16931PartySchema> {
         if (!party) throw new Error('Missing party in UBL document');
 
         const endpointEl = party['cbc:EndpointID'];
@@ -181,10 +223,7 @@ export class DocumentParser {
             const idEl = (pi as Record<string, unknown>)['cbc:ID'];
             return {
                 id: this.__text(idEl)!,
-                scheme: this.__attr(idEl, 'schemeID'),
-            } as {
-                id: string;
-                scheme?: z.infer<typeof partySchema>['endPoint']['scheme'];
+                scheme: this.__attr(idEl, 'schemeID') as ICDCode | undefined,
             };
         });
 
@@ -203,12 +242,17 @@ export class DocumentParser {
             | undefined;
 
         return {
-            endPoint: {
-                scheme: this.__attr(endpointEl, 'schemeID') as z.infer<
-                    typeof partySchema
-                >['endPoint']['scheme'],
-                id: this.__text(endpointEl)!,
-            },
+            // The electronic address is optional in EN 16931; the Peppol schemas require it
+            endPoint:
+                endpointEl !== undefined
+                    ? {
+                          scheme: this.__attr(
+                              endpointEl,
+                              'schemeID'
+                          ) as CefEASCode,
+                          id: this.__text(endpointEl)!,
+                      }
+                    : undefined,
             identification:
                 identifications.length > 0 ? identifications : undefined,
             name: partyNameEl ? this.__str(partyNameEl['cbc:Name']) : undefined,
@@ -223,7 +267,7 @@ export class DocumentParser {
                 addressLine: this.__parseAddressLine(postal),
                 country: this.__str(
                     country?.['cbc:IdentificationCode']
-                ) as z.infer<typeof partySchema>['address']['country'],
+                ) as z.infer<typeof en16931PartySchema>['address']['country'],
             },
             taxSchemes: (() => {
                 const pts = party['cac:PartyTaxScheme'];
@@ -339,7 +383,7 @@ export class DocumentParser {
                 addressLine: this.__parseAddressLine(postal),
                 country: this.__str(
                     country?.['cbc:IdentificationCode']
-                ) as z.infer<typeof partySchema>['address']['country'],
+                ) as z.infer<typeof en16931PartySchema>['address']['country'],
             },
             taxScheme: {
                 companyId: this.__str(taxSchemeEl?.['cbc:CompanyID'])!,
@@ -506,7 +550,7 @@ export class DocumentParser {
                                 country: this.__str(
                                     locationCountry?.['cbc:IdentificationCode']
                                 ) as z.infer<
-                                    typeof partySchema
+                                    typeof en16931PartySchema
                                 >['address']['country'],
                             }
                           : undefined,
