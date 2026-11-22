@@ -18,3 +18,4 @@ export * from './AllowanceCharge';
 export * from './AdditionalDocumentReference';
 export * from './PayeeParty';
 export * from './TaxRepresentativeParty';
+export * from './SpecificationIdentifiers';
