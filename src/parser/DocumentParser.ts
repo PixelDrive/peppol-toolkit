@@ -8,7 +8,7 @@ import {
     CefEASCode,
     CreditNote,
     creditNoteSchema,
-    CurrencyCodeSchema,
+    CurrencyCode,
     En16931CreditNote,
     en16931CreditNoteSchema,
     En16931Invoice,
@@ -21,12 +21,15 @@ import { partyIdentificationSchema } from '../documents/en16931/Parties';
 import { z } from 'zod';
 
 export class DocumentParser {
+    private static readonly __DECIMAL_PATTERN = /^[+-]?(\d+\.?\d*|\.\d+)$/;
+
     private __hasWarnedLegacyAddressLine = false;
 
     /***
      * Parses a Peppol UBL Invoice XML string into an Invoice object
      * @param xml The UBL Invoice XML string
      * @returns The parsed Invoice object
+     * @throws Error when the XML is malformed, not a UBL Invoice, or repeats a non-repeatable element
      * @throws ZodError when the document is not a valid Peppol invoice, e.g. when a party has no electronic address
      */
     public parseInvoice(xml: string): Invoice {
@@ -38,6 +41,8 @@ export class DocumentParser {
      * following the EN 16931 model, Peppol BIS invoices included; the seller and the buyer may have
      * no electronic address.
      * @param xml The UBL Invoice XML string
+     * @throws Error when the XML is malformed, not a UBL Invoice, or repeats a non-repeatable element
+     * @throws ZodError when the document does not satisfy the EN 16931 invoice schema
      * @returns The parsed En16931Invoice object
      */
     public parseEn16931Invoice(xml: string): En16931Invoice {
@@ -48,6 +53,7 @@ export class DocumentParser {
      * Parses a Peppol UBL CreditNote XML string into a CreditNote object
      * @param xml The UBL CreditNote XML string
      * @returns The parsed CreditNote object
+     * @throws Error when the XML is malformed, not a UBL CreditNote, or repeats a non-repeatable element
      * @throws ZodError when the document is not a valid Peppol credit note, e.g. when a party has no electronic address
      */
     public parseCreditNote(xml: string): CreditNote {
@@ -59,6 +65,8 @@ export class DocumentParser {
      * credit note following the EN 16931 model, Peppol BIS credit notes included; the seller and the
      * buyer may have no electronic address.
      * @param xml The UBL CreditNote XML string
+     * @throws Error when the XML is malformed, not a UBL CreditNote, or repeats a non-repeatable element
+     * @throws ZodError when the document does not satisfy the EN 16931 credit note schema
      * @returns The parsed En16931CreditNote object
      */
     public parseEn16931CreditNote(xml: string): En16931CreditNote {
@@ -79,7 +87,7 @@ export class DocumentParser {
         return {
             ...this.__readCommonFields(inv),
             dueDate: this.__str(inv['cbc:DueDate']),
-            invoiceTypeCode: Number(inv['cbc:InvoiceTypeCode']),
+            invoiceTypeCode: this.__num(inv['cbc:InvoiceTypeCode'])!,
             projectReference: this.__parseSimpleDocRef(
                 getUblChild(inv, 'cac:ProjectReference')
             ),
@@ -102,7 +110,7 @@ export class DocumentParser {
 
         return {
             ...this.__readCommonFields(cn),
-            creditNoteTypeCode: Number(cn['cbc:CreditNoteTypeCode']),
+            creditNoteTypeCode: this.__num(cn['cbc:CreditNoteTypeCode'])!,
             creditNoteLines: (
                 getUblChildren(cn, 'cac:CreditNoteLine') ?? []
             ).map((line) => this.__parseLineItem(line, 'CreditedQuantity')),
@@ -196,7 +204,7 @@ export class DocumentParser {
         ).map((pi) => {
             const idEl = (pi as Record<string, unknown>)['cbc:ID'];
             return {
-                id: this.__text(idEl)!,
+                id: this.__str(idEl)!,
                 scheme: this.__attr(idEl, 'schemeID') as z.infer<
                     typeof partyIdentificationSchema
                 >['scheme'],
@@ -226,7 +234,7 @@ export class DocumentParser {
                               endpointEl,
                               'schemeID'
                           ) as CefEASCode,
-                          id: this.__text(endpointEl)!,
+                          id: this.__str(endpointEl)!,
                       }
                     : undefined,
             identification:
@@ -264,15 +272,16 @@ export class DocumentParser {
                 registrationName: this.__str(
                     legalEntity['cbc:RegistrationName']
                 )!,
-                companyId: this.__str(legalEntity['cbc:CompanyID'])
-                    ? {
-                          id: this.__text(legalEntity['cbc:CompanyID'])!,
-                          schemeID: this.__attr(
-                              legalEntity['cbc:CompanyID'],
-                              'schemeID'
-                          ),
-                      }
-                    : undefined,
+                companyId:
+                    legalEntity['cbc:CompanyID'] !== undefined
+                        ? {
+                              id: this.__str(legalEntity['cbc:CompanyID'])!,
+                              schemeID: this.__attr(
+                                  legalEntity['cbc:CompanyID'],
+                                  'schemeID'
+                              ),
+                          }
+                        : undefined,
                 legalForm: this.__str(legalEntity['cbc:CompanyLegalForm']),
             },
             contact: contact
@@ -290,11 +299,12 @@ export class DocumentParser {
     ): Invoice['payeeParty'] {
         if (!party) return undefined;
 
-        const identEl = getUblChildren(
-            party,
-            'cac:PartyIdentification'
-        )?.[0] as Record<string, unknown> | undefined;
-        const idEl = identEl?.['cbc:ID'];
+        const { identification, creditorIdentification } =
+            this.__parsePayeeIdentifications(
+                (getUblChildren(party, 'cac:PartyIdentification') ??
+                    []) as Record<string, unknown>[]
+            );
+
         const partyNameEl = party['cac:PartyName'] as
             | Record<string, unknown>
             | undefined;
@@ -304,26 +314,76 @@ export class DocumentParser {
         const legalEntityIdEl = legalEntity?.['cbc:CompanyID'];
 
         return {
-            identification: identEl
-                ? {
-                      id: this.__text(idEl)!,
-                      schemeID: this.__attr(idEl, 'schemeID'),
-                  }
-                : undefined,
+            identification,
+            creditorIdentification,
             name: this.__str(partyNameEl?.['cbc:Name'])!,
             legalEntity: legalEntity
                 ? {
-                      companyId: this.__text(legalEntityIdEl)
-                          ? {
-                                id: this.__text(legalEntityIdEl)!,
-                                schemeID: this.__attr(
-                                    legalEntityIdEl,
-                                    'schemeID'
-                                ),
-                            }
-                          : undefined,
+                      companyId:
+                          legalEntityIdEl !== undefined
+                              ? {
+                                    id: this.__str(legalEntityIdEl)!,
+                                    schemeID: this.__attr(
+                                        legalEntityIdEl,
+                                        'schemeID'
+                                    ),
+                                }
+                              : undefined,
                   }
                 : undefined,
+        };
+    }
+
+    private __parsePayeeIdentifications(
+        identEls: Record<string, unknown>[]
+    ): Pick<
+        NonNullable<Invoice['payeeParty']>,
+        'identification' | 'creditorIdentification'
+    > {
+        const parsedIdents = identEls.map((el) => {
+            const idEl = el['cbc:ID'];
+            return {
+                id: this.__str(idEl)!,
+                schemeID: this.__attr(idEl, 'schemeID'),
+            };
+        });
+
+        if (parsedIdents.length === 0) {
+            return {
+                identification: undefined,
+                creditorIdentification: undefined,
+            };
+        }
+        if (parsedIdents.length === 1) {
+            // Preserve backward compatibility when a single identifier is present
+            // (including a standalone SEPA creditor identifier).
+            return {
+                identification: parsedIdents[0],
+                creditorIdentification: undefined,
+            };
+        }
+
+        const sepaIdents = parsedIdents.filter(
+            (entry) => entry.schemeID?.toUpperCase() === 'SEPA'
+        );
+        const payeeIdents = parsedIdents.filter(
+            (entry) => entry.schemeID?.toUpperCase() !== 'SEPA'
+        );
+        if (sepaIdents.length > 1) {
+            throw new Error(
+                'Duplicate SEPA creditor identification in "cac:PayeeParty"'
+            );
+        }
+        if (payeeIdents.length > 1) {
+            throw new Error(
+                'Duplicate payee identification in "cac:PayeeParty"'
+            );
+        }
+
+        return {
+            identification: payeeIdents[0],
+            creditorIdentification:
+                sepaIdents.length === 1 ? (sepaIdents[0].id ?? '') : undefined,
         };
     }
 
@@ -458,13 +518,16 @@ export class DocumentParser {
                 | Record<string, unknown>
                 | undefined;
             return {
-                id: this.__text(idEl)!,
+                id: this.__str(idEl)!,
                 schemeID: this.__attr(idEl, 'schemeID'),
                 documentTypeCode: this.__str(r['cbc:DocumentTypeCode']),
                 documentDescription: this.__str(r['cbc:DocumentDescription']),
                 attachment: attachment
                     ? {
-                          embeddedDocumentBinaryObject: this.__text(binaryObj),
+                          embeddedDocumentBinaryObject:
+                              binaryObj !== undefined
+                                  ? (this.__str(binaryObj) ?? '')
+                                  : undefined,
                           mimeCode: this.__attr(binaryObj, 'mimeCode'),
                           filename: this.__attr(binaryObj, 'filename'),
                           externalReference: extRef
@@ -500,7 +563,10 @@ export class DocumentParser {
             actualDeliveryDate: this.__str(delivery['cbc:ActualDeliveryDate']),
             deliveryLocation: location
                 ? {
-                      id: this.__text(location['cbc:ID']),
+                      id:
+                          location['cbc:ID'] !== undefined
+                              ? (this.__str(location['cbc:ID']) ?? '')
+                              : undefined,
                       locationSchemeID: this.__attr(
                           location['cbc:ID'],
                           'schemeID'
@@ -555,31 +621,18 @@ export class DocumentParser {
                 chargeIndicator: this.__bool(ac['cbc:ChargeIndicator']),
                 reasonCode: this.__str(ac['cbc:AllowanceChargeReasonCode']),
                 reason: this.__str(ac['cbc:AllowanceChargeReason']),
-                multiplierFactorNumeric:
-                    ac['cbc:MultiplierFactorNumeric'] !== undefined
-                        ? Number(ac['cbc:MultiplierFactorNumeric'])
-                        : undefined,
-                amount: Number(this.__text(amtEl)),
-                currency: this.__attr(
-                    amtEl,
-                    'currencyID'
-                ) as Invoice['allowanceCharge'] extends (infer U)[]
-                    ? U extends { currency?: infer C }
-                        ? C
-                        : never
-                    : never,
-                baseAmount:
-                    baseAmtEl !== undefined
-                        ? Number(this.__text(baseAmtEl))
-                        : undefined,
+                multiplierFactorNumeric: this.__num(
+                    ac['cbc:MultiplierFactorNumeric']
+                ),
+                amount: this.__num(amtEl)!,
+                currency: (this.__attr(amtEl, 'currencyID') ??
+                    '') as CurrencyCode,
+                baseAmount: this.__num(baseAmtEl),
                 taxCategory: {
                     categoryCode: this.__str(
                         taxCat['cbc:ID']
                     ) as Invoice['taxTotal'][number]['subTotals'][number]['taxCategory']['categoryCode'],
-                    percent:
-                        taxCat['cbc:Percent'] !== undefined
-                            ? Number(taxCat['cbc:Percent'])
-                            : undefined,
+                    percent: this.__num(taxCat['cbc:Percent']),
                 },
             };
         });
@@ -650,7 +703,7 @@ export class DocumentParser {
             const total = t as Record<string, unknown>;
             const taxAmountEl = total['cbc:TaxAmount'];
             return {
-                taxAmount: Number(this.__text(taxAmountEl)),
+                taxAmount: this.__num(taxAmountEl)!,
                 taxAmountCurrency: this.__attr(
                     taxAmountEl,
                     'currencyID'
@@ -666,12 +719,12 @@ export class DocumentParser {
                         unknown
                     >;
                     return {
-                        taxableAmount: Number(this.__text(taxableAmtEl)),
+                        taxableAmount: this.__num(taxableAmtEl)!,
                         taxableAmountCurrency: this.__attr(
                             taxableAmtEl,
                             'currencyID'
                         ) as Invoice['taxTotal'][number]['subTotals'][number]['taxableAmountCurrency'],
-                        taxAmount: Number(this.__text(taxAmtEl)),
+                        taxAmount: this.__num(taxAmtEl)!,
                         taxAmountCurrency: this.__attr(
                             taxAmtEl,
                             'currencyID'
@@ -680,10 +733,7 @@ export class DocumentParser {
                             categoryCode: this.__str(
                                 cat['cbc:ID']
                             ) as Invoice['taxTotal'][number]['subTotals'][number]['taxCategory']['categoryCode'],
-                            percent:
-                                cat['cbc:Percent'] !== undefined
-                                    ? Number(cat['cbc:Percent'])
-                                    : undefined,
+                            percent: this.__num(cat['cbc:Percent']),
                             exemptionReason: this.__str(
                                 cat['cbc:TaxExemptionReason']
                             ),
@@ -700,52 +750,47 @@ export class DocumentParser {
     private __parseMonetaryTotal(
         total: Record<string, unknown>
     ): Invoice['legalMonetaryTotal'] {
-        const get = (name: string): number | undefined => {
-            const el = total[`cbc:${name}`];
-            return el !== undefined ? Number(this.__text(el)) : undefined;
-        };
-
-        const getCurrency = (
-            name: string
-        ): Invoice['legalMonetaryTotal']['currency'] | undefined => {
-            const el = total[`cbc:${name}`];
-            return el !== undefined
-                ? (this.__attr(
-                      el,
-                      'currencyID'
-                  ) as Invoice['legalMonetaryTotal']['currency'])
-                : undefined;
-        };
-
         const lineExtEl = total['cbc:LineExtensionAmount'];
         const taxExclEl = total['cbc:TaxExclusiveAmount'];
         const taxInclEl = total['cbc:TaxInclusiveAmount'];
         const payableEl = total['cbc:PayableAmount'];
+        const allowanceEl = total['cbc:AllowanceTotalAmount'];
+        const chargeEl = total['cbc:ChargeTotalAmount'];
+        const prepaidEl = total['cbc:PrepaidAmount'];
+        const roundingEl = total['cbc:PayableRoundingAmount'];
 
-        const currency = (this.__attr(lineExtEl, 'currencyID') ??
-            this.__attr(taxExclEl, 'currencyID') ??
-            this.__attr(taxInclEl, 'currencyID') ??
-            this.__attr(payableEl, 'currencyID') ??
-            '') as Invoice['legalMonetaryTotal']['currency'];
+        const attrCurrency = (el: unknown): CurrencyCode | undefined =>
+            this.__attr(el, 'currencyID') as CurrencyCode | undefined;
+
+        const lineExtensionAmountCurrency = attrCurrency(lineExtEl);
+        const taxExclusiveAmountCurrency = attrCurrency(taxExclEl);
+        const taxInclusiveAmountCurrency = attrCurrency(taxInclEl);
+        const payableAmountCurrency = attrCurrency(payableEl);
+
+        const currency = (lineExtensionAmountCurrency ??
+            taxExclusiveAmountCurrency ??
+            taxInclusiveAmountCurrency ??
+            payableAmountCurrency ??
+            '') as CurrencyCode;
 
         return {
             currency,
-            lineExtensionAmount: Number(this.__text(lineExtEl) ?? 0),
-            lineExtensionAmountCurrency: getCurrency('LineExtensionAmount'),
-            taxExclusiveAmount: get('TaxExclusiveAmount')!,
-            taxExclusiveAmountCurrency: getCurrency('TaxExclusiveAmount'),
-            taxInclusiveAmount: get('TaxInclusiveAmount')!,
-            taxInclusiveAmountCurrency: getCurrency('TaxInclusiveAmount'),
-            payableAmount: get('PayableAmount')!,
-            payableAmountCurrency: getCurrency('PayableAmount'),
-            allowanceTotalAmount: get('AllowanceTotalAmount'),
-            allowanceTotalAmountCurrency: getCurrency('AllowanceTotalAmount'),
-            chargeTotalAmount: get('ChargeTotalAmount'),
-            chargeTotalAmountCurrency: getCurrency('ChargeTotalAmount'),
-            prepaidAmount: get('PrepaidAmount'),
-            prepaidAmountCurrency: getCurrency('PrepaidAmount'),
-            payableRoundingAmount: get('PayableRoundingAmount'),
-            payableRoundingAmountCurrency: getCurrency('PayableRoundingAmount'),
+            lineExtensionAmount: this.__num(lineExtEl)!,
+            lineExtensionAmountCurrency,
+            taxExclusiveAmount: this.__num(taxExclEl)!,
+            taxExclusiveAmountCurrency,
+            taxInclusiveAmount: this.__num(taxInclEl)!,
+            taxInclusiveAmountCurrency,
+            payableAmount: this.__num(payableEl)!,
+            payableAmountCurrency,
+            allowanceTotalAmount: this.__num(allowanceEl),
+            allowanceTotalAmountCurrency: attrCurrency(allowanceEl),
+            chargeTotalAmount: this.__num(chargeEl),
+            chargeTotalAmountCurrency: attrCurrency(chargeEl),
+            prepaidAmount: this.__num(prepaidEl),
+            prepaidAmountCurrency: attrCurrency(prepaidEl),
+            payableRoundingAmount: this.__num(roundingEl),
+            payableRoundingAmountCurrency: attrCurrency(roundingEl),
         };
     }
 
@@ -786,12 +831,12 @@ export class DocumentParser {
         return {
             id: this.__str(l['cbc:ID'])!,
             note: this.__parseNotes(l['cbc:Note']),
-            invoicedQuantity: Number(this.__text(qtyEl)),
+            invoicedQuantity: this.__num(qtyEl)!,
             unitCode: this.__attr(
                 qtyEl,
                 'unitCode'
             ) as Invoice['invoiceLines'][number]['unitCode'],
-            lineExtensionAmount: Number(this.__text(amtEl)),
+            lineExtensionAmount: this.__num(amtEl)!,
             currency: this.__attr(
                 amtEl,
                 'currencyID'
@@ -854,18 +899,13 @@ export class DocumentParser {
                               reason: this.__str(
                                   a['cbc:AllowanceChargeReason']
                               ),
-                              multiplierFactorNumeric:
-                                  a['cbc:MultiplierFactorNumeric'] !== undefined
-                                      ? Number(a['cbc:MultiplierFactorNumeric'])
-                                      : undefined,
-                              amount: Number(this.__text(acAmtEl)),
-                              currency: CurrencyCodeSchema.parse(
-                                  this.__attr(acAmtEl, 'currencyID')
+                              multiplierFactorNumeric: this.__num(
+                                  a['cbc:MultiplierFactorNumeric']
                               ),
-                              baseAmount:
-                                  acBaseEl !== undefined
-                                      ? Number(this.__text(acBaseEl))
-                                      : undefined,
+                              amount: this.__num(acAmtEl)!,
+                              currency: (this.__attr(acAmtEl, 'currencyID') ??
+                                  '') as CurrencyCode,
+                              baseAmount: this.__num(acBaseEl),
                           };
                       })
                     : undefined,
@@ -887,7 +927,7 @@ export class DocumentParser {
             ),
             standardItemIdentification: stdIdEl
                 ? {
-                      id: this.__text(stdIdEl)!,
+                      id: this.__str(stdIdEl)!,
                       schemeID: this.__attr(stdIdEl, 'schemeID')!,
                   }
                 : undefined,
@@ -904,7 +944,7 @@ export class DocumentParser {
                           const c = cc as Record<string, unknown>;
                           const codeEl = c['cbc:ItemClassificationCode'];
                           return {
-                              code: this.__text(codeEl)!,
+                              code: this.__str(codeEl)!,
                               listID: this.__attr(codeEl, 'listID')!,
                               listVersionID: this.__attr(
                                   codeEl,
@@ -913,15 +953,12 @@ export class DocumentParser {
                           };
                       })
                     : undefined,
-            price: Number(this.__text(priceEl)),
+            price: this.__num(priceEl)!,
             taxCategory: {
                 categoryCode: this.__str(
                     taxCat['cbc:ID']
                 ) as Invoice['invoiceLines'][number]['taxCategory']['categoryCode'],
-                percent:
-                    taxCat['cbc:Percent'] !== undefined
-                        ? Number(taxCat['cbc:Percent'])
-                        : undefined,
+                percent: this.__num(taxCat['cbc:Percent']),
             },
             additionalItemProperties:
                 additionalProperties.length > 0
@@ -933,21 +970,15 @@ export class DocumentParser {
                           };
                       })
                     : undefined,
-            baseQuantity:
-                baseQtyEl !== undefined
-                    ? Number(this.__text(baseQtyEl))
-                    : undefined,
+            baseQuantity: this.__num(baseQtyEl),
             priceAllowanceCharge: priceAC
                 ? {
-                      amount: Number(this.__text(priceAC['cbc:Amount'])),
-                      currency: this.__attr(
+                      amount: this.__num(priceAC['cbc:Amount'])!,
+                      currency: (this.__attr(
                           priceAC['cbc:Amount'],
                           'currencyID'
-                      ) as Invoice['invoiceLines'][number]['currency'],
-                      baseAmount:
-                          priceAC['cbc:BaseAmount'] !== undefined
-                              ? Number(this.__text(priceAC['cbc:BaseAmount']))
-                              : undefined,
+                      ) ?? '') as CurrencyCode,
+                      baseAmount: this.__num(priceAC['cbc:BaseAmount']),
                   }
                 : undefined,
         };
@@ -956,14 +987,16 @@ export class DocumentParser {
     /**
      * Returns the text content of a parsed XML element.
      * Handles both plain values and objects with a '#text' property.
+     * Returns undefined for objects without text content (e.g. empty elements
+     * with attributes).
      */
     private __text(value: unknown): string | undefined {
         if (value === undefined || value === null) return undefined;
-        if (
-            typeof value === 'object' &&
-            '#text' in (value as Record<string, unknown>)
-        ) {
-            return String((value as Record<string, unknown>)['#text']);
+        if (typeof value === 'object') {
+            const text = (value as Record<string, unknown>)['#text'];
+            return text !== undefined && text !== null
+                ? String(text)
+                : undefined;
         }
         return String(value);
     }
@@ -971,7 +1004,7 @@ export class DocumentParser {
     private __parseNotes(
         notes: unknown
     ): { content: string; languageID?: string }[] | undefined {
-        if (!notes) return undefined;
+        if (notes === undefined) return undefined;
         const notesArray = Array.isArray(notes) ? notes : [notes];
         return notesArray.map((note) => ({
             content: this.__str(note)!,
@@ -981,12 +1014,24 @@ export class DocumentParser {
 
     /**
      * Returns the string value of an element, returning undefined for
-     * missing or empty values.
+     * missing, empty, or whitespace-only values.
      */
     private __str(value: unknown): string | undefined {
         const text = this.__text(value);
-        if (text === undefined || text === '') return undefined;
+        if (text === undefined || text.trim() === '') return undefined;
         return text;
+    }
+
+    /**
+     * Returns the numeric value of an element as an xsd:decimal, returning
+     * undefined for missing/empty/whitespace-only values and NaN for invalid
+     * numeric syntax (such as hex, binary, or scientific notation).
+     */
+    private __num(value: unknown): number | undefined {
+        const text = this.__str(value)?.trim();
+        if (text === undefined || text === '') return undefined;
+        if (!DocumentParser.__DECIMAL_PATTERN.test(text)) return Number.NaN;
+        return Number(text);
     }
 
     /**

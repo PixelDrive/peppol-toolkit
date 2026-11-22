@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { PeppolToolkit } from '../src';
 import { basicCreditNote } from '../src/data/basic-creditNote';
 import { fullCreditNote } from './fixtures/full-documents';
+import { expectZodPath } from './helpers/expectZodPath';
 
 describe('CreditNote Parser', () => {
     let toolkit: PeppolToolkit;
@@ -195,5 +196,172 @@ describe('CreditNote Parser', () => {
             fullCreditNote.creditNoteLines[0].priceAllowanceCharge
         );
         expect(toolkit.en16931UBLToCreditNote(xml)).toEqual(parsed);
+    });
+
+    describe('empty, missing, invalid numeric, and repeated XML elements (#31)', () => {
+        it('should reject empty elements with attributes instead of parsing "[object Object]"', () => {
+            const emptyEndpoint = toolkit
+                .creditNoteToPeppolUBL(basicCreditNote)
+                .replace(
+                    '<cbc:EndpointID schemeID="9925">0732788874</cbc:EndpointID>',
+                    '<cbc:EndpointID schemeID="9925"/>'
+                );
+            expectZodPath(
+                () => toolkit.peppolUBLToCreditNote(emptyEndpoint),
+                ['seller', 'endPoint', 'id']
+            );
+        });
+
+        it('should reject missing LineExtensionAmount in LegalMonetaryTotal', () => {
+            const xml = toolkit
+                .creditNoteToPeppolUBL(basicCreditNote)
+                .replace(
+                    /<cbc:LineExtensionAmount currencyID="EUR">100\.00<\/cbc:LineExtensionAmount>\s*<cbc:TaxExclusiveAmount/,
+                    '<cbc:TaxExclusiveAmount'
+                );
+            expectZodPath(
+                () => toolkit.peppolUBLToCreditNote(xml),
+                ['legalMonetaryTotal', 'lineExtensionAmount']
+            );
+        });
+
+        it('should parse empty or whitespace-only optional numeric elements as undefined instead of 0', () => {
+            const xml = toolkit
+                .creditNoteToPeppolUBL(basicCreditNote)
+                .replace(
+                    /<cbc:Percent>21<\/cbc:Percent>/g,
+                    '<cbc:Percent><![CDATA[ ]]></cbc:Percent>'
+                );
+            const parsed = toolkit.peppolUBLToCreditNote(xml);
+
+            expect(
+                parsed.taxTotal[0].subTotals[0].taxCategory.percent
+            ).toBeUndefined();
+            expect(
+                parsed.creditNoteLines[0].taxCategory.percent
+            ).toBeUndefined();
+        });
+
+        it('should reject non-decimal numeric syntax', () => {
+            const xml = toolkit
+                .creditNoteToPeppolUBL(basicCreditNote)
+                .replace(
+                    '<cbc:CreditNoteTypeCode>381</cbc:CreditNoteTypeCode>',
+                    '<cbc:CreditNoteTypeCode>0x17d</cbc:CreditNoteTypeCode>'
+                );
+            expectZodPath(
+                () => toolkit.peppolUBLToCreditNote(xml),
+                ['creditNoteTypeCode']
+            );
+        });
+
+        it('should reject missing or invalid line allowanceCharge currencyID with full Zod error paths', () => {
+            const xml = toolkit.creditNoteToPeppolUBL({
+                ...basicCreditNote,
+                creditNoteLines: [
+                    {
+                        ...basicCreditNote.creditNoteLines[0],
+                        allowanceCharge: [
+                            { chargeIndicator: false, amount: 10 },
+                        ],
+                    },
+                ],
+            });
+
+            const withoutCurrency = xml.replace(
+                '<cbc:Amount currencyID="EUR">10.00</cbc:Amount>',
+                '<cbc:Amount>10.00</cbc:Amount>'
+            );
+            expectZodPath(
+                () => toolkit.peppolUBLToCreditNote(withoutCurrency),
+                ['creditNoteLines', 0, 'allowanceCharge', 0, 'currency']
+            );
+
+            const invalidCurrency = xml.replace(
+                '<cbc:Amount currencyID="EUR">10.00</cbc:Amount>',
+                '<cbc:Amount currencyID="INVALID">10.00</cbc:Amount>'
+            );
+            expectZodPath(
+                () => toolkit.peppolUBLToCreditNote(invalidCurrency),
+                ['creditNoteLines', 0, 'allowanceCharge', 0, 'currency']
+            );
+        });
+
+        it('should reject duplicate non-repeatable elements such as cac:AddressLine and cbc:BuyerReference', () => {
+            const xml = toolkit.creditNoteToPeppolUBL(fullCreditNote);
+
+            expect(() =>
+                toolkit.peppolUBLToCreditNote(
+                    xml.replace(
+                        '<cac:AddressLine>',
+                        '<cac:AddressLine><cbc:Line>Building A</cbc:Line></cac:AddressLine><cac:AddressLine>'
+                    )
+                )
+            ).toThrow(
+                'Duplicate element "cac:AddressLine" in "cac:PostalAddress"'
+            );
+
+            expect(() =>
+                toolkit.peppolUBLToCreditNote(
+                    xml.replace(
+                        '<cbc:BuyerReference>PO-4521</cbc:BuyerReference>',
+                        '<cbc:BuyerReference>PO-1</cbc:BuyerReference><cbc:BuyerReference>PO-2</cbc:BuyerReference>'
+                    )
+                )
+            ).toThrow('Duplicate element "cbc:BuyerReference" in "CreditNote"');
+        });
+
+        it('should reject empty embedded binary attachment in Peppol credit notes (PEPPOL-EN16931-R008)', () => {
+            const xml = toolkit
+                .creditNoteToPeppolUBL(fullCreditNote)
+                .replace(
+                    '<cbc:EmbeddedDocumentBinaryObject mimeCode="application/pdf" filename="timesheet.pdf">aGVsbG8gd29ybGQ=</cbc:EmbeddedDocumentBinaryObject>',
+                    '<cbc:EmbeddedDocumentBinaryObject mimeCode="application/pdf" filename="timesheet.pdf"/>'
+                );
+            expectZodPath(
+                () => toolkit.peppolUBLToCreditNote(xml),
+                [
+                    'additionalDocumentReference',
+                    0,
+                    'attachment',
+                    'embeddedDocumentBinaryObject',
+                ]
+            );
+        });
+
+        it('should serialize small multiplierFactorNumeric in fixed-point notation and round-trip cleanly', () => {
+            const xml = toolkit.creditNoteToPeppolUBL({
+                ...fullCreditNote,
+                allowanceCharge: [
+                    {
+                        ...fullCreditNote.allowanceCharge![0],
+                        multiplierFactorNumeric: 1e-7,
+                    },
+                ],
+                creditNoteLines: [
+                    {
+                        ...fullCreditNote.creditNoteLines[0],
+                        allowanceCharge: [
+                            {
+                                ...fullCreditNote.creditNoteLines[0]
+                                    .allowanceCharge![0],
+                                multiplierFactorNumeric: 1e-7,
+                            },
+                        ],
+                    },
+                    ...fullCreditNote.creditNoteLines.slice(1),
+                ],
+            });
+
+            expect(xml).not.toContain('1e-7');
+            const parsed = toolkit.peppolUBLToCreditNote(xml);
+            expect(parsed.allowanceCharge?.[0].multiplierFactorNumeric).toBe(
+                1e-7
+            );
+            expect(
+                parsed.creditNoteLines[0].allowanceCharge?.[0]
+                    .multiplierFactorNumeric
+            ).toBe(1e-7);
+        });
     });
 });

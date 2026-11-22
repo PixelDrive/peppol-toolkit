@@ -9,6 +9,8 @@ import { invoiceSchema } from './Invoice';
  */
 export const creditNoteSchema = en16931CreditNoteSchema.extend({
     creditNoteTypeCode: CreditNoteTypeCodeSchema,
+    additionalDocumentReference:
+        invoiceSchema.shape.additionalDocumentReference,
     seller: invoiceSchema.shape.seller,
     buyer: invoiceSchema.shape.buyer,
 });

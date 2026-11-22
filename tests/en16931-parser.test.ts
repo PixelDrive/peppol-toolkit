@@ -182,6 +182,56 @@ describe('EN 16931 parser', () => {
         expect(creditNote.customizationID).toBe(PEPPOL_BIS3_CUSTOMIZATION_ID);
         expect(creditNote.ID).toBe(exampleCreditNote.ID);
     });
+
+    it('accepts a zero-byte embedded attachment in EN 16931 documents while Peppol rejects it', () => {
+        const attachmentDoc = {
+            additionalDocumentReference: [
+                {
+                    id: 'EMPTY-1',
+                    attachment: {
+                        embeddedDocumentBinaryObject: '',
+                        mimeCode: 'text/plain',
+                        filename: 'empty.txt',
+                    },
+                },
+            ],
+        };
+
+        const invoiceXml = toolkit.invoiceToEn16931UBL({
+            ...exampleEn16931Invoice,
+            ...attachmentDoc,
+        });
+        const parsedInvoice = toolkit.en16931UBLToInvoice(invoiceXml);
+        expect(parsedInvoice.additionalDocumentReference).toEqual(
+            attachmentDoc.additionalDocumentReference
+        );
+
+        const creditNoteXml = toolkit.creditNoteToEn16931UBL({
+            ...exampleEn16931CreditNote,
+            ...attachmentDoc,
+        });
+        const parsedCreditNote = toolkit.en16931UBLToCreditNote(creditNoteXml);
+        expect(parsedCreditNote.additionalDocumentReference).toEqual(
+            attachmentDoc.additionalDocumentReference
+        );
+
+        const peppolInvoiceXml = toolkit
+            .invoiceToPeppolUBL({
+                ...exampleInvoice,
+                additionalDocumentReference: [
+                    {
+                        id: 'EMPTY-1',
+                        attachment: {
+                            embeddedDocumentBinaryObject: 'aGVsbG8=',
+                            mimeCode: 'text/plain',
+                            filename: 'empty.txt',
+                        },
+                    },
+                ],
+            })
+            .replace('>aGVsbG8=<', '><');
+        expect(() => toolkit.peppolUBLToInvoice(peppolInvoiceXml)).toThrow();
+    });
 });
 
 describe('Peppol parser', () => {

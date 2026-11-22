@@ -470,19 +470,35 @@ export class UblDocumentWriter {
     private __buildPayeeParty(
         payee: NonNullable<En16931Invoice['payeeParty']>
     ): Record<string, unknown> {
+        const partyIdentifications: Record<string, unknown>[] = [];
+        if (payee.identification) {
+            partyIdentifications.push({
+                'cbc:ID': {
+                    '#text': payee.identification.id,
+                    ...(payee.identification.schemeID
+                        ? XMLAttributes({
+                              schemeID: payee.identification.schemeID,
+                          })
+                        : {}),
+                },
+            });
+        }
+        if (payee.creditorIdentification) {
+            partyIdentifications.push({
+                'cbc:ID': {
+                    '#text': payee.creditorIdentification,
+                    ...XMLAttributes({ schemeID: 'SEPA' }),
+                },
+            });
+        }
+
         return {
-            ...(payee.identification
+            ...(partyIdentifications.length > 0
                 ? {
-                      'cac:PartyIdentification': {
-                          'cbc:ID': {
-                              '#text': payee.identification.id,
-                              ...(payee.identification.schemeID
-                                  ? XMLAttributes({
-                                        schemeID: payee.identification.schemeID,
-                                    })
-                                  : {}),
-                          },
-                      },
+                      'cac:PartyIdentification':
+                          partyIdentifications.length === 1
+                              ? partyIdentifications[0]
+                              : partyIdentifications,
                   }
                 : {}),
             'cac:PartyName': {
@@ -1003,7 +1019,9 @@ export class UblDocumentWriter {
             ...(ac.reason ? { 'cbc:AllowanceChargeReason': ac.reason } : {}),
             ...(ac.multiplierFactorNumeric !== undefined
                 ? {
-                      'cbc:MultiplierFactorNumeric': ac.multiplierFactorNumeric,
+                      'cbc:MultiplierFactorNumeric': new Decimal(
+                          ac.multiplierFactorNumeric
+                      ).toFixed(),
                   }
                 : {}),
             'cbc:Amount': {
@@ -1055,7 +1073,9 @@ export class UblDocumentWriter {
             ...(ac.reason ? { 'cbc:AllowanceChargeReason': ac.reason } : {}),
             ...(ac.multiplierFactorNumeric !== undefined
                 ? {
-                      'cbc:MultiplierFactorNumeric': ac.multiplierFactorNumeric,
+                      'cbc:MultiplierFactorNumeric': new Decimal(
+                          ac.multiplierFactorNumeric
+                      ).toFixed(),
                   }
                 : {}),
             'cbc:Amount': {
@@ -1095,7 +1115,8 @@ export class UblDocumentWriter {
             ...(ref.attachment
                 ? {
                       'cac:Attachment': {
-                          ...(ref.attachment.embeddedDocumentBinaryObject
+                          ...(ref.attachment.embeddedDocumentBinaryObject !==
+                          undefined
                               ? {
                                     'cbc:EmbeddedDocumentBinaryObject': {
                                         '#text':
